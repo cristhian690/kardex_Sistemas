@@ -105,7 +105,7 @@ const Sidebar = ({ onNavigate, currentPath }: { onNavigate: (p: string) => void;
   )
 
   return (
-    <aside style={{ width: 158, flexShrink: 0, background: '#080e1c', borderRight: '1px solid rgba(56,139,221,0.1)', padding: '12px 10px', display: 'flex', flexDirection: 'column' }}>
+    <aside style={{ width: 200, flexShrink: 0, background: '#080e1c', borderRight: '1px solid rgba(56,139,221,0.1)', padding: '12px 10px', display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 4px 16px' }}>
         <div style={{ width: 26, height: 26, borderRadius: 7, background: 'linear-gradient(135deg,#2563eb,#1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
           <IconBox />

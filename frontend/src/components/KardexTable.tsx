@@ -124,21 +124,21 @@ export default function KardexTable({ movimientos, mostrarSemaforo = false }: Ka
               const esError = globalIndex === primerErrorIndex;
               const semaforo = getSemaforo(row);
               const tieneError = semaforo !== "🟢";
+              const bgBase = esError
+                ? "rgba(245,158,11,0.15)"
+                : tieneError
+                ? "rgba(226,75,74,0.06)"
+                : i % 2 === 0
+                ? "transparent"
+                : "rgba(55,138,221,0.03)";
 
               return (
                 <tr
                   key={row.id}
                   ref={esError ? firstErrorRef : null}
-                  style={{
-                    background: esError
-                      ? "rgba(245,158,11,0.15)"
-                      : tieneError
-                      ? "rgba(226,75,74,0.06)"
-                      : i % 2 === 0
-                      ? "transparent"
-                      : "rgba(55,138,221,0.03)",
-                    borderBottom: "1px solid rgba(55,138,221,0.05)",
-                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(56,139,221,0.09)" }}
+                  onMouseLeave={e => { e.currentTarget.style.background = bgBase }}
+                  style={{ background: bgBase, transition: "background .1s" }}
                 >
                   {mostrarSemaforo && <td style={td}>{semaforo}</td>}
                   <td style={td}>{row.fila}</td>
@@ -198,35 +198,45 @@ export default function KardexTable({ movimientos, mostrarSemaforo = false }: Ka
 }
 
 // estilos
-const thDark = { background: "#0d1f33" };
+const thDark = { background: "#0b1a2c" };
 
 const thGrupo = {
-  padding: "6px",
-  textTransform: "uppercase",
+  padding: "7px 10px",
+  textTransform: "uppercase" as const,
   fontSize: 9,
-  color: "white",
+  letterSpacing: ".12em",
+  fontWeight: 700,
+  color: "rgba(255,255,255,0.88)",
+  fontFamily: "'IBM Plex Mono', monospace",
 };
 
 const thSub = {
-  padding: "5px",
+  padding: "6px 10px",
   fontSize: 9,
-  color: "#3a6080",
+  fontWeight: 600,
+  letterSpacing: ".06em",
+  color: "#4a7a9a",
+  background: "#0a1929",
+  borderBottom: "1px solid rgba(56,139,221,0.14)",
 };
 
 const td = {
-  padding: "6px 8px",
+  padding: "9px 10px",
   color: "#6a8ab0",
+  borderBottom: "1px solid rgba(55,138,221,0.04)",
 };
 
 function PagBtn({ onClick, disabled, children }: any) {
   return (
     <button onClick={onClick} disabled={disabled} style={{
-      padding: "4px 8px",
+      padding: "4px 10px",
       borderRadius: 6,
-      background: disabled ? "#eee" : "#378ADD",
-      color: disabled ? "#888" : "white",
-      border: "none",
-      cursor: disabled ? "not-allowed" : "pointer"
+      background: disabled ? "rgba(56,139,221,0.05)" : "rgba(56,139,221,0.15)",
+      color: disabled ? "#2a4a6a" : "#60a5fa",
+      border: "1px solid " + (disabled ? "rgba(56,139,221,0.08)" : "rgba(56,139,221,0.28)"),
+      cursor: disabled ? "not-allowed" : "pointer",
+      fontSize: 12,
+      fontFamily: "'IBM Plex Mono', monospace",
     }}>
       {children}
     </button>

@@ -12,15 +12,16 @@ interface FileUploaderProps {
 
 export default function FileUploader({
   label,
-  accept    = '.xlsx',
-  multiple  = false,
+  accept      = '.xlsx',
+  multiple    = false,
   onChange,
-  files     = [],
-  disabled  = false,
+  files       = [],
+  disabled    = false,
   description,
 }: FileUploaderProps) {
-  const inputRef  = useRef<HTMLInputElement>(null)
+  const inputRef             = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
+  const [hovered,  setHovered]  = useState(false)
 
   const handleFiles = useCallback((incoming: FileList | null) => {
     if (!incoming) return
@@ -31,6 +32,7 @@ export default function FileUploader({
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setDragging(false)
+    setHovered(false)
     if (disabled) return
     handleFiles(e.dataTransfer.files)
   }, [disabled, handleFiles])
@@ -48,81 +50,103 @@ export default function FileUploader({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     handleFiles(e.target.files)
-    // Reset para permitir subir el mismo archivo nuevamente
     e.target.value = ''
   }
 
   const eliminarArchivo = (index: number) => {
-    const nuevos = files.filter((_, i) => i !== index)
-    onChange(nuevos)
+    onChange(files.filter((_, i) => i !== index))
   }
 
-  return (
-    <div className="w-full">
-      {/* Label */}
-      <p className="text-sm font-semibold text-gray-700 mb-2">{label}</p>
+  const active = dragging || hovered
 
-      {/* Zona de drop */}
+  return (
+    <div style={{ width: '100%' }}>
+      {label && (
+        <p style={{ fontSize: 12, fontWeight: 600, color: '#4a7a9a', marginBottom: 8 }}>
+          {label}
+        </p>
+      )}
+
+      {/* ── Zona de drop ── */}
       <div
         onClick={handleClick}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        className={[
-          'border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all',
-          dragging
-            ? 'border-indigo-500 bg-indigo-50'
-            : 'border-gray-300 hover:border-indigo-400 hover:bg-gray-50',
-          disabled ? 'opacity-50 cursor-not-allowed' : '',
-        ].join(' ')}
+        onMouseEnter={() => { if (!disabled) setHovered(true) }}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          border: `2px dashed ${active ? '#3b82f6' : 'rgba(56,139,221,0.22)'}`,
+          borderRadius: 10,
+          padding: '22px 16px',
+          textAlign: 'center',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          transition: 'border-color .15s, background .15s',
+          background: active
+            ? 'rgba(59,130,246,0.08)'
+            : 'rgba(56,139,221,0.03)',
+          opacity: disabled ? 0.5 : 1,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+          minHeight: 110,
+        }}
       >
-        {/* Ícono */}
-        <div className="flex justify-center mb-3">
-          <svg
-            className={`w-10 h-10 ${dragging ? 'text-indigo-500' : 'text-gray-400'}`}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-              d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0
-                 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
-            />
-          </svg>
-        </div>
+        <svg
+          width="32" height="32"
+          fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          style={{ color: active ? '#3b82f6' : '#2a5a7a', transition: 'color .15s' }}
+        >
+          <path
+            strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021
+               18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+          />
+        </svg>
 
-        <p className="text-sm text-gray-600">
-          <span className="font-semibold text-indigo-600">Haz clic para subir</span>
-          {' '}o arrastra aquí
-        </p>
-        <p className="text-xs text-gray-400 mt-1">
-          {description || 'Solo archivos .xlsx'}
-        </p>
+        <div>
+          <p style={{ fontSize: 12, color: '#8aabcc', margin: 0 }}>
+            <span style={{ fontWeight: 600, color: active ? '#93c5fd' : '#60a5fa' }}>
+              Haz clic para subir
+            </span>
+            {' '}o arrastra aquí
+          </p>
+          <p style={{ fontSize: 11, color: '#2a5a7a', marginTop: 4 }}>
+            {description || 'Solo archivos .xlsx'}
+          </p>
+        </div>
       </div>
 
-      {/* Input oculto */}
+      {/* ── Input oculto ── */}
       <input
         ref={inputRef}
         type="file"
         accept={accept}
         multiple={multiple}
-        className="hidden"
+        style={{ display: 'none' }}
         onChange={handleChange}
         disabled={disabled}
       />
 
-      {/* Lista de archivos seleccionados */}
+      {/* ── Lista de archivos ── */}
       {files.length > 0 && (
-        <ul className="mt-3 space-y-2">
+        <ul style={{ marginTop: 10, listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
           {files.map((file, i) => (
             <li
               key={i}
-              className="flex items-center justify-between bg-indigo-50 border
-                         border-indigo-200 rounded-lg px-3 py-2"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: '#0d1525',
+                border: '1px solid rgba(59,130,246,0.3)',
+                borderRadius: 8, padding: '7px 12px',
+              }}
             >
-              <div className="flex items-center gap-2 min-w-0">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                 <svg
-                  className="w-4 h-4 text-indigo-500 shrink-0"
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  style={{ color: '#60a5fa', flexShrink: 0 }}
                 >
                   <path
                     strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -131,30 +155,48 @@ export default function FileUploader({
                        01.293.707V19a2 2 0 01-2 2z"
                   />
                 </svg>
-                <span className="text-sm text-indigo-700 font-medium truncate">
+                <span style={{
+                  fontSize: 12, fontWeight: 500, color: '#c8ddef',
+                  fontFamily: "'IBM Plex Mono', monospace",
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
                   {file.name}
                 </span>
-                <span className="text-xs text-gray-400 shrink-0">
+                <span style={{ fontSize: 11, color: '#2a5a7a', flexShrink: 0 }}>
                   ({(file.size / 1024).toFixed(0)} KB)
                 </span>
               </div>
 
               {!disabled && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); eliminarArchivo(i) }}
-                  className="ml-2 text-gray-400 hover:text-red-500 transition-colors shrink-0"
-                  title="Eliminar"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <DeleteBtn onClick={() => eliminarArchivo(i)} />
               )}
             </li>
           ))}
         </ul>
       )}
     </div>
+  )
+}
+
+function DeleteBtn({ onClick }: { onClick: () => void }) {
+  const [hov, setHov] = useState(false)
+  return (
+    <button
+      onClick={e => { e.stopPropagation(); onClick() }}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        background: 'none', border: 'none', cursor: 'pointer',
+        color: hov ? '#f87171' : '#2a5a7a',
+        marginLeft: 8, flexShrink: 0,
+        display: 'flex', alignItems: 'center',
+        transition: 'color .1s',
+      }}
+      title="Eliminar"
+    >
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+      </svg>
+    </button>
   )
 }

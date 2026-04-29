@@ -141,7 +141,7 @@ const Sidebar = ({ onNavigate, currentPath, onAgregarSaldo }: {
       {/* Saldos — item + botón "+" en la misma fila */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
         <div style={{ flex: 1 }}>
-          {navItem('Saldos', <IconSaldos />, '/saldos', currentPath === '/saldosiniciales')}
+           {navItem('Saldos', <IconSaldos />, '/saldos', currentPath === '/saldosiniciales')}
         </div>
         <button
           type="button"
@@ -191,9 +191,9 @@ export default function Home() {
   const card = (topColor: string): React.CSSProperties => ({
     background: '#0d1525',
     border: `1px solid rgba(56,139,221,0.12)`,
-    borderTop: `2px solid ${topColor}`,
-    borderRadius: 10,
-    padding: '18px',
+    borderTop: `3px solid ${topColor}`,
+    borderRadius: 12,
+    padding: '28px',
   })
 
   return (
@@ -216,17 +216,17 @@ export default function Home() {
         {/* Topbar */}
         <header style={{ height: 52, display: 'flex', alignItems: 'center', padding: '0 20px', borderBottom: '1px solid rgba(56,139,221,0.1)', background: '#080e1c', flexShrink: 0 }}>
           <div>
-            <h1 style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 17, fontWeight: 700, color: '#e2e8f0', margin: 0, lineHeight: 1 }}>
+            <h1 style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 20, fontWeight: 700, color: '#e2e8f0', margin: 0, lineHeight: 1 }}>
               Procesar Kardex
             </h1>
-            <p style={{ fontSize: 11, color: '#1e3a5a', marginTop: 2 }}>
+            <p style={{ fontSize: 12, color: '#1e3a5a', marginTop: 4 }}>
               Importa tus archivos Excel para calcular inventario con CPP
             </p>
           </div>
         </header>
 
         {/* Content */}
-        <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ flex: 1, padding: '28px 32px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 22 }}>
 
           {/* Toast saldo guardado */}
           {ultimoSaldoGuardado && (
@@ -234,8 +234,8 @@ export default function Home() {
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               background: 'rgba(34,197,94,0.08)',
               border: '1px solid rgba(34,197,94,0.2)',
-              borderRadius: 8, padding: '9px 14px',
-              fontSize: 12, color: '#4ade80',
+              borderRadius: 8, padding: '12px 18px',
+              fontSize: 13, color: '#4ade80',
               fontFamily: "'IBM Plex Mono', monospace",
             }}>
               <span>✓ Saldo inicial guardado para <strong>{ultimoSaldoGuardado}</strong> — se usará en el próximo procesamiento</span>
@@ -247,17 +247,17 @@ export default function Home() {
           )}
 
           {/* Cards upload */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
 
             {/* ── Saldos ── */}
             <div style={card('#f59e0b')}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
                 <div>
-                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.12em', color: '#d97706', textTransform: 'uppercase' as const, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', padding: '2px 7px', borderRadius: 4, display: 'inline-block', marginBottom: 6 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', color: '#d97706', textTransform: 'uppercase' as const, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)', padding: '3px 9px', borderRadius: 5, display: 'inline-block', marginBottom: 10 }}>
                     Opcional
                   </span>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0' }}>Saldos iniciales</div>
-                  <div style={{ fontSize: 12, color: '#2a4a6a', marginTop: 2 }}>Stock base al inicio del período</div>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: '#e2e8f0' }}>Saldos iniciales</div>
+                  <div style={{ fontSize: 13, color: '#2a4a6a', marginTop: 4 }}>Stock base al inicio del período</div>
                 </div>
 
                 {/* Botón + manual */}
@@ -265,12 +265,12 @@ export default function Home() {
                   type="button"
                   onClick={() => setModalSaldoOpen(true)}
                   style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    padding: '5px 10px', borderRadius: 6, border: 'none',
+                    display: 'inline-flex', alignItems: 'center', gap: 6,
+                    padding: '7px 14px', borderRadius: 7,
+                    border: '1px solid rgba(245,158,11,0.25)',
                     background: 'rgba(245,158,11,0.12)',
-                    border2: '1px solid rgba(245,158,11,0.25)',
                     color: '#f59e0b',
-                    fontSize: 11, fontWeight: 600,
+                    fontSize: 12, fontWeight: 600,
                     cursor: 'pointer', fontFamily: 'inherit',
                   } as React.CSSProperties}
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.22)' }}
@@ -285,15 +285,15 @@ export default function Home() {
 
             {/* ── Movimientos ── */}
             <div style={card('#3b82f6')}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
                 <div>
-                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.12em', color: '#60a5fa', textTransform: 'uppercase' as const, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', padding: '2px 7px', borderRadius: 4, display: 'inline-block', marginBottom: 6 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.12em', color: '#60a5fa', textTransform: 'uppercase' as const, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', padding: '3px 9px', borderRadius: 5, display: 'inline-block', marginBottom: 10 }}>
                     Requerido
                   </span>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0' }}>Movimientos</div>
-                  <div style={{ fontSize: 12, color: '#2a4a6a', marginTop: 2 }}>Ventas, compras y devoluciones</div>
+                  <div style={{ fontSize: 18, fontWeight: 600, color: '#e2e8f0' }}>Movimientos</div>
+                  <div style={{ fontSize: 13, color: '#2a4a6a', marginTop: 4 }}>Ventas, compras y devoluciones</div>
                 </div>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(59,130,246,0.1)', color: '#60a5fa', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: 42, height: 42, borderRadius: 10, background: 'rgba(59,130,246,0.1)', color: '#60a5fa', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <IconTrend />
                 </div>
               </div>
@@ -309,40 +309,40 @@ export default function Home() {
           )}
 
           {/* CTA */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <button
               type="button"
               onClick={handleProcesar}
               disabled={!listo || uploading}
               style={{
-                display: 'inline-flex', alignItems: 'center', gap: 7,
-                padding: '9px 20px', borderRadius: 8, border: 'none',
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '12px 28px', borderRadius: 10, border: 'none',
                 background: listo && !uploading ? 'linear-gradient(135deg,#1d4ed8,#1e3a8a)' : 'rgba(56,139,221,0.1)',
                 color: listo && !uploading ? '#e2e8f0' : '#2a5a8a',
-                fontSize: 13, fontWeight: 600, cursor: listo && !uploading ? 'pointer' : 'not-allowed',
+                fontSize: 15, fontWeight: 600, cursor: listo && !uploading ? 'pointer' : 'not-allowed',
                 fontFamily: 'inherit',
-                boxShadow: listo && !uploading ? '0 2px 12px rgba(29,78,216,0.35)' : 'none',
+                boxShadow: listo && !uploading ? '0 4px 16px rgba(29,78,216,0.4)' : 'none',
               }}
             >
               {uploading ? <><IconSpinner /> Procesando...</> : <><IconUpload /> Procesar Kardex</>}
             </button>
             {!listo && !uploading && (
-              <span style={{ fontSize: 12, color: '#1e3a5a' }}>Agrega al menos un archivo de movimientos</span>
+              <span style={{ fontSize: 13, color: '#1e3a5a' }}>Agrega al menos un archivo de movimientos</span>
             )}
           </div>
 
           {/* Steps */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginTop: 4 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginTop: 6 }}>
             {[
               { n: '01', label: 'Saldos iniciales', sub: 'Stock base del período',      color: '#f59e0b' },
               { n: '02', label: 'Movimientos',       sub: 'Ventas, compras, dev.',       color: '#3b82f6' },
               { n: '03', label: 'Cálculo CPP',       sub: 'Costo Promedio Ponderado',    color: '#22c55e' },
               { n: '04', label: 'Exportar reporte',  sub: 'Excel procesado listo',       color: '#a78bfa' },
             ].map(s => (
-              <div key={s.n} style={{ background: '#0d1525', border: '1px solid rgba(56,139,221,0.1)', borderRadius: 8, padding: '12px 14px' }}>
-                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, fontWeight: 700, color: s.color, marginBottom: 4 }}>{s.n}</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#c8ddef' }}>{s.label}</div>
-                <div style={{ fontSize: 11, color: '#2a4a6a', marginTop: 2 }}>{s.sub}</div>
+              <div key={s.n} style={{ background: '#0d1525', border: '1px solid rgba(56,139,221,0.1)', borderLeft: `3px solid ${s.color}`, borderRadius: 10, padding: '22px 24px' }}>
+                <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 26, fontWeight: 700, color: s.color, marginBottom: 10, opacity: 0.7, lineHeight: 1 }}>{s.n}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#c8ddef' }}>{s.label}</div>
+                <div style={{ fontSize: 12, color: '#2a4a6a', marginTop: 4 }}>{s.sub}</div>
               </div>
             ))}
           </div>

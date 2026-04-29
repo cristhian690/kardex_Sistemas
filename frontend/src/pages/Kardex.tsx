@@ -3,8 +3,6 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useKardex } from '../hooks/useKardex'
 import KardexTable   from '../components/KardexTable'
 import AlertaBanner  from '../components/AlertaBanner'
-import FiltroCodigo  from '../components/FiltroCodigo'
-import FiltroFecha   from '../components/FiltroFecha'
 import BadgeProducto from '../components/BadgeProducto'
 import type { FiltroFecha as IFiltroFecha } from '../types'
 
@@ -69,7 +67,7 @@ const IconSpinner = () => (
 )
 
 /* ═══════════════════════════ Sidebar ═══════════════════════════ */
-const SIDEBAR_W = 158
+const SIDEBAR_W = 200
 
 interface SidebarProps {
   id: number
@@ -113,9 +111,8 @@ const Sidebar = ({ id, onNavigate, currentPath }: SidebarProps) => {
       width: SIDEBAR_W, flexShrink: 0,
       background: '#080e1c',
       borderRight: '1px solid rgba(56,139,221,0.1)',
-      display: 'flex', flexDirection: 'column',
       padding: '12px 10px',
-      gap: 0, overflow: 'hidden',
+      display: 'flex', flexDirection: 'column',
     }}>
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 4px 16px' }}>
@@ -134,7 +131,7 @@ const Sidebar = ({ id, onNavigate, currentPath }: SidebarProps) => {
       </div>
 
       {/* Principal */}
-      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px', marginBottom: 2 }}>
+      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>
         Principal
       </div>
       {navItem('Dashboard',  <IconGrid />,    `/kardex/${id}`,   currentPath === `/kardex/${id}`,   '#3b82f6')}
@@ -144,7 +141,7 @@ const Sidebar = ({ id, onNavigate, currentPath }: SidebarProps) => {
       <div style={{ height: 1, background: 'rgba(56,139,221,0.08)', margin: '10px 0' }} />
 
       {/* Análisis */}
-      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px', marginBottom: 2 }}>
+      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>
         Análisis
       </div>
       {navItem('Movimientos',   <IconList />,     `/kardex/${id}`,   true)}
@@ -154,7 +151,7 @@ const Sidebar = ({ id, onNavigate, currentPath }: SidebarProps) => {
       <div style={{ height: 1, background: 'rgba(56,139,221,0.08)', margin: '10px 0' }} />
 
       {/* Sistema */}
-      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px', marginBottom: 2 }}>
+      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>
         Sistema
       </div>
       {navItem('Saldos',    <IconSaldos />,   `/kardex/${id}`, false)}
@@ -226,6 +223,11 @@ const MetricCard = ({ label, value, sub, color, sparkColor, borderColor }: Metri
   </div>
 )
 
+/* ═══════════════════════════ Formatters ═══════════════════════════ */
+const _nf2 = new Intl.NumberFormat('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const fmt  = (n: number) => _nf2.format(Math.round(n * 100) / 100)
+const fmtS = (n: number) => `S/ ${_nf2.format(Math.round(n * 100) / 100)}`
+
 /* ═══════════════════════════ Page ═══════════════════════════ */
 export default function Kardex() {
   const { procesamiento_id } = useParams<{ procesamiento_id: string }>()
@@ -268,14 +270,28 @@ export default function Kardex() {
     return Array.from(set) as string[]
   }, [movimientos])
 
-  const fmt  = (n: number) => n.toLocaleString('es-PE', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
-  const fmtS = (n: number) => `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-
   if (!id) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#07101e', color: '#2a4a6a', fontFamily: "'IBM Plex Mono', monospace", fontSize: 13 }}>
       ID de procesamiento inválido.
     </div>
   )
+
+  /* ── filter input styles ── */
+  const filterInputStyle: React.CSSProperties = {
+    background: 'rgba(56,139,221,0.06)',
+    border: '1px solid rgba(56,139,221,0.18)',
+    borderRadius: 5, padding: '3px 8px',
+    fontSize: 11, color: '#c8ddef',
+    fontFamily: "'IBM Plex Mono', monospace",
+    outline: 'none', height: 26,
+  }
+  const filterSelectStyle: React.CSSProperties = {
+    background: 'rgba(56,139,221,0.06)',
+    border: '1px solid rgba(56,139,221,0.18)',
+    borderRadius: 5, padding: '3px 6px',
+    fontSize: 11, color: '#c8ddef',
+    outline: 'none', height: 26,
+  }
 
   /* ── shared token ── */
   const btnBase: React.CSSProperties = {
@@ -402,24 +418,24 @@ export default function Kardex() {
               />
               <MetricCard
                 label="Total entradas"
-                value={fmt(metricas.total_ent_cantidad)}
-                sub={fmtS(metricas.total_ent_costo)}
+                value={fmtS(metricas.total_ent_costo)}
+                sub={`${fmt(metricas.total_ent_cantidad)} uds`}
                 color="#3b82f6"
                 sparkColor="#3b82f6"
                 borderColor="rgba(59,130,246,0.25)"
               />
               <MetricCard
                 label="Total salidas"
-                value={fmt(metricas.total_sal_cantidad)}
-                sub={fmtS(metricas.total_sal_costo)}
+                value={fmtS(metricas.total_sal_costo)}
+                sub={`${fmt(metricas.total_sal_cantidad)} uds`}
                 color="#f87171"
                 sparkColor="#ef4444"
                 borderColor="rgba(239,68,68,0.25)"
               />
               <MetricCard
                 label="Saldo final"
-                value={fmt(metricas.saldo_final_cantidad)}
-                sub={fmtS(metricas.saldo_final_costo)}
+                value={fmtS(metricas.saldo_final_costo)}
+                sub={`${fmt(metricas.saldo_final_cantidad)} uds`}
                 color="#fbbf24"
                 sparkColor="#f59e0b"
                 borderColor="rgba(245,158,11,0.25)"
@@ -432,18 +448,106 @@ export default function Kardex() {
             <div style={{
               background: '#0d1525',
               border: '1px solid rgba(56,139,221,0.12)',
-              borderRadius: 10, padding: '12px 14px',
+              borderRadius: 10, padding: '0 14px',
+              display: 'flex', alignItems: 'center', gap: 10,
+              height: 56, flexShrink: 0,
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              {/* Label */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, paddingRight: 10, borderRight: '1px solid rgba(56,139,221,0.1)' }}>
                 <div style={{ width: 2, height: 12, background: '#3b82f6', borderRadius: 2 }} />
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: '#1e3a5a', fontFamily: "'IBM Plex Mono', monospace" }}>
-                  Filtrar registros
+                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: '#2a4a6a', fontFamily: "'IBM Plex Mono', monospace" }}>
+                  Filtros
                 </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                <FiltroCodigo onBuscar={handleBuscarCodigo} disabled={loading} />
-                <FiltroFecha  filtro={filtroFecha} onChange={handleCambiarFecha} disabled={loading} />
+
+              {/* Código */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                <span style={{ fontSize: 10, color: '#2a5a7a', flexShrink: 0 }}>Código</span>
+                <input
+                  value={codigo}
+                  onChange={e => setCodigo(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleBuscarCodigo(codigo) }}
+                  placeholder="Ej: 011039"
+                  disabled={loading}
+                  style={{ ...filterInputStyle, width: 100 }}
+                />
+                {codigo && (
+                  <button
+                    onClick={() => { setCodigo(''); handleBuscarCodigo('') }}
+                    style={{ background: 'none', border: 'none', color: '#2a5a7a', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 2px' }}
+                  >×</button>
+                )}
               </div>
+
+              <div style={{ width: 1, height: 20, background: 'rgba(56,139,221,0.1)', flexShrink: 0 }} />
+
+              {/* Modo */}
+              <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                {(['anio_mes', 'exacta', 'rango'] as const).map(m => (
+                  <button
+                    key={m}
+                    onClick={() => handleCambiarFecha({ ...filtroFecha, modo: m })}
+                    disabled={loading}
+                    style={{
+                      padding: '3px 8px', borderRadius: 4, border: 'none',
+                      background: filtroFecha.modo === m ? 'rgba(59,130,246,0.2)' : 'rgba(56,139,221,0.06)',
+                      color: filtroFecha.modo === m ? '#60a5fa' : '#2a5a7a',
+                      fontSize: 10, fontWeight: filtroFecha.modo === m ? 600 : 400,
+                      cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                  >
+                    {{ anio_mes: 'Año/Mes', exacta: 'Exacta', rango: 'Rango' }[m]}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ width: 1, height: 20, background: 'rgba(56,139,221,0.1)', flexShrink: 0 }} />
+
+              {/* Controles de fecha */}
+              {filtroFecha.modo === 'anio_mes' && (
+                <>
+                  <select
+                    value={filtroFecha.anio ?? ''}
+                    onChange={e => handleCambiarFecha({ ...filtroFecha, anio: e.target.value ? Number(e.target.value) : undefined })}
+                    disabled={loading}
+                    style={filterSelectStyle}
+                  >
+                    <option value="">Año</option>
+                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(a => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={filtroFecha.mes ?? ''}
+                    onChange={e => handleCambiarFecha({ ...filtroFecha, mes: e.target.value ? Number(e.target.value) : undefined })}
+                    disabled={loading || !filtroFecha.anio}
+                    style={filterSelectStyle}
+                  >
+                    <option value="">Mes</option>
+                    {['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Set','Oct','Nov','Dic'].map((m, i) => (
+                      <option key={i + 1} value={i + 1}>{m}</option>
+                    ))}
+                  </select>
+                </>
+              )}
+
+              {filtroFecha.modo === 'exacta' && (
+                <input
+                  type="date"
+                  value={filtroFecha.fecha_exacta ?? ''}
+                  onChange={e => handleCambiarFecha({ ...filtroFecha, fecha_exacta: e.target.value || undefined })}
+                  disabled={loading}
+                  style={filterInputStyle}
+                />
+              )}
+
+              {filtroFecha.modo === 'rango' && (
+                <>
+                  <input type="date" value={filtroFecha.fecha_desde ?? ''} onChange={e => handleCambiarFecha({ ...filtroFecha, fecha_desde: e.target.value || undefined })} disabled={loading} style={filterInputStyle} />
+                  <span style={{ fontSize: 11, color: '#2a5a7a' }}>–</span>
+                  <input type="date" value={filtroFecha.fecha_hasta ?? ''} onChange={e => handleCambiarFecha({ ...filtroFecha, fecha_hasta: e.target.value || undefined })} disabled={loading} style={filterInputStyle} />
+                </>
+              )}
             </div>
           )}
 
