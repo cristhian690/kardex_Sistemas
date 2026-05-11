@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import FileUploader       from '../components/FileUploader'
 import ModalSaldoInicial  from '../components/ModalSaldoInicial'
 import { useKardex }      from '../hooks/useKardex'
+import { useAuth }        from '../context/AuthContext'
+import type { Usuario }   from '../types'
 
 /* ═══════════════════════════ Icons ═══════════════════════════ */
 const IconBox = () => (
@@ -23,11 +25,6 @@ const IconUpload = () => (
 const IconHistory = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/>
-  </svg>
-)
-const IconFile = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
   </svg>
 )
 const IconTrend = () => (
@@ -73,14 +70,33 @@ const IconPlus = () => (
     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
   </svg>
 )
+const IconLogout = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+  </svg>
+)
+
+/* ═══════════════════════════ Helpers ═══════════════════════════ */
+const getInitials = (user: Usuario | null): string => {
+  if (!user) return '?'
+  const fuente = user.nombre_completo || user.username
+  return fuente
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map(p => p[0]?.toUpperCase() ?? '')
+    .join('') || '?'
+}
 
 /* ═══════════════════════════ Sidebar ═══════════════════════════ */
 const SIDEBAR_W = 200
 
-const Sidebar = ({ onNavigate, currentPath, onAgregarSaldo }: {
+const Sidebar = ({ onNavigate, currentPath, onAgregarSaldo, user, onLogout }: {
   onNavigate:      (p: string) => void
   currentPath:     string
   onAgregarSaldo:  () => void
+  user:            Usuario | null
+  onLogout:        () => void
 }) => {
   const navItem = (label: string, icon: React.ReactNode, path: string, active: boolean) => (
     <button
@@ -165,6 +181,66 @@ const Sidebar = ({ onNavigate, currentPath, onAgregarSaldo }: {
       </div>
 
       {navItem('Productos', <IconProducts />, '/', false)}
+
+      {/* ═══ Bloque CUENTA — empujado al fondo ═══ */}
+      <div style={{ flex: 1 }} />
+
+      <div style={{ height: 1, background: 'rgba(56,139,221,0.08)', margin: '10px 0' }} />
+
+      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>Cuenta</div>
+
+      {/* Avatar + nombre + rol */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '8px 10px', marginBottom: 6,
+      }}>
+        <div style={{
+          width: 28, height: 28, borderRadius: '50%',
+          background: 'linear-gradient(135deg,#1d4ed8,#1e3a8a)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#e2e8f0',
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 11, fontWeight: 700,
+          flexShrink: 0,
+        }}>
+          {getInitials(user)}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: 11, fontWeight: 600, color: '#c8ddef',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            {user?.nombre_completo || user?.username || '—'}
+          </div>
+          <div style={{
+            fontSize: 9, color: '#2a4a6a',
+            textTransform: 'uppercase' as const, letterSpacing: '.1em',
+          }}>
+            {user?.rol || '—'}
+          </div>
+        </div>
+      </div>
+
+      {/* Botón Cerrar sesión */}
+      <button
+        type="button"
+        onClick={onLogout}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+          padding: '7px 10px', borderRadius: 6,
+          background: 'rgba(239,68,68,0.06)',
+          border: '1px solid rgba(239,68,68,0.18)',
+          color: '#fca5a5',
+          fontSize: 12, fontWeight: 500,
+          cursor: 'pointer', fontFamily: 'inherit',
+          textAlign: 'left' as const,
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.14)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.06)' }}
+      >
+        <IconLogout />
+        Cerrar sesión
+      </button>
     </aside>
   )
 }
@@ -173,12 +249,19 @@ const Sidebar = ({ onNavigate, currentPath, onAgregarSaldo }: {
 export default function Home() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { user, logout } = useAuth()
   const { subirArchivos, uploading, error } = useKardex()
 
   const [archivosMovimientos, setArchivosMovimientos] = useState<File[]>([])
   const [archivoSaldos,       setArchivoSaldos]       = useState<File[]>([])
   const [modalSaldoOpen,      setModalSaldoOpen]      = useState(false)
   const [ultimoSaldoGuardado, setUltimoSaldoGuardado] = useState<string | null>(null)
+
+  const handleLogout = () => {
+    if (window.confirm('¿Cerrar sesión?')) {
+      logout()
+    }
+  }
 
   const handleProcesar = async () => {
     if (archivosMovimientos.length === 0) return
@@ -203,6 +286,8 @@ export default function Home() {
         onNavigate={navigate}
         currentPath={location.pathname}
         onAgregarSaldo={() => setModalSaldoOpen(true)}
+        user={user}
+        onLogout={handleLogout}
       />
 
       {/* Modal saldo inicial */}
@@ -266,13 +351,13 @@ export default function Home() {
                   onClick={() => setModalSaldoOpen(true)}
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 5,
-                    padding: '5px 10px', borderRadius: 6, border: 'none',
+                    padding: '5px 10px', borderRadius: 6,
                     background: 'rgba(245,158,11,0.12)',
-                    border2: '1px solid rgba(245,158,11,0.25)',
+                    border: '1px solid rgba(245,158,11,0.25)',
                     color: '#f59e0b',
                     fontSize: 11, fontWeight: 600,
                     cursor: 'pointer', fontFamily: 'inherit',
-                  } as React.CSSProperties}
+                  }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.22)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(245,158,11,0.12)' }}
                   title="Agregar saldo inicial manualmente"
@@ -335,7 +420,7 @@ export default function Home() {
             )}
           </div>
 
-          {/* Steps — marginTop: auto empuja hacia el fondo del contenedor */}
+          {/* Steps */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginTop: 'auto' }}>
             {[
               { n: '01', label: 'Saldos iniciales', sub: 'Stock base del período',      color: '#f59e0b' },
