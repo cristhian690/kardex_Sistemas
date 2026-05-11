@@ -8,6 +8,7 @@ from app.schemas.procesamiento import (
     AlertasProcesamiento, ProcesamientoResponse, ProcesamientoResumen
 )
 from app.schemas.kardex import MetricasKardex, KardexResponse, UploadResponse, FiltroKardex
+from app.schemas.auth import LoginRequest, TokenResponse, UsuarioOut
 
 __all__ = [
     "ProductoUpdate", "ProductoResponse", "ProductoConEstadisticas",
