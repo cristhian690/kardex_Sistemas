@@ -82,6 +82,34 @@ class ProductoRepository:
             .where(Movimiento.producto_id == producto_id)
         )
         return result.scalar() or 0
+    
+    async def get_or_create_bulk(self, codigos: list[str]) -> dict[str, Producto]:
+        """
+        Versión optimizada para procesar muchos códigos a la vez.
+        Crea los que falten en una sola operación.
+        Retorna dict { codigo: Producto }
+        """
+        if not codigos:
+            return {}
+
+        # 1 sola query para traer todos los existentes
+        result = await self.db.execute(
+            select(Producto).where(Producto.codigo.in_(codigos))
+        )
+        existentes = {p.codigo: p for p in result.scalars().all()}
+
+        # Detectar los que faltan
+        faltantes = [c for c in codigos if c not in existentes]
+
+        # Crear los faltantes en una sola operación
+        if faltantes:
+            nuevos = [Producto(codigo=c) for c in faltantes]
+            self.db.add_all(nuevos)
+            await self.db.flush()
+            for p in nuevos:
+                existentes[p.codigo] = p
+
+        return existentes
 
     async def delete(self, producto_id: int) -> bool:
         producto = await self.get_by_id(producto_id)

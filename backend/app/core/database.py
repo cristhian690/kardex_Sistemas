@@ -6,7 +6,7 @@ from app.core.config import settings
 # ── Motor async ───────────────────────────────────────────────────────────────
 engine = create_async_engine(
     settings.DATABASE_URL,
-    echo=settings.DEBUG,
+    echo=False,                # 🚀 OPTIMIZACIÓN: no imprime SQL en consola
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,

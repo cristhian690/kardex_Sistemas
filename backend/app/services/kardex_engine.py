@@ -27,6 +27,35 @@ def es_fila_valida(codigo: str, fecha, tipo_op: str) -> bool:
     return True
 
 
+# ── Detección automática del offset (si hay columna "Descripción") ─────────────
+def _detectar_offset(df_raw: pd.DataFrame) -> int:
+    """
+    Determina si el Excel tiene columna "Descripción" en B.
+    Retorna 0 si el formato es el viejo (sin descripción).
+    Retorna 1 si el formato es el nuevo (con descripción en B).
+    """
+    if len(df_raw.columns) < 2:
+        return 0
+
+    # Revisar las primeras filas para detectar el formato
+    for i in range(min(10, len(df_raw))):
+        valor_b = df_raw.iloc[i, 1]
+        if pd.isna(valor_b):
+            continue
+
+        # ¿Parece fecha? → formato viejo, no hay descripción
+        fecha_test = pd.to_datetime(valor_b, errors="coerce", dayfirst=True)
+        if pd.notna(fecha_test):
+            return 0
+
+        # ¿Es texto no numérico? → formato nuevo, hay descripción
+        valor_str = str(valor_b).strip()
+        if valor_str and not valor_str.replace('.', '').replace(',', '').replace('-', '').isdigit():
+            return 1
+
+    return 0
+
+
 # ── Lectura del archivo de saldos iniciales ────────────────────────────────────
 def parsear_saldos_iniciales(file_bytes: bytes) -> dict:
     """
@@ -75,35 +104,56 @@ def parsear_saldos_iniciales(file_bytes: bytes) -> dict:
 def parsear_movimientos(file_bytes: bytes, filename: str) -> tuple[pd.DataFrame, str | None]:
     """
     Lee el archivo Excel de movimientos.
+    Detecta automáticamente si hay columna de descripción (formato nuevo).
     Ignora cabeceras y filas no válidas.
     Retorna (DataFrame, error_message)
     """
     try:
         df_raw = pd.read_excel(io.BytesIO(file_bytes), header=None, dtype={0: str})
+
+        # Detectar si el Excel tiene columna "Descripción" en B
+        offset = _detectar_offset(df_raw)
+
+        # Índices de columnas según el offset detectado
+        IDX_CODIGO   = 0
+        IDX_FECHA    = 1 + offset
+        IDX_TIPO     = 2 + offset
+        IDX_SERIE    = 3 + offset
+        IDX_NUMERO   = 4 + offset
+        IDX_TIPO_OP  = 5 + offset
+        IDX_ENT_CANT = 6 + offset
+        IDX_ENT_UNIT = 7 + offset
+        IDX_ENT_TOT  = 8 + offset
+        IDX_SAL_CANT = 9 + offset
+        IDX_SAL_UNIT = 10 + offset
+        IDX_SAL_TOT  = 11 + offset
+
+        min_cols = IDX_ENT_TOT + 1   # mínimo de columnas necesarias
+
         registros = []
 
         for _, row in df_raw.iterrows():
-            if len(row) < 9:
+            if len(row) < min_cols:
                 continue
 
-            codigo  = str(row.iloc[0]).strip() if pd.notna(row.iloc[0]) else ""
-            fecha   = pd.to_datetime(row.iloc[1], errors="coerce")
-            tipo_op = str(row.iloc[5]).strip() if pd.notna(row.iloc[5]) else ""
+            codigo  = str(row.iloc[IDX_CODIGO]).strip() if pd.notna(row.iloc[IDX_CODIGO]) else ""
+            fecha   = pd.to_datetime(row.iloc[IDX_FECHA], errors="coerce", dayfirst=True)
+            tipo_op = str(row.iloc[IDX_TIPO_OP]).strip() if pd.notna(row.iloc[IDX_TIPO_OP]) else ""
 
             if not es_fila_valida(codigo, fecha, tipo_op):
                 continue
 
-            tipo_comp = row.iloc[2]
-            serie     = str(row.iloc[3]).strip() if pd.notna(row.iloc[3]) else ""
-            numero    = row.iloc[4]
+            tipo_comp = row.iloc[IDX_TIPO]
+            serie     = str(row.iloc[IDX_SERIE]).strip() if pd.notna(row.iloc[IDX_SERIE]) else ""
+            numero    = row.iloc[IDX_NUMERO]
 
-            ent_cant  = float(pd.to_numeric(row.iloc[6],  errors="coerce") or 0.0)
-            ent_unit  = float(pd.to_numeric(row.iloc[7],  errors="coerce") or 0.0)
-            ent_total = float(pd.to_numeric(row.iloc[8],  errors="coerce") or 0.0)
+            ent_cant  = float(pd.to_numeric(row.iloc[IDX_ENT_CANT], errors="coerce") or 0.0)
+            ent_unit  = float(pd.to_numeric(row.iloc[IDX_ENT_UNIT], errors="coerce") or 0.0)
+            ent_total = float(pd.to_numeric(row.iloc[IDX_ENT_TOT],  errors="coerce") or 0.0)
 
-            sal_cant  = float(pd.to_numeric(row.iloc[9],  errors="coerce") if len(row) > 9  else 0.0) or 0.0
-            sal_unit  = float(pd.to_numeric(row.iloc[10], errors="coerce") if len(row) > 10 else 0.0) or 0.0
-            sal_total = float(pd.to_numeric(row.iloc[11], errors="coerce") if len(row) > 11 else 0.0) or 0.0
+            sal_cant  = float(pd.to_numeric(row.iloc[IDX_SAL_CANT], errors="coerce") if len(row) > IDX_SAL_CANT else 0.0) or 0.0
+            sal_unit  = float(pd.to_numeric(row.iloc[IDX_SAL_UNIT], errors="coerce") if len(row) > IDX_SAL_UNIT else 0.0) or 0.0
+            sal_total = float(pd.to_numeric(row.iloc[IDX_SAL_TOT],  errors="coerce") if len(row) > IDX_SAL_TOT  else 0.0) or 0.0
 
             sal_cant  = sal_cant  if not pd.isna(sal_cant)  else 0.0
             sal_unit  = sal_unit  if not pd.isna(sal_unit)  else 0.0
@@ -127,6 +177,9 @@ def parsear_movimientos(file_bytes: bytes, filename: str) -> tuple[pd.DataFrame,
                 "Orig_Sal_Costo_Unit":  sal_unit,
                 "Orig_Sal_Costo_Total": sal_total,
             })
+
+        # 🔍 Debug temporal — puedes quitarlo después
+        print(f"[parser] {filename}: offset={offset}, registros válidos={len(registros)}")
 
         if not registros:
             return None, f"'{filename}' no contiene registros válidos."
