@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent, CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { useAuth } from '../context/AuthContext'
 
 export default function Login() {
@@ -9,18 +10,17 @@ export default function Login() {
 
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError]       = useState<string | null>(null)
   const [loading, setLoading]   = useState(false)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    setError(null)
     setLoading(true)
     try {
       await login({ username, password })
+      toast.success(`Bienvenido, ${username}`)
       navigate('/', { replace: true })
     } catch (err: any) {
-      setError(err.message || 'Error al iniciar sesión')
+      toast.error(err.message || 'Error al iniciar sesión')
     } finally {
       setLoading(false)
     }
@@ -70,10 +70,6 @@ export default function Login() {
             disabled={loading}
             style={inputStyle}
           />
-
-          {error && (
-            <div style={errorStyle}>{error}</div>
-          )}
 
           <button
             type="submit"
@@ -144,16 +140,6 @@ const inputStyle: CSSProperties = {
   marginBottom: 16,
   outline: 'none',
   boxSizing: 'border-box',
-}
-
-const errorStyle: CSSProperties = {
-  background: 'rgba(239,68,68,0.1)',
-  border: '1px solid rgba(239,68,68,0.3)',
-  color: '#fca5a5',
-  padding: '10px 12px',
-  borderRadius: 8,
-  fontSize: 13,
-  marginBottom: 16,
 }
 
 const buttonStyle: CSSProperties = {

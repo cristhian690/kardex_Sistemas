@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import FileUploader       from '../components/FileUploader'
 import ModalSaldoInicial  from '../components/ModalSaldoInicial'
 import { useKardex }      from '../hooks/useKardex'
@@ -250,23 +251,33 @@ export default function Home() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuth()
-  const { subirArchivos, uploading, error } = useKardex()
+  const { subirArchivos, uploading } = useKardex()
 
   const [archivosMovimientos, setArchivosMovimientos] = useState<File[]>([])
   const [archivoSaldos,       setArchivoSaldos]       = useState<File[]>([])
   const [modalSaldoOpen,      setModalSaldoOpen]      = useState(false)
-  const [ultimoSaldoGuardado, setUltimoSaldoGuardado] = useState<string | null>(null)
 
   const handleLogout = () => {
     if (window.confirm('¿Cerrar sesión?')) {
+      toast.success('Sesión cerrada')
       logout()
     }
   }
 
   const handleProcesar = async () => {
     if (archivosMovimientos.length === 0) return
-    const resultado = await subirArchivos(archivosMovimientos, archivoSaldos[0] ?? null)
-    if (resultado) navigate(`/kardex/${resultado.procesamiento_id}`)
+    const toastId = toast.loading('Procesando Kardex…')
+    try {
+      const resultado = await subirArchivos(archivosMovimientos, archivoSaldos[0] ?? null)
+      if (resultado) {
+        toast.success(`Kardex procesado: ${resultado.total_registros ?? 'OK'} registros`, { id: toastId })
+        navigate(`/kardex/${resultado.procesamiento_id}`)
+      } else {
+        toast.error('No se pudo procesar el Kardex', { id: toastId })
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Error al procesar el Kardex', { id: toastId })
+    }
   }
 
   const listo = archivosMovimientos.length > 0
@@ -294,7 +305,7 @@ export default function Home() {
       <ModalSaldoInicial
         open={modalSaldoOpen}
         onClose={() => setModalSaldoOpen(false)}
-        onGuardado={codigo => setUltimoSaldoGuardado(codigo)}
+        onGuardado={codigo => toast.success(`Saldo inicial guardado para ${codigo}`)}
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -312,24 +323,6 @@ export default function Home() {
 
         {/* Content */}
         <div style={{ flex: 1, minHeight: 0, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-          {/* Toast saldo guardado */}
-          {ultimoSaldoGuardado && (
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: 'rgba(34,197,94,0.08)',
-              border: '1px solid rgba(34,197,94,0.2)',
-              borderRadius: 8, padding: '9px 14px',
-              fontSize: 12, color: '#4ade80',
-              fontFamily: "'IBM Plex Mono', monospace",
-            }}>
-              <span>✓ Saldo inicial guardado para <strong>{ultimoSaldoGuardado}</strong> — se usará en el próximo procesamiento</span>
-              <button
-                onClick={() => setUltimoSaldoGuardado(null)}
-                style={{ background: 'none', border: 'none', color: '#4ade80', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 4px' }}
-              >×</button>
-            </div>
-          )}
 
           {/* Cards upload */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -389,13 +382,6 @@ export default function Home() {
               </div>
             </div>
           </div>
-
-          {/* Error */}
-          {error && (
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#fca5a5', fontFamily: "'IBM Plex Mono', monospace" }}>
-              ✕ {error}
-            </div>
-          )}
 
           {/* CTA */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
