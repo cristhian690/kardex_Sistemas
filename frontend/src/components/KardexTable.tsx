@@ -3,6 +3,7 @@ import {
   useMemo,
   useRef,
   useLayoutEffect,
+  useEffect,
   forwardRef,
   useImperativeHandle,
 } from "react";
@@ -10,6 +11,7 @@ import type { KardexRow } from "../types";
 
 export type KardexTableHandle = {
   scrollToFirstAnomaly: () => void;
+  scrollToCodigo: (codigo: string) => void;
 };
 
 interface KardexTableProps {
@@ -49,13 +51,21 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
 ) {
   const [pagina, setPagina] = useState(1);
   const firstErrorRef = useRef<HTMLTableRowElement | null>(null);
+  const codigoTargetRef = useRef<HTMLTableRowElement | null>(null);
   const pendingScrollToAnomaly = useRef(false);
+  const pendingScrollToCodigo = useRef<string | null>(null);
+  const [highlightIndex, setHighlightIndex] = useState<number | null>(null);
 
   const primerErrorIndex = useMemo(() => {
     return movimientos.findIndex(
       (m) => m.error_a || m.error_b || m.saldo_negativo
     );
   }, [movimientos]);
+
+  // Función interna: localizar primera fila por código
+  const findPrimerIndexCodigo = (codigo: string) => {
+    return movimientos.findIndex(m => String(m.codigo).trim() === String(codigo).trim());
+  };
 
   useImperativeHandle(
     ref,
@@ -75,10 +85,35 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
         pendingScrollToAnomaly.current = true;
         setPagina(paginaError);
       },
+      scrollToCodigo: (codigo: string) => {
+        const idx = findPrimerIndexCodigo(codigo);
+        if (idx === -1) return;
+        const paginaTarget = Math.floor(idx / FILAS_POR_PAGINA) + 1;
+
+        // Guardar el código para hacer scroll después del render
+        pendingScrollToCodigo.current = codigo;
+
+        if (pagina === paginaTarget) {
+          // Ya estamos en la página correcta — scroll inmediato
+          queueMicrotask(() => {
+            codigoTargetRef.current?.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+            });
+            // Highlight de 1.5s
+            setHighlightIndex(idx);
+            setTimeout(() => setHighlightIndex(null), 4000);
+          });
+        } else {
+          // Cambiar página primero
+          setPagina(paginaTarget);
+        }
+      },
     }),
-    [pagina, primerErrorIndex]
+    [pagina, primerErrorIndex, movimientos]
   );
 
+  // Scroll a anomalía cuando cambia la página
   useLayoutEffect(() => {
     if (!pendingScrollToAnomaly.current) return;
     if (primerErrorIndex === -1) {
@@ -91,6 +126,50 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
     });
     pendingScrollToAnomaly.current = false;
   }, [pagina, primerErrorIndex]);
+
+  // Scroll a código específico cuando cambia la página
+  useLayoutEffect(() => {
+    if (!pendingScrollToCodigo.current) return;
+    const codigo = pendingScrollToCodigo.current;
+    const idx = findPrimerIndexCodigo(codigo);
+    pendingScrollToCodigo.current = null;
+    if (idx === -1) return;
+
+    queueMicrotask(() => {
+      codigoTargetRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      setHighlightIndex(idx);
+      setTimeout(() => setHighlightIndex(null), 1500);
+    });
+  }, [pagina]);
+
+  // Exponer función global para AlertaBanner
+  useEffect(() => {
+    (window as any).__kardexIrAFila = (codigo: string) => {
+      const idx = findPrimerIndexCodigo(codigo);
+      if (idx === -1) return;
+      const paginaTarget = Math.floor(idx / FILAS_POR_PAGINA) + 1;
+      pendingScrollToCodigo.current = codigo;
+      if (pagina === paginaTarget) {
+        queueMicrotask(() => {
+          codigoTargetRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+          setHighlightIndex(idx);
+          setTimeout(() => setHighlightIndex(null), 4000);
+        });
+      } else {
+        setPagina(paginaTarget);
+      }
+    };
+
+    return () => {
+      delete (window as any).__kardexIrAFila;
+    };
+  }, [movimientos, pagina]);
 
   const totalPaginas = Math.ceil(movimientos.length / FILAS_POR_PAGINA);
 
@@ -160,9 +239,13 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
             {filas.map((row, i) => {
               const globalIndex = (pagina - 1) * FILAS_POR_PAGINA + i;
               const esError = globalIndex === primerErrorIndex;
+              const esHighlight = globalIndex === highlightIndex;
               const semaforo = getSemaforo(row);
               const tieneError = semaforo !== "🟢";
-              const bgBase = esError
+
+              const bgBase = esHighlight
+                ? "rgba(96,165,250,0.22)"
+                : esError
                 ? "rgba(245,158,11,0.15)"
                 : tieneError
                 ? "rgba(226,75,74,0.06)"
@@ -170,13 +253,32 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
                 ? "transparent"
                 : "rgba(55,138,221,0.03)";
 
+              // Asignar ref si es el primer error O el target del scroll por código
+              const isCodigoTarget =
+                pendingScrollToCodigo.current === null &&
+                highlightIndex === globalIndex;
+
+              const rowRef = esError
+                ? firstErrorRef
+                : isCodigoTarget
+                ? codigoTargetRef
+                : null;
+
               return (
                 <tr
                   key={row.id}
-                  ref={esError ? firstErrorRef : null}
-                  onMouseEnter={e => { e.currentTarget.style.background = "rgba(56,139,221,0.09)" }}
+                  ref={rowRef}
+                  onMouseEnter={e => {
+                    if (!esHighlight) {
+                      e.currentTarget.style.background = "rgba(56,139,221,0.09)"
+                    }
+                  }}
                   onMouseLeave={e => { e.currentTarget.style.background = bgBase }}
-                  style={{ background: bgBase, transition: "background .1s" }}
+                  style={{
+                    background: bgBase,
+                    transition: "background .3s",
+                    boxShadow: esHighlight ? "inset 0 0 0 2px rgba(96,165,250,0.55)" : "none",
+                  }}
                 >
                   {mostrarSemaforo && <td style={td}>{semaforo}</td>}
                   <td style={td}>{row.fila}</td>
