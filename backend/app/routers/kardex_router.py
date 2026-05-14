@@ -18,19 +18,17 @@ router = APIRouter(prefix="/kardex", tags=["Kardex"])
 # ── Subir y procesar archivos ─────────────────────────────────────────────────
 @router.post("/procesar", response_model=UploadResponse, status_code=201)
 async def procesar_kardex(
-    movimiento1: Annotated[UploadFile,        File(description="Archivo de movimientos 1 (requerido)")],
-    movimiento2: Annotated[UploadFile | None, File(description="Archivo de movimientos 2 (opcional)")] = None,
-    movimiento3: Annotated[UploadFile | None, File(description="Archivo de movimientos 3 (opcional)")] = None,
+    movimientos: Annotated[List[UploadFile], File(description="Archivos de movimientos (uno o varios)")],
     saldos:      Annotated[UploadFile | None, File(description="Archivo de saldos iniciales (opcional)")] = None,
     db:          AsyncSession = Depends(get_db),
 ):
     """
     Sube y procesa archivos Excel de kardex.
-    Soporta hasta 3 archivos de movimientos simultáneos.
+    Acepta uno o varios archivos de movimientos (sin límite).
     Calcula el saldo final, verifica integridad y persiste en BD.
     """
-    # Armar lista de movimientos ignorando los None
-    movimientos = [f for f in [movimiento1, movimiento2, movimiento3] if f is not None]
+    if not movimientos:
+        raise ArchivoInvalidoException("Debes subir al menos un archivo de movimientos")
 
     # Validar extensiones
     archivos_invalidos = [

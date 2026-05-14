@@ -8,8 +8,9 @@ export const procesarArchivos = async (
 ): Promise<UploadResponse> => {
   const formData = new FormData()
 
-  archivosMovimientos.forEach((file, index) => {
-    formData.append(`movimiento${index + 1}`, file)
+  // Todos los archivos bajo el MISMO nombre "movimientos" — FastAPI los recibe como List
+  archivosMovimientos.forEach(file => {
+    formData.append('movimientos', file)
   })
 
   if (archivoSaldos) {
