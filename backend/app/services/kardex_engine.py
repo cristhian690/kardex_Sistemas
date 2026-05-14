@@ -31,28 +31,58 @@ def es_fila_valida(codigo: str, fecha, tipo_op: str) -> bool:
 def _detectar_offset(df_raw: pd.DataFrame) -> int:
     """
     Determina si el Excel tiene columna "Descripción" en B.
-    Retorna 0 si el formato es el viejo (sin descripción).
-    Retorna 1 si el formato es el nuevo (con descripción en B).
+    Retorna 0 si el formato es viejo (sin descripción).
+    Retorna 1 si el formato es nuevo (con descripción en B).
+
+    Estrategia: busca una fila con código válido y revisa su columna B.
+    - Si B es fecha → formato viejo
+    - Si B es texto descriptivo → formato nuevo
     """
     if len(df_raw.columns) < 2:
         return 0
 
-    # Revisar las primeras filas para detectar el formato
-    for i in range(min(10, len(df_raw))):
-        valor_b = df_raw.iloc[i, 1]
+    # Revisar hasta 30 filas, saltando cabeceras y filas sin código
+    for i in range(min(30, len(df_raw))):
+        codigo_a = df_raw.iloc[i, 0] if pd.notna(df_raw.iloc[i, 0]) else None
+        valor_b  = df_raw.iloc[i, 1] if len(df_raw.columns) > 1 else None
+
+        # Saltar filas sin código
+        if pd.isna(codigo_a):
+            continue
+
+        codigo_str = str(codigo_a).strip()
+
+        # Saltar cabeceras tipo "Código" o "Codigo"
+        if codigo_str.lower() in ("codigo", "código"):
+            continue
+
+        # Saltar si parece texto largo (probable cabecera mergeada)
+        if len(codigo_str) > 30:
+            continue
+
+        # Esta fila probablemente tiene un código real
         if pd.isna(valor_b):
             continue
 
-        # ¿Parece fecha? → formato viejo, no hay descripción
+        # ¿La columna B parece fecha?
         fecha_test = pd.to_datetime(valor_b, errors="coerce", dayfirst=True)
         if pd.notna(fecha_test):
-            return 0
+            return 0  # Formato viejo: B = Fecha
 
-        # ¿Es texto no numérico? → formato nuevo, hay descripción
+        # ¿La columna B es texto no numérico (descripción)?
         valor_str = str(valor_b).strip()
-        if valor_str and not valor_str.replace('.', '').replace(',', '').replace('-', '').isdigit():
-            return 1
+        if valor_str:
+            cleaned = (
+                valor_str
+                .replace('.', '')
+                .replace(',', '')
+                .replace('-', '')
+                .replace(' ', '')
+            )
+            if not cleaned.isdigit():
+                return 1  # Formato nuevo: B = Descripción
 
+    # Por defecto, formato viejo (es el más común)
     return 0
 
 
