@@ -466,7 +466,7 @@ export default function SaldosIniciales() {
         open={modalOpen}
         onClose={() => { setModalOpen(false); setSaldoEditando(null) }}
         onGuardado={handleGuardado}
-        codigoInicial={saldoEditando?.codigo}
+        saldoEditar={saldoEditando}
       />
     </div>
   )

@@ -1,9 +1,9 @@
-import io
+import io 
+import enum
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
-
 
 def exportar_kardex_excel(df: pd.DataFrame) -> bytes:
     """
@@ -81,13 +81,16 @@ def exportar_kardex_excel(df: pd.DataFrame) -> bytes:
         except Exception:
             fecha_val = ""
 
+        # Conversión al valor de Enum a valor para exportar excel
+        tipo_operacion_val = row.Tipo_Operacion.value if isinstance(row.Tipo_Operacion, enum.Enum) else row.Tipo_Operacion
+
         datos = [
             (str(row.Codigo),      "@"),
             (fecha_val,            "@"),
             (row.Tipo,             "00"),
             (str(row.Serie),       "@"),
             (numero_val,           r'[$-408]00000000'),
-            (row.Tipo_Operacion,   "@"),
+            (tipo_operacion_val,   "@"),  # ya es cadena
             (row.Ent_Cantidad,     "#,##0.000"),
             (row.Ent_Costo_Unit,   "#,##0.0000"),
             (row.Ent_Costo_Total,  "#,##0.000"),

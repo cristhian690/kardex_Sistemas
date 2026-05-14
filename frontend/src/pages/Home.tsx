@@ -305,8 +305,7 @@ export default function Home() {
       <ModalSaldoInicial
         open={modalSaldoOpen}
         onClose={() => setModalSaldoOpen(false)}
-        onGuardado={codigo => toast.success(`Saldo inicial guardado para ${codigo}`)}
-      />
+        onGuardado={() => toast.success('Saldo inicial guardado correctamente')}      />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Topbar */}

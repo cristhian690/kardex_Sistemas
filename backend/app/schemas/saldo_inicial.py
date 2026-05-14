@@ -22,6 +22,7 @@ class SaldoInicialCreate(BaseModel):
 
 
 class SaldoInicialUpdate(BaseModel):
+    descripcion:    Optional[str]     = None
     fecha:          date
     cantidad:       Decimal
     costo_unitario: Decimal
@@ -51,4 +52,4 @@ class SaldoInicialResponse(BaseModel):
 
 
 class SaldoInicialConAdvertencia(SaldoInicialResponse):
-    advertencia: Optional[str] = None
+    advertencia: Optional[str] = None   

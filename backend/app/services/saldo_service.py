@@ -77,7 +77,17 @@ class SaldoService:
             cantidad       = data.cantidad,
             costo_unitario = data.costo_unitario,
             costo_total    = costo_total,
+            descripcion    = data.descripcion,
         )
+
+        # Actualizar descripcion del producto si viene en el payload
+        if data.descripcion is not None and saldo and saldo.producto_id:
+            await self.producto_repo.update(
+                producto_id = saldo.producto_id,
+                descripcion = data.descripcion,
+            )
+            # Recargar saldo para que tenga la descripcion actualizada.
+            saldo = await self.saldo_repo.get_by_id(saldo_id)
 
         return SaldoInicialConAdvertencia(
             **self._to_response(saldo).model_dump(),

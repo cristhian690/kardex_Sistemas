@@ -1,7 +1,7 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useKardex } from '../hooks/useKardex'
-import KardexTable   from '../components/KardexTable'
+import KardexTable, { type KardexTableHandle } from '../components/KardexTable'
 import AlertaBanner  from '../components/AlertaBanner'
 import BadgeProducto from '../components/BadgeProducto'
 import type { FiltroFecha as IFiltroFecha } from '../types'
@@ -241,11 +241,60 @@ export default function Kardex() {
     cargarKardex, descargarExcel,
   } = useKardex()
 
+  const kardexTableRef = useRef<KardexTableHandle>(null)
+
   const [codigo,          setCodigo]          = useState('')
   const [filtroFecha,     setFiltroFecha]     = useState<IFiltroFecha>({ modo: 'anio_mes' })
   const [mostrarSemaforo, setMostrarSemaforo] = useState(false)
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(true)
+  const [draftCodigo, setDraftCodigo] = useState('')
+  const [draftFiltroFecha, setDraftFiltroFecha] = useState<IFiltroFecha>({
+    modo: 'anio_mes',
+  })
+    /* sincronizar al cargar inicial */
+    useEffect(() => {
+      setDraftFiltroFecha(filtroFecha)
+    },  [filtroFecha])
 
+    /* debounce SOLO para código */
+    useEffect(() => {
+      const t = setTimeout(() => {
+        if (draftCodigo === codigo) return
+
+      setCodigo(draftCodigo)
+
+      cargarKardex(id, {
+        ...draftFiltroFecha,
+        codigo: draftCodigo || undefined,
+      })
+    }, 400)
+
+  return () => clearTimeout(t)
+  }, [draftCodigo])
+
+  /* aplicar filtros manualmente */
+  const aplicarFiltros = () => {
+    setFiltroFecha(draftFiltroFecha)
+
+    cargarKardex(id, {
+      ...draftFiltroFecha,
+      codigo: draftCodigo || undefined,
+    })
+  }
+
+  /* limpiar */
+  const limpiarFiltros = () => {
+    const clean: IFiltroFecha = {
+      modo: 'anio_mes',
+    }
+
+  setCodigo('')
+  setDraftCodigo('')
+  setFiltroFecha(clean)
+  setDraftFiltroFecha(clean)
+
+  cargarKardex(id)
+}
   const id = Number(procesamiento_id)
 
   useEffect(() => {
@@ -286,12 +335,17 @@ export default function Kardex() {
     outline: 'none', height: 26,
   }
   const filterSelectStyle: React.CSSProperties = {
-    background: 'rgba(56,139,221,0.06)',
-    border: '1px solid rgba(56,139,221,0.18)',
-    borderRadius: 5, padding: '3px 6px',
-    fontSize: 11, color: '#c8ddef',
-    outline: 'none', height: 26,
-  }
+  padding: '4px 8px',
+  borderRadius: 4,
+  border: '1px solid rgba(56,139,221,0.2)',
+  background: '#0d1525',  // fondo oscuro consistente con panel
+  color: '#ffffff',        // texto blanco
+  fontSize: 10,
+  fontFamily: "'IBM Plex Mono', monospace",
+  outline: 'none',
+  appearance: 'none',      // quita flecha nativa para control total
+  cursor: 'pointer',
+}
 
   /* ── shared token ── */
   const btnBase: React.CSSProperties = {
@@ -346,14 +400,20 @@ export default function Kardex() {
           {/* Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {erroresIntegridad > 0 && (
-              <span style={{
-                ...btnBase,
-                background: 'rgba(245,158,11,0.12)',
-                border: '1px solid rgba(245,158,11,0.25)',
-                color: '#fbbf24', cursor: 'default',
-              }}>
+              <button
+                type="button"
+                title="Ir a la primera anomalía en la tabla"
+                onClick={() => kardexTableRef.current?.scrollToFirstAnomaly()}
+                style={{
+                  ...btnBase,
+                  background: 'rgba(245,158,11,0.12)',
+                  border: '1px solid rgba(245,158,11,0.25)',
+                  color: '#fbbf24',
+                  cursor: 'pointer',
+                }}
+              >
                 ⚠ {erroresIntegridad} anomalía{erroresIntegridad > 1 ? 's' : ''}
-              </span>
+              </button>
             )}
             <button
               type="button"
@@ -444,112 +504,333 @@ export default function Kardex() {
           )}
 
           {/* ── Filtros ── */}
-          {filtrosAbiertos && (
-            <div style={{
-              background: '#0d1525',
-              border: '1px solid rgba(56,139,221,0.12)',
-              borderRadius: 10, padding: '0 14px',
-              display: 'flex', alignItems: 'center', gap: 10,
-              height: 56, flexShrink: 0,
-            }}>
-              {/* Label */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, paddingRight: 10, borderRight: '1px solid rgba(56,139,221,0.1)' }}>
-                <div style={{ width: 2, height: 12, background: '#3b82f6', borderRadius: 2 }} />
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: '#2a4a6a', fontFamily: "'IBM Plex Mono', monospace" }}>
-                  Filtros
-                </span>
-              </div>
+{filtrosAbiertos && (
+  <div
+    style={{
+      background: '#0d1525',
+      border: '1px solid rgba(56,139,221,0.12)',
+      borderRadius: 10,
+      padding: '0 14px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      height: 56,
+      flexShrink: 0,
+    }}
+  >
+    {/* Label */}
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        flexShrink: 0,
+        paddingRight: 10,
+        borderRight: '1px solid rgba(56,139,221,0.1)',
+      }}
+    >
+      <div
+        style={{
+          width: 2,
+          height: 12,
+          background: '#3b82f6',
+          borderRadius: 2,
+        }}
+      />
+      <span
+        style={{
+          fontSize: 9,
+          fontWeight: 700,
+          letterSpacing: '.16em',
+          textTransform: 'uppercase' as const,
+          color: '#2a4a6a',
+          fontFamily: "'IBM Plex Mono', monospace",
+        }}
+      >
+        Filtros
+      </span>
+    </div>
 
-              {/* Código */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                <span style={{ fontSize: 10, color: '#2a5a7a', flexShrink: 0 }}>Código</span>
-                <input
-                  value={codigo}
-                  onChange={e => setCodigo(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') handleBuscarCodigo(codigo) }}
-                  placeholder="Ej: 011039"
-                  disabled={loading}
-                  style={{ ...filterInputStyle, width: 100 }}
-                />
-                {codigo && (
-                  <button
-                    onClick={() => { setCodigo(''); handleBuscarCodigo('') }}
-                    style={{ background: 'none', border: 'none', color: '#2a5a7a', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 2px' }}
-                  >×</button>
-                )}
-              </div>
+    {/* Código */}
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        flexShrink: 0,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 10,
+          color: '#2a5a7a',
+          flexShrink: 0,
+        }}
+      >
+        Código
+      </span>
 
-              <div style={{ width: 1, height: 20, background: 'rgba(56,139,221,0.1)', flexShrink: 0 }} />
+      <input
+        value={draftCodigo}
+        onChange={e => setDraftCodigo(e.target.value)}
+        placeholder="Ej: 011039"
+        style={{
+          ...filterInputStyle,
+          width: 100,
+        }}
+      />
 
-              {/* Modo */}
-              <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                {(['anio_mes', 'exacta', 'rango'] as const).map(m => (
-                  <button
-                    key={m}
-                    onClick={() => handleCambiarFecha({ ...filtroFecha, modo: m })}
-                    disabled={loading}
-                    style={{
-                      padding: '3px 8px', borderRadius: 4, border: 'none',
-                      background: filtroFecha.modo === m ? 'rgba(59,130,246,0.2)' : 'rgba(56,139,221,0.06)',
-                      color: filtroFecha.modo === m ? '#60a5fa' : '#2a5a7a',
-                      fontSize: 10, fontWeight: filtroFecha.modo === m ? 600 : 400,
-                      cursor: 'pointer', fontFamily: 'inherit',
-                    }}
-                  >
-                    {{ anio_mes: 'Año/Mes', exacta: 'Exacta', rango: 'Rango' }[m]}
-                  </button>
-                ))}
-              </div>
+      {draftCodigo && (
+        <button
+          onClick={() => {
+            setCodigo('')
+            setDraftCodigo('')
 
-              <div style={{ width: 1, height: 20, background: 'rgba(56,139,221,0.1)', flexShrink: 0 }} />
+            cargarKardex(id, {
+              ...draftFiltroFecha,
+              codigo: undefined,
+            })
+          }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#2a5a7a',
+            cursor: 'pointer',
+            fontSize: 14,
+            lineHeight: 1,
+            padding: '0 2px',
+          }}
+        >
+          ×
+        </button>
+      )}
+    </div>
 
-              {/* Controles de fecha */}
-              {filtroFecha.modo === 'anio_mes' && (
-                <>
-                  <select
-                    value={filtroFecha.anio ?? ''}
-                    onChange={e => handleCambiarFecha({ ...filtroFecha, anio: e.target.value ? Number(e.target.value) : undefined })}
-                    disabled={loading}
-                    style={filterSelectStyle}
-                  >
-                    <option value="">Año</option>
-                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(a => (
-                      <option key={a} value={a}>{a}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={filtroFecha.mes ?? ''}
-                    onChange={e => handleCambiarFecha({ ...filtroFecha, mes: e.target.value ? Number(e.target.value) : undefined })}
-                    disabled={loading || !filtroFecha.anio}
-                    style={filterSelectStyle}
-                  >
-                    <option value="">Mes</option>
-                    {['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Set','Oct','Nov','Dic'].map((m, i) => (
-                      <option key={i + 1} value={i + 1}>{m}</option>
-                    ))}
-                  </select>
-                </>
-              )}
+    <div
+      style={{
+        width: 1,
+        height: 20,
+        background: 'rgba(56,139,221,0.1)',
+        flexShrink: 0,
+      }}
+    />
 
-              {filtroFecha.modo === 'exacta' && (
-                <input
-                  type="date"
-                  value={filtroFecha.fecha_exacta ?? ''}
-                  onChange={e => handleCambiarFecha({ ...filtroFecha, fecha_exacta: e.target.value || undefined })}
-                  disabled={loading}
-                  style={filterInputStyle}
-                />
-              )}
+    {/* Modo */}
+    <div
+      style={{
+        display: 'flex',
+        gap: 4,
+        flexShrink: 0,
+      }}
+    >
+      {(['anio_mes', 'exacta', 'rango'] as const).map(m => (
+        <button
+          key={m}
+          onClick={() =>
+            setDraftFiltroFecha({
+              ...draftFiltroFecha,
+              modo: m,
+            })
+          }
+          style={{
+            padding: '3px 8px',
+            borderRadius: 4,
+            border: 'none',
+            background:
+              draftFiltroFecha.modo === m
+                ? 'rgba(59,130,246,0.2)'
+                : 'rgba(56,139,221,0.06)',
+            color:
+              draftFiltroFecha.modo === m
+                ? '#60a5fa'
+                : '#2a5a7a',
+            fontSize: 10,
+            fontWeight:
+              draftFiltroFecha.modo === m ? 600 : 400,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          {{
+            anio_mes: 'Año/Mes',
+            exacta: 'Exacta',
+            rango: 'Rango',
+          }[m]}
+        </button>
+      ))}
+    </div>
 
-              {filtroFecha.modo === 'rango' && (
-                <>
-                  <input type="date" value={filtroFecha.fecha_desde ?? ''} onChange={e => handleCambiarFecha({ ...filtroFecha, fecha_desde: e.target.value || undefined })} disabled={loading} style={filterInputStyle} />
-                  <span style={{ fontSize: 11, color: '#2a5a7a' }}>–</span>
-                  <input type="date" value={filtroFecha.fecha_hasta ?? ''} onChange={e => handleCambiarFecha({ ...filtroFecha, fecha_hasta: e.target.value || undefined })} disabled={loading} style={filterInputStyle} />
-                </>
-              )}
-            </div>
-          )}
+    <div
+      style={{
+        width: 1,
+        height: 20,
+        background: 'rgba(56,139,221,0.1)',
+        flexShrink: 0,
+      }}
+    />
+    
+
+    {/* Controles fecha */}
+    {draftFiltroFecha.modo === 'anio_mes' && (
+      <>
+        <select
+          value={draftFiltroFecha.anio ?? ''}
+          onChange={e =>
+            setDraftFiltroFecha({
+              ...draftFiltroFecha,
+              anio: e.target.value
+                ? Number(e.target.value)
+                : undefined,
+            })
+          }
+          style={filterSelectStyle}
+        >
+          <option value="">Año</option>
+
+          {Array.from(
+            { length: 5 },
+            (_, i) => new Date().getFullYear() - i
+          ).map(a => (
+            <option key={a} value={a}>
+              {a}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={draftFiltroFecha.mes ?? ''}
+          onChange={e =>
+            setDraftFiltroFecha({
+              ...draftFiltroFecha,
+              mes: e.target.value
+                ? Number(e.target.value)
+                : undefined,
+            })
+          }
+          disabled={!draftFiltroFecha.anio}
+          style={filterSelectStyle}
+        >
+          <option value="">Mes</option>
+
+          {[
+            'Ene',
+            'Feb',
+            'Mar',
+            'Abr',
+            'May',
+            'Jun',
+            'Jul',
+            'Ago',
+            'Set',
+            'Oct',
+            'Nov',
+            'Dic',
+          ].map((m, i) => (
+            <option key={i + 1} value={i + 1}>
+              {m}
+            </option>
+          ))}
+        </select>
+      </>
+    )}
+
+    {draftFiltroFecha.modo === 'exacta' && (
+      <input
+        type="date"
+        value={draftFiltroFecha.fecha_exacta ?? ''}
+        onChange={e =>
+          setDraftFiltroFecha({
+            ...draftFiltroFecha,
+            fecha_exacta:
+              e.target.value || undefined,
+          })
+        }
+        style={filterInputStyle}
+      />
+    )}
+
+    {draftFiltroFecha.modo === 'rango' && (
+      <>
+        <input
+          type="date"
+          value={draftFiltroFecha.fecha_desde ?? ''}
+          onChange={e =>
+            setDraftFiltroFecha({
+              ...draftFiltroFecha,
+              fecha_desde:
+                e.target.value || undefined,
+            })
+          }
+          style={filterInputStyle}
+        />
+
+        <span
+          style={{
+            fontSize: 11,
+            color: '#2a5a7a',
+          }}
+        >
+          –
+        </span>
+
+        <input
+          type="date"
+          value={draftFiltroFecha.fecha_hasta ?? ''}
+          onChange={e =>
+            setDraftFiltroFecha({
+              ...draftFiltroFecha,
+              fecha_hasta:
+                e.target.value || undefined,
+            })
+          }
+          style={filterInputStyle}
+        />
+      </>
+    )}
+
+    <div style={{ width: 40 }} />
+
+    {/* acciones */}
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+      }}
+    >
+      <button
+        onClick={limpiarFiltros}
+        style={{
+          padding: '5px 10px',
+          borderRadius: 5,
+          border: '1px solid rgba(56,139,221,0.12)',
+          background: 'rgba(56,139,221,0.05)',
+          color: '#4a6a8a',
+          fontSize: 10,
+          cursor: 'pointer',
+        }}
+      >
+        Limpiar
+      </button>
+
+      <button
+        onClick={aplicarFiltros}
+        style={{
+          padding: '5px 10px',
+          borderRadius: 5,
+          border: 'none',
+          background: 'rgba(59,130,246,0.2)',
+          color: '#60a5fa',
+          fontSize: 10,
+          fontWeight: 600,
+          cursor: 'pointer',
+        }}
+      >
+        Aplicar
+      </button>
+    </div>
+  </div>
+)}
 
           {/* ── Badges ── */}
           {codigosVisibles.length > 0 && (
@@ -628,7 +909,11 @@ export default function Kardex() {
                 <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>Cargando movimientos...</span>
               </div>
             ) : (
-              <KardexTable movimientos={movimientos} mostrarSemaforo={mostrarSemaforo} />
+              <KardexTable
+                ref={kardexTableRef}
+                movimientos={movimientos}
+                mostrarSemaforo={mostrarSemaforo}
+              />
             )}
 
             {/* Footer */}

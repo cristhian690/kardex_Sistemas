@@ -1,11 +1,12 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, delete, func
 from sqlalchemy.orm import selectinload
 from app.models.saldo_inicial import SaldoInicial
 from app.models.movimiento import Movimiento
 from app.exceptions import KardexException
 from datetime import date
 from decimal import Decimal
+from sqlalchemy import update as sa_update
 
 
 class SaldoRepository:
@@ -100,9 +101,10 @@ class SaldoRepository:
         cantidad:       Decimal,
         costo_unitario: Decimal,
         costo_total:    Decimal,
+        descripcion:    str | None = None,
     ) -> tuple[SaldoInicial, int]:
         """
-        Actualiza un saldo por su ID.
+        Actualiza un saldo por su ID usando UPDATE directo.
         Retorna (saldo, total_procesamientos) para mostrar advertencia.
         """
         saldo = await self.get_by_id(saldo_id)
@@ -111,26 +113,49 @@ class SaldoRepository:
 
         total_proc = await self.count_procesamientos(saldo.producto_id)
 
-        saldo.fecha          = fecha
-        saldo.cantidad       = cantidad
-        saldo.costo_unitario = costo_unitario
-        saldo.costo_total    = costo_total
+        # UPDATE directo — garantizará la persistencia independiente del tracking
+        #Actualizar saldo
+        await self.db.execute(
+            sa_update(SaldoInicial)
+            .where(SaldoInicial.id == saldo_id)
+            .values(
+                fecha          = fecha,
+                cantidad       = cantidad,
+                costo_unitario = costo_unitario,
+                costo_total    = costo_total,
+            )
+        )
+
+        #Actualizar descripcion en productos (ya que es donde vive ese campo)
+        if descripcion is not None:
+            from app.models.producto import Producto
+            await self.db.execute(
+                sa_update(Producto)
+                .where(Producto.id == saldo.producto_id)
+                .values(descripcion=descripcion)
+            )
 
         await self.db.flush()
+
+        #Recargar el objeto actualizado
+        saldo = await self.get_by_id(saldo_id)
         return saldo, total_proc
 
     async def delete(self, saldo_id: int) -> int:
         """
-        Elimina un saldo por su ID.
-        Retorna total_procesamientos para que el servicio
-        incluya la advertencia en la respuesta si corresponde.
+        SE Elimina un saldo por su ID usando DELETE directo.
+        Retorna total_procesamientos para la advertencia.
         """
+        
         saldo = await self.get_by_id(saldo_id)
         if not saldo:
             raise KardexException(f"Saldo inicial #{saldo_id} no encontrado.", status_code=404)
 
         total_proc = await self.count_procesamientos(saldo.producto_id)
 
-        await self.db.delete(saldo)
+        # DELETE directo — evita problemas de tracking con objetos cargados via join
+        await self.db.execute(
+            delete(SaldoInicial).where(SaldoInicial.id == saldo_id)
+        )
         await self.db.flush()
         return total_proc

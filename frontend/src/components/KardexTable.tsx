@@ -1,5 +1,16 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import {
+  useState,
+  useMemo,
+  useRef,
+  useLayoutEffect,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import type { KardexRow } from "../types";
+
+export type KardexTableHandle = {
+  scrollToFirstAnomaly: () => void;
+};
 
 interface KardexTableProps {
   movimientos: KardexRow[];
@@ -32,9 +43,13 @@ const getSemaforo = (row: KardexRow) => {
   return "🟢";
 };
 
-export default function KardexTable({ movimientos, mostrarSemaforo = false }: KardexTableProps) {
+const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function KardexTable(
+  { movimientos, mostrarSemaforo = false },
+  ref
+) {
   const [pagina, setPagina] = useState(1);
   const firstErrorRef = useRef<HTMLTableRowElement | null>(null);
+  const pendingScrollToAnomaly = useRef(false);
 
   const primerErrorIndex = useMemo(() => {
     return movimientos.findIndex(
@@ -42,17 +57,40 @@ export default function KardexTable({ movimientos, mostrarSemaforo = false }: Ka
     );
   }, [movimientos]);
 
-  useEffect(() => {
-    if (primerErrorIndex === -1) return;
-    const paginaError = Math.floor(primerErrorIndex / FILAS_POR_PAGINA) + 1;
-    setPagina(paginaError);
-  }, [primerErrorIndex]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToFirstAnomaly: () => {
+        if (primerErrorIndex === -1) return;
+        const paginaError = Math.floor(primerErrorIndex / FILAS_POR_PAGINA) + 1;
+        if (pagina === paginaError) {
+          queueMicrotask(() => {
+            firstErrorRef.current?.scrollIntoView({
+              behavior: "smooth",
+              block: "center",
+            });
+          });
+          return;
+        }
+        pendingScrollToAnomaly.current = true;
+        setPagina(paginaError);
+      },
+    }),
+    [pagina, primerErrorIndex]
+  );
 
-  useEffect(() => {
-    if (firstErrorRef.current) {
-      firstErrorRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+  useLayoutEffect(() => {
+    if (!pendingScrollToAnomaly.current) return;
+    if (primerErrorIndex === -1) {
+      pendingScrollToAnomaly.current = false;
+      return;
     }
-  }, [pagina]);
+    firstErrorRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+    pendingScrollToAnomaly.current = false;
+  }, [pagina, primerErrorIndex]);
 
   const totalPaginas = Math.ceil(movimientos.length / FILAS_POR_PAGINA);
 
@@ -195,7 +233,9 @@ export default function KardexTable({ movimientos, mostrarSemaforo = false }: Ka
       )}
     </div>
   );
-}
+});
+
+export default KardexTable;
 
 // estilos
 const thDark = { background: "#0b1a2c" };
