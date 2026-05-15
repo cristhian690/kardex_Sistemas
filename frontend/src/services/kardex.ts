@@ -92,3 +92,13 @@ export const getHistorial = async (
   })
   return response.data
 }
+// ── Eliminar un procesamiento ─────────────────────────────────────────────────
+export const eliminarProcesamiento = async (procesamientoId: number): Promise<void> => {
+  await api.delete(`/api/v1/historial/${procesamientoId}`)
+}
+
+// ── Eliminar varios procesamientos ────────────────────────────────────────────
+export const eliminarProcesamientosMultiple = async (ids: number[]): Promise<{ eliminados: number; fallidos: number[] }> => {
+  const response = await api.post('/api/v1/historial/eliminar-multiple', { ids })
+  return response.data
+}

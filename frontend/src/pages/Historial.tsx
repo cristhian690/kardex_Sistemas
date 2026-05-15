@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { getHistorial } from '../services/kardex'
+import toast from 'react-hot-toast'
+import { getHistorial, eliminarProcesamientosMultiple } from '../services/kardex'
 import type { ProcesamientoResumen, ApiError } from '../types'
 
 /* ═══ Icons ═══ */
@@ -60,10 +61,15 @@ const IconPlus = () => (
     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
   </svg>
 )
+const IconTrash = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/>
+  </svg>
+)
 
 /* ═══ Estado config ═══ */
 const estadoConfig = {
-  procesado:     { label: 'Exitoso',     dot: '#22c55e', style: { background: 'rgba(34,197,94,0.1)',  border: '1px solid rgba(34,197,94,0.25)',  color: '#4ade80' } as React.CSSProperties },
+  procesado:   { label: 'Exitoso',     dot: '#22c55e', style: { background: 'rgba(34,197,94,0.1)',  border: '1px solid rgba(34,197,94,0.25)',  color: '#4ade80' } as React.CSSProperties },
   con_alertas: { label: 'Con alertas', dot: '#f59e0b', style: { background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)', color: '#fbbf24' } as React.CSSProperties },
   error:       { label: 'Error',       dot: '#ef4444', style: { background: 'rgba(239,68,68,0.1)',  border: '1px solid rgba(239,68,68,0.25)',  color: '#f87171' } as React.CSSProperties },
 }
@@ -132,32 +138,96 @@ const Sidebar = ({ onNavigate, currentPath }: { onNavigate: (p: string) => void;
   )
 }
 
+/* ═══ Checkbox ═══ */
+const Checkbox = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
+  <span
+    onClick={e => { e.stopPropagation(); onChange() }}
+    style={{
+      width: 16, height: 16, borderRadius: 4,
+      border: `1.5px solid ${checked ? '#3b82f6' : 'rgba(56,139,221,0.35)'}`,
+      background: checked ? '#3b82f6' : 'transparent',
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      cursor: 'pointer', flexShrink: 0,
+      transition: 'all .12s',
+    }}
+  >
+    {checked && (
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    )}
+  </span>
+)
+
 /* ═══ Page ═══ */
 export default function Historial() {
   const navigate = useNavigate()
   const location = useLocation()
   const [procesamientos, setProcesamientos] = useState<ProcesamientoResumen[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error,   setError]   = useState<string | null>(null)
-  const [pagina,  setPagina]  = useState(1)
+  const [loading, setLoading]   = useState(true)
+  const [error,   setError]     = useState<string | null>(null)
+  const [pagina,  setPagina]    = useState(1)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [eliminando, setEliminando] = useState(false)
   const LIMIT = 20
 
-  useEffect(() => {
-    const cargar = async () => {
-      setLoading(true); setError(null)
-      try {
-        const data = await getHistorial(LIMIT, (pagina - 1) * LIMIT)
-        setProcesamientos(data)
-      } catch (err) {
-        const e = err as ApiError
-        setError(e.message || 'Error al cargar el historial')
-      } finally { setLoading(false) }
-    }
-    cargar()
-  }, [pagina])
+  const cargar = async () => {
+    setLoading(true); setError(null)
+    try {
+      const data = await getHistorial(LIMIT, (pagina - 1) * LIMIT)
+      setProcesamientos(data)
+      setSelectedIds(new Set())   // limpiar selección al recargar
+    } catch (err) {
+      const e = err as ApiError
+      setError(e.message || 'Error al cargar el historial')
+    } finally { setLoading(false) }
+  }
 
-  const colHeaders = ['#', 'Archivo', 'Estado', 'Registros', 'Productos', '']
-  const colWidths  = ['36px', '1fr', '110px', '90px', '90px', '30px']
+  useEffect(() => { cargar() }, [pagina])
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === procesamientos.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(procesamientos.map(p => p.id)))
+    }
+  }
+
+  const handleEliminar = async () => {
+    if (selectedIds.size === 0) return
+    const cantidad = selectedIds.size
+    const msg = cantidad === 1
+      ? '¿Eliminar este procesamiento? Esta acción no se puede deshacer.'
+      : `¿Eliminar ${cantidad} procesamientos? Esta acción no se puede deshacer.`
+
+    if (!window.confirm(msg)) return
+
+    setEliminando(true)
+    const toastId = toast.loading(`Eliminando ${cantidad}...`)
+    try {
+      const result = await eliminarProcesamientosMultiple(Array.from(selectedIds))
+      toast.success(`${result.eliminados} procesamiento(s) eliminado(s)`, { id: toastId })
+      await cargar()
+    } catch (err: any) {
+      toast.error(err?.message || 'Error al eliminar', { id: toastId })
+    } finally {
+      setEliminando(false)
+    }
+  }
+
+  const allSelected = procesamientos.length > 0 && selectedIds.size === procesamientos.length
+  const hasSelection = selectedIds.size > 0
+
+  const colWidths  = ['32px', '36px', '1fr', '110px', '90px', '90px', '30px']
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: '#07101e', fontFamily: "'Inter', sans-serif", color: '#c8ddef' }}>
@@ -170,13 +240,39 @@ export default function Historial() {
             <h1 style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 17, fontWeight: 700, color: '#e2e8f0', margin: 0, lineHeight: 1 }}>Actividad</h1>
             <p style={{ fontSize: 11, color: '#1e3a5a', marginTop: 2 }}>Procesamientos registrados</p>
           </div>
-          <button
-            type="button"
-            onClick={() => navigate('/')}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 13px', borderRadius: 7, border: 'none', background: 'linear-gradient(135deg,#1d4ed8,#1e3a8a)', color: '#e2e8f0', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 8px rgba(29,78,216,0.3)' }}
-          >
-            <IconPlus /> Nuevo proceso
-          </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {hasSelection && (
+              <button
+                type="button"
+                onClick={handleEliminar}
+                disabled={eliminando}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '6px 13px', borderRadius: 7,
+                  border: '1px solid rgba(239,68,68,0.3)',
+                  background: 'rgba(239,68,68,0.1)',
+                  color: '#fca5a5',
+                  fontSize: 12, fontWeight: 600,
+                  cursor: eliminando ? 'not-allowed' : 'pointer',
+                  fontFamily: 'inherit',
+                  opacity: eliminando ? 0.5 : 1,
+                }}
+                onMouseEnter={e => { if (!eliminando) e.currentTarget.style.background = 'rgba(239,68,68,0.18)' }}
+                onMouseLeave={e => { if (!eliminando) e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
+              >
+                <IconTrash /> Eliminar ({selectedIds.size})
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 13px', borderRadius: 7, border: 'none', background: 'linear-gradient(135deg,#1d4ed8,#1e3a8a)', color: '#e2e8f0', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 8px rgba(29,78,216,0.3)' }}
+            >
+              <IconPlus /> Nuevo proceso
+            </button>
+          </div>
         </header>
 
         {/* Content */}
@@ -202,11 +298,18 @@ export default function Historial() {
 
             {/* Header */}
             <div style={{ padding: '9px 16px', borderBottom: '1px solid rgba(56,139,221,0.08)', background: 'rgba(56,139,221,0.03)', display: 'grid', gridTemplateColumns: colWidths.join(' '), gap: 10, alignItems: 'center' }}>
-              {colHeaders.map((h, i) => (
-                <div key={i} style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', textTransform: 'uppercase' as const, color: '#1e3a5a', textAlign: i >= 3 ? 'right' as const : 'left' as const }}>
-                  {h}
-                </div>
-              ))}
+              {/* Checkbox "seleccionar todo" */}
+              <div>
+                {procesamientos.length > 0 && (
+                  <Checkbox checked={allSelected} onChange={toggleSelectAll} />
+                )}
+              </div>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', textTransform: 'uppercase' as const, color: '#1e3a5a' }}>#</div>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', textTransform: 'uppercase' as const, color: '#1e3a5a' }}>Archivo</div>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', textTransform: 'uppercase' as const, color: '#1e3a5a' }}>Estado</div>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', textTransform: 'uppercase' as const, color: '#1e3a5a', textAlign: 'right' as const }}>Registros</div>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', textTransform: 'uppercase' as const, color: '#1e3a5a', textAlign: 'right' as const }}>Productos</div>
+              <div></div>
             </div>
 
             {/* Loading */}
@@ -226,15 +329,24 @@ export default function Historial() {
             {/* Rows */}
             {!loading && procesamientos.map((p) => {
               const cfg = estadoConfig[p.estado]
+              const isSelected = selectedIds.has(p.id)
               return (
-                <button
+                <div
                   key={p.id}
-                  type="button"
                   onClick={() => navigate(`/kardex/${p.id}`)}
-                  style={{ width: '100%', padding: '10px 16px', border: 'none', borderBottom: '1px solid rgba(56,139,221,0.07)', background: 'transparent', cursor: 'pointer', display: 'grid', gridTemplateColumns: colWidths.join(' '), gap: 10, alignItems: 'center', fontFamily: 'inherit', color: 'inherit' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,139,221,0.05)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                  style={{
+                    width: '100%', padding: '10px 16px',
+                    borderBottom: '1px solid rgba(56,139,221,0.07)',
+                    background: isSelected ? 'rgba(59,130,246,0.06)' : 'transparent',
+                    cursor: 'pointer',
+                    display: 'grid', gridTemplateColumns: colWidths.join(' '), gap: 10, alignItems: 'center',
+                    transition: 'background .1s',
+                  }}
+                  onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(56,139,221,0.05)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = isSelected ? 'rgba(59,130,246,0.06)' : 'transparent' }}
                 >
+                  <Checkbox checked={isSelected} onChange={() => toggleSelect(p.id)} />
+
                   <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#1e3a5a' }}>#{p.id}</span>
 
                   <div style={{ minWidth: 0, textAlign: 'left' }}>
@@ -260,7 +372,7 @@ export default function Historial() {
                   </div>
 
                   <span style={{ textAlign: 'right', fontSize: 12, color: '#1e3a5a' }}>→</span>
-                </button>
+                </div>
               )
             })}
           </div>
