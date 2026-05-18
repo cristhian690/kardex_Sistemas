@@ -56,6 +56,31 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
   const pendingScrollToCodigo = useRef<string | null>(null);
   const [highlightIndex, setHighlightIndex] = useState<number | null>(null);
 
+  // ✅ NUEVO: detectar cuando el usuario está imprimiendo
+  const [imprimiendo, setImprimiendo] = useState(false);
+
+  useEffect(() => {
+  const handleBeforePrint = () => setImprimiendo(true);
+  const handleAfterPrint  = () => setImprimiendo(false);
+  window.addEventListener('beforeprint', handleBeforePrint);
+  window.addEventListener('afterprint', handleAfterPrint);
+
+  // ✅ NUEVO: función global para forzar todas las filas antes de imprimir
+  (window as any).__kardexPrepararImpresion = () => {
+    setImprimiendo(true);
+  };
+  (window as any).__kardexTerminarImpresion = () => {
+    setImprimiendo(false);
+  };
+
+  return () => {
+    window.removeEventListener('beforeprint', handleBeforePrint);
+    window.removeEventListener('afterprint', handleAfterPrint);
+    delete (window as any).__kardexPrepararImpresion;
+    delete (window as any).__kardexTerminarImpresion;
+  };
+}, []);
+
   const primerErrorIndex = useMemo(() => {
     return movimientos.findIndex(
       (m) => m.error_a || m.error_b || m.saldo_negativo
@@ -89,23 +114,18 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
         const idx = findPrimerIndexCodigo(codigo);
         if (idx === -1) return;
         const paginaTarget = Math.floor(idx / FILAS_POR_PAGINA) + 1;
-
-        // Guardar el código para hacer scroll después del render
         pendingScrollToCodigo.current = codigo;
 
         if (pagina === paginaTarget) {
-          // Ya estamos en la página correcta — scroll inmediato
           queueMicrotask(() => {
             codigoTargetRef.current?.scrollIntoView({
               behavior: "smooth",
               block: "center",
             });
-            // Highlight de 1.5s
             setHighlightIndex(idx);
             setTimeout(() => setHighlightIndex(null), 4000);
           });
         } else {
-          // Cambiar página primero
           setPagina(paginaTarget);
         }
       },
@@ -113,7 +133,6 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
     [pagina, primerErrorIndex, movimientos]
   );
 
-  // Scroll a anomalía cuando cambia la página
   useLayoutEffect(() => {
     if (!pendingScrollToAnomaly.current) return;
     if (primerErrorIndex === -1) {
@@ -127,7 +146,6 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
     pendingScrollToAnomaly.current = false;
   }, [pagina, primerErrorIndex]);
 
-  // Scroll a código específico cuando cambia la página
   useLayoutEffect(() => {
     if (!pendingScrollToCodigo.current) return;
     const codigo = pendingScrollToCodigo.current;
@@ -145,7 +163,6 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
     });
   }, [pagina]);
 
-  // Exponer función global para AlertaBanner
   useEffect(() => {
     (window as any).__kardexIrAFila = (codigo: string) => {
       const idx = findPrimerIndexCodigo(codigo);
@@ -173,12 +190,16 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
 
   const totalPaginas = Math.ceil(movimientos.length / FILAS_POR_PAGINA);
 
+  // ✅ CAMBIO: al imprimir muestra TODAS las filas; si no, paginadas
   const filas = useMemo(() => {
+    if (imprimiendo) {
+      return movimientos;
+    }
     return movimientos.slice(
       (pagina - 1) * FILAS_POR_PAGINA,
       pagina * FILAS_POR_PAGINA
     );
-  }, [movimientos, pagina]);
+  }, [movimientos, pagina, imprimiendo]);
 
   if (movimientos.length === 0) {
     return <div style={{ padding: 40, textAlign: "center", color: "#2a5080" }}>Sin datos</div>;
@@ -186,8 +207,39 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
 
   return (
     <div style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+      {/* ✅ NUEVO: CSS de impresión */}
+      <style>{`
+        @media print {
+          .kardex-tbl-print {
+            font-size: 7px !important;
+            table-layout: auto !important;
+            width: 100% !important;
+            min-width: 0 !important;
+          }
+          .kardex-tbl-print th,
+          .kardex-tbl-print td {
+            padding: 2px 3px !important;
+            font-size: 7px !important;
+            white-space: nowrap !important;
+          }
+          .kardex-tbl-print th[colspan] {
+            font-size: 7px !important;
+            padding: 3px 2px !important;
+          }
+          .kardex-pagination-bar {
+            display: none !important;
+          }
+          .kardex-tbl-print thead {
+            display: table-header-group !important;
+          }
+          .kardex-tbl-print tr {
+            page-break-inside: avoid !important;
+          }
+        }
+      `}</style>
+
       <div style={{ overflowX: "auto" }}>
-        <table style={{
+        <table className="kardex-tbl-print" style={{
           borderCollapse: "separate",
           borderSpacing: 0,
           fontSize: 11,
@@ -237,7 +289,7 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
 
           <tbody>
             {filas.map((row, i) => {
-              const globalIndex = (pagina - 1) * FILAS_POR_PAGINA + i;
+              const globalIndex = imprimiendo ? i : (pagina - 1) * FILAS_POR_PAGINA + i;
               const esError = globalIndex === primerErrorIndex;
               const esHighlight = globalIndex === highlightIndex;
               const semaforo = getSemaforo(row);
@@ -253,7 +305,6 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
                 ? "transparent"
                 : "rgba(55,138,221,0.03)";
 
-              // Asignar ref si es el primer error O el target del scroll por código
               const isCodigoTarget =
                 pendingScrollToCodigo.current === null &&
                 highlightIndex === globalIndex;
@@ -313,9 +364,9 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
         </table>
       </div>
 
-      {/* PAGINACIÓN */}
+      {/* PAGINACIÓN — ✅ con clase para ocultar al imprimir */}
       {totalPaginas > 1 && (
-        <div style={{
+        <div className="kardex-pagination-bar" style={{
           display: "flex",
           justifyContent: "space-between",
           padding: "10px 16px",

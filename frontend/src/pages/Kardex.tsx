@@ -43,6 +43,13 @@ const IconDownload = () => (
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
   </svg>
 )
+const IconPrinter = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 6 2 18 2 18 9"/>
+    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+    <rect x="6" y="14" width="12" height="8"/>
+  </svg>
+)
 const IconFilter = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
@@ -107,14 +114,13 @@ const Sidebar = ({ id, onNavigate, currentPath }: SidebarProps) => {
   )
 
   return (
-    <aside style={{
+    <aside className="kardex-no-print" style={{
       width: SIDEBAR_W, flexShrink: 0,
       background: '#080e1c',
       borderRight: '1px solid rgba(56,139,221,0.1)',
       padding: '12px 10px',
       display: 'flex', flexDirection: 'column',
     }}>
-      {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 4px 16px' }}>
         <div style={{
           width: 26, height: 26, borderRadius: 7,
@@ -130,7 +136,6 @@ const Sidebar = ({ id, onNavigate, currentPath }: SidebarProps) => {
         </div>
       </div>
 
-      {/* Principal */}
       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>
         Principal
       </div>
@@ -140,7 +145,6 @@ const Sidebar = ({ id, onNavigate, currentPath }: SidebarProps) => {
 
       <div style={{ height: 1, background: 'rgba(56,139,221,0.08)', margin: '10px 0' }} />
 
-      {/* Análisis */}
       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>
         Análisis
       </div>
@@ -150,7 +154,6 @@ const Sidebar = ({ id, onNavigate, currentPath }: SidebarProps) => {
 
       <div style={{ height: 1, background: 'rgba(56,139,221,0.08)', margin: '10px 0' }} />
 
-      {/* Sistema */}
       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>
         Sistema
       </div>
@@ -251,51 +254,42 @@ export default function Kardex() {
   const [draftFiltroFecha, setDraftFiltroFecha] = useState<IFiltroFecha>({
     modo: 'anio_mes',
   })
-    /* sincronizar al cargar inicial */
-    useEffect(() => {
-      setDraftFiltroFecha(filtroFecha)
-    },  [filtroFecha])
 
-    /* debounce SOLO para código */
-    useEffect(() => {
-      const t = setTimeout(() => {
-        if (draftCodigo === codigo) return
+  const id = Number(procesamiento_id)
 
+  useEffect(() => {
+    setDraftFiltroFecha(filtroFecha)
+  }, [filtroFecha])
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (draftCodigo === codigo) return
       setCodigo(draftCodigo)
-
       cargarKardex(id, {
         ...draftFiltroFecha,
         codigo: draftCodigo || undefined,
       })
     }, 400)
 
-  return () => clearTimeout(t)
+    return () => clearTimeout(t)
   }, [draftCodigo])
 
-  /* aplicar filtros manualmente */
   const aplicarFiltros = () => {
     setFiltroFecha(draftFiltroFecha)
-
     cargarKardex(id, {
       ...draftFiltroFecha,
       codigo: draftCodigo || undefined,
     })
   }
 
-  /* limpiar */
   const limpiarFiltros = () => {
-    const clean: IFiltroFecha = {
-      modo: 'anio_mes',
-    }
-
-  setCodigo('')
-  setDraftCodigo('')
-  setFiltroFecha(clean)
-  setDraftFiltroFecha(clean)
-
-  cargarKardex(id)
-}
-  const id = Number(procesamiento_id)
+    const clean: IFiltroFecha = { modo: 'anio_mes' }
+    setCodigo('')
+    setDraftCodigo('')
+    setFiltroFecha(clean)
+    setDraftFiltroFecha(clean)
+    cargarKardex(id)
+  }
 
   useEffect(() => {
     if (!id) return
@@ -303,16 +297,46 @@ export default function Kardex() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  const handleBuscarCodigo = (cod: string) => {
-    setCodigo(cod)
-    cargarKardex(id, { ...filtroFecha, codigo: cod || undefined })
-  }
-  const handleCambiarFecha = (nuevoFiltro: IFiltroFecha) => {
-    setFiltroFecha(nuevoFiltro)
-    cargarKardex(id, { ...nuevoFiltro, codigo: codigo || undefined })
-  }
   const handleExportar = () =>
     descargarExcel(codigo || undefined, filtroFecha.fecha_desde, filtroFecha.fecha_hasta)
+
+  // ═══ NUEVO: Imprimir ═══
+  // ═══ NUEVO: Imprimir (con preparación de todas las filas) ═══
+const handleImprimir = () => {
+  // 1. Activar modo impresión en la tabla (renderiza TODAS las filas)
+  ;(window as any).__kardexPrepararImpresion?.()
+
+  // 2. Esperar a que React renderice las filas adicionales
+  setTimeout(() => {
+    window.print()
+
+    // 3. Después de imprimir, volver al modo paginado
+    setTimeout(() => {
+      ;(window as any).__kardexTerminarImpresion?.()
+    }, 500)
+  }, 300)
+}
+
+  // ═══ NUEVO: Descripción de filtros aplicados para impresión ═══
+  const filtrosAplicadosTexto = useMemo(() => {
+    const partes: string[] = []
+    if (codigo) partes.push(`Código: ${codigo}`)
+    if (filtroFecha.modo === 'anio_mes') {
+      if (filtroFecha.anio && filtroFecha.mes) {
+        const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Set','Oct','Nov','Dic']
+        partes.push(`Periodo: ${meses[filtroFecha.mes - 1]} ${filtroFecha.anio}`)
+      } else if (filtroFecha.anio) {
+        partes.push(`Año: ${filtroFecha.anio}`)
+      }
+    } else if (filtroFecha.modo === 'exacta' && filtroFecha.fecha_exacta) {
+      partes.push(`Fecha: ${filtroFecha.fecha_exacta}`)
+    } else if (filtroFecha.modo === 'rango') {
+      if (filtroFecha.fecha_desde || filtroFecha.fecha_hasta) {
+        partes.push(`Rango: ${filtroFecha.fecha_desde ?? '...'} a ${filtroFecha.fecha_hasta ?? '...'}`)
+      }
+    }
+    return partes.length > 0 ? partes.join(' · ') : 'Sin filtros'
+  }, [codigo, filtroFecha])
 
   const codigosVisibles = useMemo(() => {
     const set = new Set(movimientos.map(m => m.codigo).filter(Boolean))
@@ -325,7 +349,6 @@ export default function Kardex() {
     </div>
   )
 
-  /* ── filter input styles ── */
   const filterInputStyle: React.CSSProperties = {
     background: 'rgba(56,139,221,0.06)',
     border: '1px solid rgba(56,139,221,0.18)',
@@ -335,19 +358,18 @@ export default function Kardex() {
     outline: 'none', height: 26,
   }
   const filterSelectStyle: React.CSSProperties = {
-  padding: '4px 8px',
-  borderRadius: 4,
-  border: '1px solid rgba(56,139,221,0.2)',
-  background: '#0d1525',  // fondo oscuro consistente con panel
-  color: '#ffffff',        // texto blanco
-  fontSize: 10,
-  fontFamily: "'IBM Plex Mono', monospace",
-  outline: 'none',
-  appearance: 'none',      // quita flecha nativa para control total
-  cursor: 'pointer',
-}
+    padding: '4px 8px',
+    borderRadius: 4,
+    border: '1px solid rgba(56,139,221,0.2)',
+    background: '#0d1525',
+    color: '#ffffff',
+    fontSize: 10,
+    fontFamily: "'IBM Plex Mono', monospace",
+    outline: 'none',
+    appearance: 'none',
+    cursor: 'pointer',
+  }
 
-  /* ── shared token ── */
   const btnBase: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center', gap: 6,
     padding: '6px 12px', borderRadius: 7,
@@ -357,581 +379,569 @@ export default function Kardex() {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex',
-      background: '#07101e',
-      fontFamily: "'Inter', -apple-system, sans-serif",
-      color: '#c8ddef',
-    }}>
+    <>
+      {/* ═══ CSS ESPECIAL PARA IMPRESIÓN ═══ */}
+      <style>{`
+        @media print {
+          @page {
+            size: A4 landscape;
+            margin: 12mm 8mm;
+          }
 
-      {/* ── SIDEBAR ── */}
-      <Sidebar id={id} onNavigate={navigate} currentPath={location.pathname} />
+          /* Esconder TODO menos el área de impresión */
+          .kardex-no-print { display: none !important; }
 
-      {/* ── RIGHT PANEL ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          /* Reset de fondos oscuros */
+          body, html {
+            background: white !important;
+            color: black !important;
+          }
+          .kardex-page-wrapper {
+            background: white !important;
+            min-height: auto !important;
+          }
+          .kardex-print-area {
+            display: block !important;
+            padding: 0 !important;
+            overflow: visible !important;
+          }
+          .kardex-print-area * {
+            color: black !important;
+            background: white !important;
+            border-color: #ccc !important;
+            box-shadow: none !important;
+          }
 
-        {/* ── TOPBAR ── */}
-        <header style={{
-          height: 52, flexShrink: 0,
-          display: 'flex', alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 20px',
-          borderBottom: '1px solid rgba(56,139,221,0.1)',
-          background: '#080e1c',
-          gap: 12,
-          position: 'sticky' as const, top: 0, zIndex: 30,
-        }}>
-          {/* Title */}
-          <div>
-            <h1 style={{
-              fontFamily: "'IBM Plex Mono', monospace",
-              fontSize: 18, fontWeight: 700,
-              color: '#e2e8f0', margin: 0, lineHeight: 1,
-              letterSpacing: '-.01em',
-            }}>
-              Kardex{' '}
-              <span style={{ color: '#2563eb' }}>#{id}</span>
-            </h1>
-            <p style={{ fontSize: 11, color: '#1e3a5a', marginTop: 3 }}>
-              {totalRegistros.toLocaleString('es-PE')} registros cargados
-            </p>
-          </div>
+          /* Encabezado de impresión */
+          .kardex-print-header {
+            display: block !important;
+            padding: 0 0 10px 0 !important;
+            border-bottom: 2px solid #333 !important;
+            margin-bottom: 12px !important;
+          }
+          .kardex-print-header .title {
+            font-size: 18px !important;
+            font-weight: 700 !important;
+            font-family: Arial, sans-serif !important;
+            margin: 0 !important;
+            color: black !important;
+          }
+          .kardex-print-header .subtitle {
+            font-size: 11px !important;
+            font-family: Arial, sans-serif !important;
+            color: #444 !important;
+            margin-top: 4px !important;
+          }
 
-          {/* Actions */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {erroresIntegridad > 0 && (
+          /* Tabla de movimientos */
+          .kardex-print-area table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            font-size: 8px !important;
+            font-family: Arial, sans-serif !important;
+            page-break-inside: auto !important;
+          }
+          .kardex-print-area thead {
+            display: table-header-group !important;
+          }
+          .kardex-print-area thead tr {
+            page-break-inside: avoid !important;
+          }
+          .kardex-print-area tbody tr {
+            page-break-inside: avoid !important;
+            page-break-after: auto !important;
+          }
+          .kardex-print-area th {
+            background: #e8e8e8 !important;
+            border: 1px solid #999 !important;
+            padding: 4px 5px !important;
+            color: black !important;
+            font-weight: 700 !important;
+            font-size: 8px !important;
+            text-transform: uppercase !important;
+          }
+          .kardex-print-area td {
+            border: 1px solid #ccc !important;
+            padding: 3px 5px !important;
+            color: black !important;
+            font-size: 8px !important;
+          }
+
+          /* Ocultar paginación HTML, sparklines, etc */
+          .kardex-print-area svg { display: none !important; }
+          .kardex-print-area .pag-controls { display: none !important; }
+
+          /* Métricas impresas */
+          .kardex-print-metrics {
+            display: grid !important;
+            grid-template-columns: repeat(4, 1fr) !important;
+            gap: 8px !important;
+            margin-bottom: 12px !important;
+          }
+          .kardex-print-metrics > div {
+            border: 1px solid #999 !important;
+            padding: 6px 8px !important;
+          }
+          .kardex-print-metrics .lbl {
+            font-size: 8px !important;
+            text-transform: uppercase !important;
+            color: #555 !important;
+            font-weight: 700 !important;
+          }
+          .kardex-print-metrics .val {
+            font-size: 14px !important;
+            font-weight: 700 !important;
+            color: black !important;
+            font-family: Arial, sans-serif !important;
+          }
+          .kardex-print-metrics .sub {
+            font-size: 8px !important;
+            color: #666 !important;
+          }
+        }
+
+        /* Ocultar el área de impresión cuando NO se imprime */
+        @media screen {
+          .kardex-print-only { display: none !important; }
+        }
+      `}</style>
+
+      <div className="kardex-page-wrapper" style={{
+        minHeight: '100vh', display: 'flex',
+        background: '#07101e',
+        fontFamily: "'Inter', -apple-system, sans-serif",
+        color: '#c8ddef',
+      }}>
+
+        <Sidebar id={id} onNavigate={navigate} currentPath={location.pathname} />
+
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+
+          {/* ── TOPBAR (oculto en impresión) ── */}
+          <header className="kardex-no-print" style={{
+            height: 52, flexShrink: 0,
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 20px',
+            borderBottom: '1px solid rgba(56,139,221,0.1)',
+            background: '#080e1c',
+            gap: 12,
+            position: 'sticky' as const, top: 0, zIndex: 30,
+          }}>
+            <div>
+              <h1 style={{
+                fontFamily: "'IBM Plex Mono', monospace",
+                fontSize: 18, fontWeight: 700,
+                color: '#e2e8f0', margin: 0, lineHeight: 1,
+                letterSpacing: '-.01em',
+              }}>
+                Kardex{' '}
+                <span style={{ color: '#2563eb' }}>#{id}</span>
+              </h1>
+              <p style={{ fontSize: 11, color: '#1e3a5a', marginTop: 3 }}>
+                {totalRegistros.toLocaleString('es-PE')} registros cargados
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {erroresIntegridad > 0 && (
+                <button
+                  type="button"
+                  title="Ir a la primera anomalía en la tabla"
+                  onClick={() => kardexTableRef.current?.scrollToFirstAnomaly()}
+                  style={{
+                    ...btnBase,
+                    background: 'rgba(245,158,11,0.12)',
+                    border: '1px solid rgba(245,158,11,0.25)',
+                    color: '#fbbf24',
+                    cursor: 'pointer',
+                  }}
+                >
+                  ⚠ {erroresIntegridad} anomalía{erroresIntegridad > 1 ? 's' : ''}
+                </button>
+              )}
               <button
                 type="button"
-                title="Ir a la primera anomalía en la tabla"
-                onClick={() => kardexTableRef.current?.scrollToFirstAnomaly()}
+                onClick={() => setFiltrosAbiertos(v => !v)}
                 style={{
                   ...btnBase,
-                  background: 'rgba(245,158,11,0.12)',
-                  border: '1px solid rgba(245,158,11,0.25)',
-                  color: '#fbbf24',
-                  cursor: 'pointer',
+                  background: filtrosAbiertos ? 'rgba(56,139,221,0.15)' : 'rgba(56,139,221,0.06)',
+                  border: filtrosAbiertos ? '1px solid rgba(56,139,221,0.35)' : '1px solid rgba(56,139,221,0.14)',
+                  color: filtrosAbiertos ? '#60a5fa' : '#2a5a8a',
                 }}
               >
-                ⚠ {erroresIntegridad} anomalía{erroresIntegridad > 1 ? 's' : ''}
+                <IconFilter /> Filtros
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setFiltrosAbiertos(v => !v)}
-              style={{
-                ...btnBase,
-                background: filtrosAbiertos ? 'rgba(56,139,221,0.15)' : 'rgba(56,139,221,0.06)',
-                border: filtrosAbiertos ? '1px solid rgba(56,139,221,0.35)' : '1px solid rgba(56,139,221,0.14)',
-                color: filtrosAbiertos ? '#60a5fa' : '#2a5a8a',
-              }}
-            >
-              <IconFilter /> Filtros
-            </button>
-            <button
-              type="button"
-              onClick={() => setMostrarSemaforo(v => !v)}
-              style={{
-                ...btnBase,
-                background: mostrarSemaforo ? 'rgba(245,158,11,0.12)' : 'rgba(56,139,221,0.06)',
-                border: mostrarSemaforo ? '1px solid rgba(245,158,11,0.28)' : '1px solid rgba(56,139,221,0.14)',
-                color: mostrarSemaforo ? '#fbbf24' : '#2a5a8a',
-              }}
-            >
-              <IconShield /> Verificación
-            </button>
-            <button
-              type="button"
-              onClick={handleExportar}
-              disabled={exporting || movimientos.length === 0}
-              style={{
-                ...btnBase,
-                background: 'linear-gradient(135deg,#1d4ed8,#1e3a8a)',
-                border: 'none',
-                color: '#e2e8f0',
-                boxShadow: '0 2px 10px rgba(29,78,216,0.4)',
-                opacity: (exporting || movimientos.length === 0) ? 0.4 : 1,
-                cursor: (exporting || movimientos.length === 0) ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {exporting ? <IconSpinner /> : <IconDownload />}
-              Exportar Excel
-            </button>
-          </div>
-        </header>
+              <button
+                type="button"
+                onClick={() => setMostrarSemaforo(v => !v)}
+                style={{
+                  ...btnBase,
+                  background: mostrarSemaforo ? 'rgba(245,158,11,0.12)' : 'rgba(56,139,221,0.06)',
+                  border: mostrarSemaforo ? '1px solid rgba(245,158,11,0.28)' : '1px solid rgba(56,139,221,0.14)',
+                  color: mostrarSemaforo ? '#fbbf24' : '#2a5a8a',
+                }}
+              >
+                <IconShield /> Verificación
+              </button>
 
-        {/* ── SCROLLABLE CONTENT ── */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* ═══ NUEVO BOTÓN IMPRIMIR ═══ */}
+              <button
+                type="button"
+                onClick={handleImprimir}
+                disabled={movimientos.length === 0}
+                title="Imprimir el contenido visible"
+                style={{
+                  ...btnBase,
+                  background: 'rgba(34,197,94,0.12)',
+                  border: '1px solid rgba(34,197,94,0.28)',
+                  color: '#4ade80',
+                  opacity: movimientos.length === 0 ? 0.4 : 1,
+                  cursor: movimientos.length === 0 ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <IconPrinter /> Imprimir
+              </button>
 
-          {/* Alertas */}
-          {alertas && <AlertaBanner alertas={alertas} erroresIntegridad={erroresIntegridad} />}
-
-          {/* ── Métricas ── */}
-          {metricas && (
-            <div style={{ display: 'flex', gap: 12 }}>
-              <MetricCard
-                label="Total registros"
-                value={totalRegistros.toLocaleString('es-PE')}
-                sub="movimientos"
-                color="#c8ddef"
-                sparkColor="#3b82f6"
-                borderColor="rgba(56,139,221,0.15)"
-              />
-              <MetricCard
-                label="Total entradas"
-                value={fmtS(metricas.total_ent_costo)}
-                sub={`${fmt(metricas.total_ent_cantidad)} uds`}
-                color="#3b82f6"
-                sparkColor="#3b82f6"
-                borderColor="rgba(59,130,246,0.25)"
-              />
-              <MetricCard
-                label="Total salidas"
-                value={fmtS(metricas.total_sal_costo)}
-                sub={`${fmt(metricas.total_sal_cantidad)} uds`}
-                color="#f87171"
-                sparkColor="#ef4444"
-                borderColor="rgba(239,68,68,0.25)"
-              />
-              <MetricCard
-                label="Saldo final"
-                value={fmtS(metricas.saldo_final_costo)}
-                sub={`${fmt(metricas.saldo_final_cantidad)} uds`}
-                color="#fbbf24"
-                sparkColor="#f59e0b"
-                borderColor="rgba(245,158,11,0.25)"
-              />
+              <button
+                type="button"
+                onClick={handleExportar}
+                disabled={exporting || movimientos.length === 0}
+                style={{
+                  ...btnBase,
+                  background: 'linear-gradient(135deg,#1d4ed8,#1e3a8a)',
+                  border: 'none',
+                  color: '#e2e8f0',
+                  boxShadow: '0 2px 10px rgba(29,78,216,0.4)',
+                  opacity: (exporting || movimientos.length === 0) ? 0.4 : 1,
+                  cursor: (exporting || movimientos.length === 0) ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {exporting ? <IconSpinner /> : <IconDownload />}
+                Exportar Excel
+              </button>
             </div>
-          )}
+          </header>
 
-          {/* ── Filtros ── */}
-{filtrosAbiertos && (
-  <div
-    style={{
-      background: '#0d1525',
-      border: '1px solid rgba(56,139,221,0.12)',
-      borderRadius: 10,
-      padding: '0 14px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      height: 56,
-      flexShrink: 0,
-    }}
-  >
-    {/* Label */}
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        flexShrink: 0,
-        paddingRight: 10,
-        borderRight: '1px solid rgba(56,139,221,0.1)',
-      }}
-    >
-      <div
-        style={{
-          width: 2,
-          height: 12,
-          background: '#3b82f6',
-          borderRadius: 2,
-        }}
-      />
-      <span
-        style={{
-          fontSize: 9,
-          fontWeight: 700,
-          letterSpacing: '.16em',
-          textTransform: 'uppercase' as const,
-          color: '#2a4a6a',
-          fontFamily: "'IBM Plex Mono', monospace",
-        }}
-      >
-        Filtros
-      </span>
-    </div>
+          {/* ── SCROLLABLE CONTENT ── */}
+          <div className="kardex-print-area" style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-    {/* Código */}
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        flexShrink: 0,
-      }}
-    >
-      <span
-        style={{
-          fontSize: 10,
-          color: '#2a5a7a',
-          flexShrink: 0,
-        }}
-      >
-        Código
-      </span>
-
-      <input
-        value={draftCodigo}
-        onChange={e => setDraftCodigo(e.target.value)}
-        placeholder="Ej: 011039"
-        style={{
-          ...filterInputStyle,
-          width: 100,
-        }}
-      />
-
-      {draftCodigo && (
-        <button
-          onClick={() => {
-            setCodigo('')
-            setDraftCodigo('')
-
-            cargarKardex(id, {
-              ...draftFiltroFecha,
-              codigo: undefined,
-            })
-          }}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#2a5a7a',
-            cursor: 'pointer',
-            fontSize: 14,
-            lineHeight: 1,
-            padding: '0 2px',
-          }}
-        >
-          ×
-        </button>
-      )}
-    </div>
-
-    <div
-      style={{
-        width: 1,
-        height: 20,
-        background: 'rgba(56,139,221,0.1)',
-        flexShrink: 0,
-      }}
-    />
-
-    {/* Modo */}
-    <div
-      style={{
-        display: 'flex',
-        gap: 4,
-        flexShrink: 0,
-      }}
-    >
-      {(['anio_mes', 'exacta', 'rango'] as const).map(m => (
-        <button
-          key={m}
-          onClick={() =>
-            setDraftFiltroFecha({
-              ...draftFiltroFecha,
-              modo: m,
-            })
-          }
-          style={{
-            padding: '3px 8px',
-            borderRadius: 4,
-            border: 'none',
-            background:
-              draftFiltroFecha.modo === m
-                ? 'rgba(59,130,246,0.2)'
-                : 'rgba(56,139,221,0.06)',
-            color:
-              draftFiltroFecha.modo === m
-                ? '#60a5fa'
-                : '#2a5a7a',
-            fontSize: 10,
-            fontWeight:
-              draftFiltroFecha.modo === m ? 600 : 400,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}
-        >
-          {{
-            anio_mes: 'Año/Mes',
-            exacta: 'Exacta',
-            rango: 'Rango',
-          }[m]}
-        </button>
-      ))}
-    </div>
-
-    <div
-      style={{
-        width: 1,
-        height: 20,
-        background: 'rgba(56,139,221,0.1)',
-        flexShrink: 0,
-      }}
-    />
-    
-
-    {/* Controles fecha */}
-    {draftFiltroFecha.modo === 'anio_mes' && (
-      <>
-        <select
-          value={draftFiltroFecha.anio ?? ''}
-          onChange={e =>
-            setDraftFiltroFecha({
-              ...draftFiltroFecha,
-              anio: e.target.value
-                ? Number(e.target.value)
-                : undefined,
-            })
-          }
-          style={filterSelectStyle}
-        >
-          <option value="">Año</option>
-
-          {Array.from(
-            { length: 5 },
-            (_, i) => new Date().getFullYear() - i
-          ).map(a => (
-            <option key={a} value={a}>
-              {a}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={draftFiltroFecha.mes ?? ''}
-          onChange={e =>
-            setDraftFiltroFecha({
-              ...draftFiltroFecha,
-              mes: e.target.value
-                ? Number(e.target.value)
-                : undefined,
-            })
-          }
-          disabled={!draftFiltroFecha.anio}
-          style={filterSelectStyle}
-        >
-          <option value="">Mes</option>
-
-          {[
-            'Ene',
-            'Feb',
-            'Mar',
-            'Abr',
-            'May',
-            'Jun',
-            'Jul',
-            'Ago',
-            'Set',
-            'Oct',
-            'Nov',
-            'Dic',
-          ].map((m, i) => (
-            <option key={i + 1} value={i + 1}>
-              {m}
-            </option>
-          ))}
-        </select>
-      </>
-    )}
-
-    {draftFiltroFecha.modo === 'exacta' && (
-      <input
-        type="date"
-        value={draftFiltroFecha.fecha_exacta ?? ''}
-        onChange={e =>
-          setDraftFiltroFecha({
-            ...draftFiltroFecha,
-            fecha_exacta:
-              e.target.value || undefined,
-          })
-        }
-        style={filterInputStyle}
-      />
-    )}
-
-    {draftFiltroFecha.modo === 'rango' && (
-      <>
-        <input
-          type="date"
-          value={draftFiltroFecha.fecha_desde ?? ''}
-          onChange={e =>
-            setDraftFiltroFecha({
-              ...draftFiltroFecha,
-              fecha_desde:
-                e.target.value || undefined,
-            })
-          }
-          style={filterInputStyle}
-        />
-
-        <span
-          style={{
-            fontSize: 11,
-            color: '#2a5a7a',
-          }}
-        >
-          –
-        </span>
-
-        <input
-          type="date"
-          value={draftFiltroFecha.fecha_hasta ?? ''}
-          onChange={e =>
-            setDraftFiltroFecha({
-              ...draftFiltroFecha,
-              fecha_hasta:
-                e.target.value || undefined,
-            })
-          }
-          style={filterInputStyle}
-        />
-      </>
-    )}
-
-    <div style={{ width: 40 }} />
-
-    {/* acciones */}
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-      }}
-    >
-      <button
-        onClick={limpiarFiltros}
-        style={{
-          padding: '5px 10px',
-          borderRadius: 5,
-          border: '1px solid rgba(56,139,221,0.12)',
-          background: 'rgba(56,139,221,0.05)',
-          color: '#4a6a8a',
-          fontSize: 10,
-          cursor: 'pointer',
-        }}
-      >
-        Limpiar
-      </button>
-
-      <button
-        onClick={aplicarFiltros}
-        style={{
-          padding: '5px 10px',
-          borderRadius: 5,
-          border: 'none',
-          background: 'rgba(59,130,246,0.2)',
-          color: '#60a5fa',
-          fontSize: 10,
-          fontWeight: 600,
-          cursor: 'pointer',
-        }}
-      >
-        Aplicar
-      </button>
-    </div>
-  </div>
-)}
-
-          {/* ── Badges ── */}
-          {codigosVisibles.length > 0 && (
-            <BadgeProducto codigos={codigosVisibles} />
-          )}
-
-          {/* ── Error ── */}
-          {error && (
-            <div style={{
-              display: 'flex', alignItems: 'flex-start', gap: 8,
-              background: 'rgba(239,68,68,0.08)',
-              border: '1px solid rgba(239,68,68,0.2)',
-              borderRadius: 8, padding: '10px 14px',
-              fontSize: 12, color: '#fca5a5',
-              fontFamily: "'IBM Plex Mono', monospace",
-            }}>
-              ✕ {error}
-            </div>
-          )}
-
-          {/* ── Tabla ── */}
-          <div style={{
-            background: '#0d1525',
-            border: '1px solid rgba(56,139,221,0.1)',
-            borderRadius: 10, overflow: 'hidden',
-          }}>
-            {/* Toolbar */}
-            <div style={{
-              padding: '10px 14px',
-              borderBottom: '1px solid rgba(56,139,221,0.08)',
-              background: 'rgba(56,139,221,0.03)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 2, height: 12, background: '#3b82f6', borderRadius: 2 }} />
-                <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: '#1e3a5a', fontFamily: "'IBM Plex Mono', monospace" }}>
-                  Movimientos
-                </span>
-                <span style={{
-                  fontSize: 11, fontFamily: "'IBM Plex Mono', monospace",
-                  padding: '1px 8px', borderRadius: 20,
-                  background: 'rgba(59,130,246,0.15)',
-                  border: '1px solid rgba(59,130,246,0.25)',
-                  color: '#60a5fa',
-                }}>
-                  {movimientos.length.toLocaleString('es-PE')}
-                </span>
+            {/* ═══ ENCABEZADO SOLO PARA IMPRESIÓN ═══ */}
+            <div className="kardex-print-only kardex-print-header">
+              <div className="title">KARDEX SISTEMA CPP — #{id}</div>
+              <div className="subtitle">
+                {filtrosAplicadosTexto}
+                {' · '}
+                {movimientos.length.toLocaleString('es-PE')} de {totalRegistros.toLocaleString('es-PE')} registros
+                {' · '}
+                Generado: {new Date().toLocaleString('es-PE')}
               </div>
+            </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                {mostrarSemaforo && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 10, color: '#1e3a5a' }}>
-                    {[
-                      { color: '#22c55e', label: 'OK' },
-                      { color: '#f59e0b', label: 'Error B' },
-                      { color: '#ef4444', label: 'Error A' },
-                    ].map(item => (
-                      <span key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: item.color, display: 'inline-block' }} />
-                        {item.label}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-                  <span style={{ fontSize: 10, color: '#1e3a5a' }}>En línea</span>
+            {/* Alertas (ocultas en impresión) */}
+            <div className="kardex-no-print">
+              {alertas && <AlertaBanner alertas={alertas} erroresIntegridad={erroresIntegridad} />}
+            </div>
+
+            {/* ── Métricas (versión web) ── */}
+            {metricas && (
+              <div className="kardex-no-print" style={{ display: 'flex', gap: 12 }}>
+                <MetricCard
+                  label="Total registros"
+                  value={totalRegistros.toLocaleString('es-PE')}
+                  sub="movimientos"
+                  color="#c8ddef"
+                  sparkColor="#3b82f6"
+                  borderColor="rgba(56,139,221,0.15)"
+                />
+                <MetricCard
+                  label="Total entradas"
+                  value={fmtS(metricas.total_ent_costo)}
+                  sub={`${fmt(metricas.total_ent_cantidad)} uds`}
+                  color="#3b82f6"
+                  sparkColor="#3b82f6"
+                  borderColor="rgba(59,130,246,0.25)"
+                />
+                <MetricCard
+                  label="Total salidas"
+                  value={fmtS(metricas.total_sal_costo)}
+                  sub={`${fmt(metricas.total_sal_cantidad)} uds`}
+                  color="#f87171"
+                  sparkColor="#ef4444"
+                  borderColor="rgba(239,68,68,0.25)"
+                />
+                <MetricCard
+                  label="Saldo final"
+                  value={fmtS(metricas.saldo_final_costo)}
+                  sub={`${fmt(metricas.saldo_final_cantidad)} uds`}
+                  color="#fbbf24"
+                  sparkColor="#f59e0b"
+                  borderColor="rgba(245,158,11,0.25)"
+                />
+              </div>
+            )}
+
+            {/* ═══ MÉTRICAS SOLO PARA IMPRESIÓN ═══ */}
+            {metricas && (
+              <div className="kardex-print-only kardex-print-metrics">
+                <div>
+                  <div className="lbl">Total registros</div>
+                  <div className="val">{totalRegistros.toLocaleString('es-PE')}</div>
+                  <div className="sub">movimientos</div>
+                </div>
+                <div>
+                  <div className="lbl">Total entradas</div>
+                  <div className="val">{fmtS(metricas.total_ent_costo)}</div>
+                  <div className="sub">{fmt(metricas.total_ent_cantidad)} uds</div>
+                </div>
+                <div>
+                  <div className="lbl">Total salidas</div>
+                  <div className="val">{fmtS(metricas.total_sal_costo)}</div>
+                  <div className="sub">{fmt(metricas.total_sal_cantidad)} uds</div>
+                </div>
+                <div>
+                  <div className="lbl">Saldo final</div>
+                  <div className="val">{fmtS(metricas.saldo_final_costo)}</div>
+                  <div className="sub">{fmt(metricas.saldo_final_cantidad)} uds</div>
                 </div>
               </div>
+            )}
+
+            {/* ── Filtros (ocultos en impresión) ── */}
+            {filtrosAbiertos && (
+              <div className="kardex-no-print" style={{
+                background: '#0d1525',
+                border: '1px solid rgba(56,139,221,0.12)',
+                borderRadius: 10,
+                padding: '0 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                height: 56,
+                flexShrink: 0,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, paddingRight: 10, borderRight: '1px solid rgba(56,139,221,0.1)' }}>
+                  <div style={{ width: 2, height: 12, background: '#3b82f6', borderRadius: 2 }} />
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: '#2a4a6a', fontFamily: "'IBM Plex Mono', monospace" }}>
+                    Filtros
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, color: '#2a5a7a', flexShrink: 0 }}>Código</span>
+                  <input
+                    value={draftCodigo}
+                    onChange={e => setDraftCodigo(e.target.value)}
+                    placeholder="Ej: 011039"
+                    style={{ ...filterInputStyle, width: 100 }}
+                  />
+                  {draftCodigo && (
+                    <button
+                      onClick={() => {
+                        setCodigo('')
+                        setDraftCodigo('')
+                        cargarKardex(id, { ...draftFiltroFecha, codigo: undefined })
+                      }}
+                      style={{ background: 'none', border: 'none', color: '#2a5a7a', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 2px' }}
+                    >×</button>
+                  )}
+                </div>
+
+                <div style={{ width: 1, height: 20, background: 'rgba(56,139,221,0.1)', flexShrink: 0 }} />
+
+                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                  {(['anio_mes', 'exacta', 'rango'] as const).map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setDraftFiltroFecha({ ...draftFiltroFecha, modo: m })}
+                      style={{
+                        padding: '3px 8px', borderRadius: 4, border: 'none',
+                        background: draftFiltroFecha.modo === m ? 'rgba(59,130,246,0.2)' : 'rgba(56,139,221,0.06)',
+                        color: draftFiltroFecha.modo === m ? '#60a5fa' : '#2a5a7a',
+                        fontSize: 10, fontWeight: draftFiltroFecha.modo === m ? 600 : 400,
+                        cursor: 'pointer', fontFamily: 'inherit',
+                      }}
+                    >
+                      {{ anio_mes: 'Año/Mes', exacta: 'Exacta', rango: 'Rango' }[m]}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ width: 1, height: 20, background: 'rgba(56,139,221,0.1)', flexShrink: 0 }} />
+
+                {draftFiltroFecha.modo === 'anio_mes' && (
+                  <>
+                    <select
+                      value={draftFiltroFecha.anio ?? ''}
+                      onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, anio: e.target.value ? Number(e.target.value) : undefined })}
+                      style={filterSelectStyle}
+                    >
+                      <option value="">Año</option>
+                      {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(a => (
+                        <option key={a} value={a}>{a}</option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={draftFiltroFecha.mes ?? ''}
+                      onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, mes: e.target.value ? Number(e.target.value) : undefined })}
+                      disabled={!draftFiltroFecha.anio}
+                      style={filterSelectStyle}
+                    >
+                      <option value="">Mes</option>
+                      {['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Set','Oct','Nov','Dic'].map((m, i) => (
+                        <option key={i + 1} value={i + 1}>{m}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+
+                {draftFiltroFecha.modo === 'exacta' && (
+                  <input
+                    type="date"
+                    value={draftFiltroFecha.fecha_exacta ?? ''}
+                    onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, fecha_exacta: e.target.value || undefined })}
+                    style={filterInputStyle}
+                  />
+                )}
+
+                {draftFiltroFecha.modo === 'rango' && (
+                  <>
+                    <input
+                      type="date"
+                      value={draftFiltroFecha.fecha_desde ?? ''}
+                      onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, fecha_desde: e.target.value || undefined })}
+                      style={filterInputStyle}
+                    />
+                    <span style={{ fontSize: 11, color: '#2a5a7a' }}>–</span>
+                    <input
+                      type="date"
+                      value={draftFiltroFecha.fecha_hasta ?? ''}
+                      onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, fecha_hasta: e.target.value || undefined })}
+                      style={filterInputStyle}
+                    />
+                  </>
+                )}
+
+                <div style={{ width: 40 }} />
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    onClick={limpiarFiltros}
+                    style={{ padding: '5px 10px', borderRadius: 5, border: '1px solid rgba(56,139,221,0.12)', background: 'rgba(56,139,221,0.05)', color: '#4a6a8a', fontSize: 10, cursor: 'pointer' }}
+                  >
+                    Limpiar
+                  </button>
+                  <button
+                    onClick={aplicarFiltros}
+                    style={{ padding: '5px 10px', borderRadius: 5, border: 'none', background: 'rgba(59,130,246,0.2)', color: '#60a5fa', fontSize: 10, fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Aplicar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── Badges (ocultos en impresión) ── */}
+            <div className="kardex-no-print">
+              {codigosVisibles.length > 0 && (
+                <BadgeProducto codigos={codigosVisibles} />
+              )}
             </div>
 
-            {/* Body */}
-            {loading ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '56px 0', gap: 10, color: '#1e3a5a' }}>
-                <IconSpinner />
-                <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>Cargando movimientos...</span>
-              </div>
-            ) : (
-              <KardexTable
-                ref={kardexTableRef}
-                movimientos={movimientos}
-                mostrarSemaforo={mostrarSemaforo}
-              />
-            )}
-
-            {/* Footer */}
-            {movimientos.length > 0 && (
-              <div style={{
-                padding: '7px 14px',
-                borderTop: '1px solid rgba(56,139,221,0.08)',
-                background: 'rgba(56,139,221,0.02)',
+            {error && (
+              <div className="kardex-no-print" style={{
+                display: 'flex', alignItems: 'flex-start', gap: 8,
+                background: 'rgba(239,68,68,0.08)',
+                border: '1px solid rgba(239,68,68,0.2)',
+                borderRadius: 8, padding: '10px 14px',
+                fontSize: 12, color: '#fca5a5',
+                fontFamily: "'IBM Plex Mono', monospace",
               }}>
-                <p style={{ fontSize: 10, fontFamily: "'IBM Plex Mono', monospace", color: '#1e3a5a' }}>
-                  Mostrando {movimientos.length.toLocaleString('es-PE')} de {totalRegistros.toLocaleString('es-PE')} registros
-                </p>
+                ✕ {error}
               </div>
             )}
-          </div>
 
+            {/* ── Tabla ── */}
+            <div style={{
+              background: '#0d1525',
+              border: '1px solid rgba(56,139,221,0.1)',
+              borderRadius: 10, overflow: 'hidden',
+            }}>
+              {/* Toolbar (oculto en impresión) */}
+              <div className="kardex-no-print" style={{
+                padding: '10px 14px',
+                borderBottom: '1px solid rgba(56,139,221,0.08)',
+                background: 'rgba(56,139,221,0.03)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ width: 2, height: 12, background: '#3b82f6', borderRadius: 2 }} />
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: '#1e3a5a', fontFamily: "'IBM Plex Mono', monospace" }}>
+                    Movimientos
+                  </span>
+                  <span style={{
+                    fontSize: 11, fontFamily: "'IBM Plex Mono', monospace",
+                    padding: '1px 8px', borderRadius: 20,
+                    background: 'rgba(59,130,246,0.15)',
+                    border: '1px solid rgba(59,130,246,0.25)',
+                    color: '#60a5fa',
+                  }}>
+                    {movimientos.length.toLocaleString('es-PE')}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  {mostrarSemaforo && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 10, color: '#1e3a5a' }}>
+                      {[
+                        { color: '#22c55e', label: 'OK' },
+                        { color: '#f59e0b', label: 'Error B' },
+                        { color: '#ef4444', label: 'Error A' },
+                      ].map(item => (
+                        <span key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: item.color, display: 'inline-block' }} />
+                          {item.label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+                    <span style={{ fontSize: 10, color: '#1e3a5a' }}>En línea</span>
+                  </div>
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="kardex-no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '56px 0', gap: 10, color: '#1e3a5a' }}>
+                  <IconSpinner />
+                  <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12 }}>Cargando movimientos...</span>
+                </div>
+              ) : (
+                <KardexTable
+                  ref={kardexTableRef}
+                  movimientos={movimientos}
+                  mostrarSemaforo={mostrarSemaforo}
+                />
+              )}
+
+              {movimientos.length > 0 && (
+                <div className="kardex-no-print" style={{
+                  padding: '7px 14px',
+                  borderTop: '1px solid rgba(56,139,221,0.08)',
+                  background: 'rgba(56,139,221,0.02)',
+                }}>
+                  <p style={{ fontSize: 10, fontFamily: "'IBM Plex Mono', monospace", color: '#1e3a5a' }}>
+                    Mostrando {movimientos.length.toLocaleString('es-PE')} de {totalRegistros.toLocaleString('es-PE')} registros
+                  </p>
+                </div>
+              )}
+            </div>
+
+          </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
