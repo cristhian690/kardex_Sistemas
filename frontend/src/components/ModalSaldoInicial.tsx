@@ -14,16 +14,16 @@ interface SaldoExistente {
   codigo:         string
   descripcion?:   string
   fecha:          string
-  cantidad:       number
-  costo_unitario: number
-  costo_total:    number
+  cantidad:       number | string
+  costo_unitario: number | string
+  costo_total:    number | string
 }
 
 interface Props {
   open:          boolean
   onClose:       () => void
   onGuardado?:   () => void
-  saldoEditar?:  SaldoExistente | null   // ← recibe el saldo completo para editar
+  saldoEditar?:  SaldoExistente | null
 }
 
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
@@ -99,20 +99,31 @@ function Msg({ children, color }: { children: React.ReactNode; color: string }) 
   )
 }
 
+/* ── Helper: convertir cualquier cosa a número seguro ─────────────────────── */
+const toNum = (v: number | string | null | undefined): number => {
+  if (v === null || v === undefined || v === '') return 0
+  const n = typeof v === 'number' ? v : parseFloat(String(v))
+  return isNaN(n) ? 0 : n
+}
+
 /* ── Componente principal ─────────────────────────────────────────────────── */
 export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEditar }: Props) {
   const hoy        = new Date().toISOString().split('T')[0]
   const modoEditar = !!saldoEditar
 
-  const [codigo,      setCodigo]      = useState('')
-  const [descripcion, setDescripcion] = useState('')
-  const [fecha,       setFecha]       = useState(hoy)
-  const [cantidad,    setCantidad]    = useState('')
-  const [costoUnit,   setCostoUnit]   = useState('')
+  const [codigo,             setCodigo]             = useState('')
+  const [descripcion,        setDescripcion]        = useState('')
+  const [fecha,              setFecha]              = useState(hoy)
+  const [cantidad,           setCantidad]           = useState('')
+  const [costoUnit,          setCostoUnit]          = useState('')
+  // ✅ FIX: guardamos el costo_total original de la BD
+  const [costoTotalOriginal, setCostoTotalOriginal] = useState<number | null>(null)
+  // ✅ FIX: rastreamos si el usuario modificó cantidad o costo unitario
+  const [camposModificados,  setCamposModificados]  = useState(false)
 
-  const [loading,    setLoading]    = useState(false)
-  const [error,      setError]      = useState<string | null>(null)
-  const [success,    setSuccess]    = useState(false)
+  const [loading,     setLoading]     = useState(false)
+  const [error,       setError]       = useState<string | null>(null)
+  const [success,     setSuccess]     = useState(false)
   const [advertencia, setAdvertencia] = useState<string | null>(null)
 
   const inputRef = useRef<HTMLInputElement>(null)
@@ -122,12 +133,15 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
     if (!open) return
 
     if (saldoEditar) {
-      // Modo edición — cargar datos existentes
+      // Modo edición — cargar datos existentes (convertir a número por si vienen como string)
       setCodigo(saldoEditar.codigo)
       setDescripcion(saldoEditar.descripcion ?? '')
       setFecha(saldoEditar.fecha)
-      setCantidad(String(saldoEditar.cantidad))
-      setCostoUnit(String(saldoEditar.costo_unitario))
+      setCantidad(String(toNum(saldoEditar.cantidad)))
+      setCostoUnit(String(toNum(saldoEditar.costo_unitario)))
+      // ✅ FIX: convertir a número antes de guardar (la BD lo devuelve como string)
+      setCostoTotalOriginal(toNum(saldoEditar.costo_total))
+      setCamposModificados(false)
     } else {
       // Modo creación — limpiar formulario
       setCodigo('')
@@ -135,6 +149,8 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
       setFecha(hoy)
       setCantidad('')
       setCostoUnit('')
+      setCostoTotalOriginal(null)
+      setCamposModificados(false)
     }
 
     setError(null)
@@ -150,12 +166,26 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
-  const costoTotal = Number(cantidad || 0) * Number(costoUnit || 0)
+  // ✅ FIX: usa el total original de BD a menos que el usuario haya cambiado los campos
+  const costoTotal: number = (!modoEditar || camposModificados || costoTotalOriginal === null)
+    ? toNum(cantidad) * toNum(costoUnit)
+    : costoTotalOriginal
 
   const valido =
     codigo.trim() &&
-    Number(cantidad) > 0 &&
-    Number(costoUnit) > 0
+    toNum(cantidad) > 0 &&
+    toNum(costoUnit) > 0
+
+  // ✅ FIX: handlers que marcan cuando el usuario modifica manualmente
+  const handleCantidadChange = (val: string) => {
+    setCantidad(val)
+    setCamposModificados(true)
+  }
+
+  const handleCostoUnitChange = (val: string) => {
+    setCostoUnit(val)
+    setCamposModificados(true)
+  }
 
   const handleGuardar = async () => {
     if (!valido || loading) return
@@ -171,8 +201,8 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
         res = await editarSaldo(saldoEditar.id, {
           descripcion:    descripcion.trim(),
           fecha,
-          cantidad:       Number(cantidad),
-          costo_unitario: Number(costoUnit),
+          cantidad:       toNum(cantidad),
+          costo_unitario: toNum(costoUnit),
           costo_total:    costoTotal,
         })
       } else {
@@ -181,8 +211,8 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
           codigo:         codigo.trim().toUpperCase(),
           descripcion:    descripcion.trim(),
           fecha,
-          cantidad:       Number(cantidad),
-          costo_unitario: Number(costoUnit),
+          cantidad:       toNum(cantidad),
+          costo_unitario: toNum(costoUnit),
         })
       }
 
@@ -280,7 +310,7 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
               className="msaldo-input"
               value={codigo}
               onChange={e => setCodigo(e.target.value.toUpperCase())}
-              disabled={modoEditar}   // ← no editable en modo edición
+              disabled={modoEditar}
               placeholder="Ej: 011039"
             />
           </Field>
@@ -309,7 +339,7 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
                 className="msaldo-input"
                 type="number"
                 value={cantidad}
-                onChange={e => setCantidad(e.target.value)}
+                onChange={e => handleCantidadChange(e.target.value)}
                 placeholder="0.000"
               />
             </Field>
@@ -318,20 +348,28 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
                 className="msaldo-input"
                 type="number"
                 value={costoUnit}
-                onChange={e => setCostoUnit(e.target.value)}
+                onChange={e => handleCostoUnitChange(e.target.value)}
                 placeholder="0.000000"
               />
             </Field>
           </div>
 
-          {/* Costo total calculado */}
+          {/* Costo total */}
           <div style={{
             background: 'rgba(56,139,221,0.05)',
             border: '1px solid rgba(56,139,221,0.12)',
             borderRadius: 8, padding: '9px 12px',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           }}>
-            <span style={{ fontSize: 11, color: '#1e3a5a' }}>Costo total calculado</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 11, color: '#1e3a5a' }}>Costo total calculado</span>
+              {/* ✅ FIX: indicador visual de si es original o recalculado */}
+              {modoEditar && (
+                <span style={{ fontSize: 9, color: camposModificados ? '#f59e0b' : '#2a5a6a', fontFamily: "'IBM Plex Mono', monospace" }}>
+                  {camposModificados ? '⚠ recalculado' : '✓ valor original BD'}
+                </span>
+              )}
+            </div>
             <span style={{ fontWeight: 700, color: '#60a5fa', fontFamily: "'IBM Plex Mono', monospace" }}>
               S/ {costoTotal.toFixed(6)}
             </span>
@@ -340,9 +378,9 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
         </div>
 
         {/* Mensajes */}
-        {error      && <Msg color="#fca5a5">✕ {error}</Msg>}
+        {error       && <Msg color="#fca5a5">✕ {error}</Msg>}
         {advertencia && <Msg color="#facc15">⚠ {advertencia}</Msg>}
-        {success    && <Msg color="#4ade80"><IconCheck /> {modoEditar ? 'Actualizado' : 'Guardado'}</Msg>}
+        {success     && <Msg color="#4ade80"><IconCheck /> {modoEditar ? 'Actualizado' : 'Guardado'}</Msg>}
 
         {/* Botones */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>

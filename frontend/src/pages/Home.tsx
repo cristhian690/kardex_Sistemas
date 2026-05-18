@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -92,6 +93,25 @@ const getInitials = (user: Usuario | null): string => {
 /* ═══════════════════════════ Sidebar ═══════════════════════════ */
 const SIDEBAR_W = 200
 
+/* Badge "Pronto" */
+const BadgePronto = () => (
+  <span style={{
+    marginLeft: 'auto',
+    fontSize: 8,
+    fontWeight: 700,
+    letterSpacing: '.08em',
+    textTransform: 'uppercase',
+    padding: '2px 6px',
+    borderRadius: 4,
+    background: 'rgba(148,163,184,0.08)',
+    border: '1px solid rgba(148,163,184,0.18)',
+    color: '#64748b',
+    flexShrink: 0,
+  }}>
+    Pronto
+  </span>
+)
+
 const Sidebar = ({ onNavigate, currentPath, onAgregarSaldo, user, onLogout }: {
   onNavigate:      (p: string) => void
   currentPath:     string
@@ -99,25 +119,42 @@ const Sidebar = ({ onNavigate, currentPath, onAgregarSaldo, user, onLogout }: {
   user:            Usuario | null
   onLogout:        () => void
 }) => {
-  const navItem = (label: string, icon: React.ReactNode, path: string, active: boolean) => (
+  /**
+   * navItem soporta 3 estados:
+   * - activo: ruta actual
+   * - normal: clickeable
+   * - disabled: "Pronto", no clickeable
+   */
+  const navItem = (
+    label: string,
+    icon: React.ReactNode,
+    path: string,
+    active: boolean,
+    disabled: boolean = false,
+  ) => (
     <button
       type="button"
-      onClick={() => onNavigate(path)}
+      onClick={() => { if (!disabled) onNavigate(path) }}
+      disabled={disabled}
       style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 8,
         padding: '6px 10px', borderRadius: 6, border: 'none',
         background: active ? 'rgba(56,139,221,0.15)' : 'transparent',
-        color: active ? '#60a5fa' : '#4a6a8a',
+        color: disabled ? '#2a4a6a' : (active ? '#60a5fa' : '#4a6a8a'),
         fontSize: 12, fontWeight: active ? 600 : 400,
-        cursor: 'pointer', fontFamily: 'inherit',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        fontFamily: 'inherit',
         textAlign: 'left' as const,
+        opacity: disabled ? 0.55 : 1,
       }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
+      onMouseEnter={e => { if (!active && !disabled) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+      onMouseLeave={e => { if (!active && !disabled) e.currentTarget.style.background = 'transparent' }}
+      title={disabled ? 'Próximamente disponible' : undefined}
     >
-      <span style={{ color: active ? '#60a5fa' : '#3a5a7a', flexShrink: 0 }}>{icon}</span>
+      <span style={{ color: disabled ? '#1e3a5a' : (active ? '#60a5fa' : '#3a5a7a'), flexShrink: 0 }}>{icon}</span>
       {label}
-      {active && <span style={{ marginLeft: 'auto', width: 3, height: 14, background: '#3b82f6', borderRadius: 2 }} />}
+      {disabled && <BadgePronto />}
+      {active && !disabled && <span style={{ marginLeft: 'auto', width: 3, height: 14, background: '#3b82f6', borderRadius: 2 }} />}
     </button>
   )
 
@@ -140,16 +177,16 @@ const Sidebar = ({ onNavigate, currentPath, onAgregarSaldo, user, onLogout }: {
       </div>
 
       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>Principal</div>
-      {navItem('Dashboard',  <IconGrid />,    '/',           false)}
+      {navItem('Dashboard',  <IconGrid />,    '/',           false, true)}
       {navItem('Procesar',   <IconUpload />,  '/',           currentPath === '/')}
       {navItem('Actividad',  <IconHistory />, '/historial',  currentPath === '/historial')}
 
       <div style={{ height: 1, background: 'rgba(56,139,221,0.08)', margin: '10px 0' }} />
 
       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>Análisis</div>
-      {navItem('Movimientos',  <IconList />,     '/', false)}
-      {navItem('Verificación', <IconShield />,   '/', false)}
-      {navItem('Exportar',     <IconDownload />, '/', false)}
+      {navItem('Movimientos',  <IconList />,     '/', false, true)}
+      {navItem('Verificación', <IconShield />,   '/', false, true)}
+      {navItem('Exportar',     <IconDownload />, '/', false, true)}
 
       <div style={{ height: 1, background: 'rgba(56,139,221,0.08)', margin: '10px 0' }} />
 
@@ -181,7 +218,7 @@ const Sidebar = ({ onNavigate, currentPath, onAgregarSaldo, user, onLogout }: {
         </button>
       </div>
 
-      {navItem('Productos', <IconProducts />, '/', false)}
+      {navItem('Productos', <IconProducts />, '/', false, true)}
 
       {/* ═══ Bloque CUENTA — empujado al fondo ═══ */}
       <div style={{ flex: 1 }} />

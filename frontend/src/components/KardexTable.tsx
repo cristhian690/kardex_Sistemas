@@ -141,7 +141,7 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
         block: "center",
       });
       setHighlightIndex(idx);
-      setTimeout(() => setHighlightIndex(null), 1500);
+      setTimeout(() => setHighlightIndex(null), 4000);
     });
   }, [pagina]);
 

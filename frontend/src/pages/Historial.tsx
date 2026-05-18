@@ -87,26 +87,57 @@ const SkeletonRow = () => (
   </div>
 )
 
+/* Badge "Pronto" */
+const BadgePronto = () => (
+  <span style={{
+    marginLeft: 'auto',
+    fontSize: 8,
+    fontWeight: 700,
+    letterSpacing: '.08em',
+    textTransform: 'uppercase',
+    padding: '2px 6px',
+    borderRadius: 4,
+    background: 'rgba(148,163,184,0.08)',
+    border: '1px solid rgba(148,163,184,0.18)',
+    color: '#64748b',
+    flexShrink: 0,
+  }}>
+    Pronto
+  </span>
+)
+
 /* ═══ Sidebar ═══ */
 const Sidebar = ({ onNavigate, currentPath }: { onNavigate: (p: string) => void; currentPath: string }) => {
-  const navItem = (label: string, icon: React.ReactNode, path: string, active: boolean) => (
+  const navItem = (
+    label: string,
+    icon: React.ReactNode,
+    path: string,
+    active: boolean,
+    disabled: boolean = false,
+  ) => (
     <button
       type="button"
-      onClick={() => onNavigate(path)}
+      onClick={() => { if (!disabled) onNavigate(path) }}
+      disabled={disabled}
       style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 8,
         padding: '6px 10px', borderRadius: 6, border: 'none',
         background: active ? 'rgba(56,139,221,0.15)' : 'transparent',
-        color: active ? '#60a5fa' : '#4a6a8a',
+        color: disabled ? '#2a4a6a' : (active ? '#60a5fa' : '#4a6a8a'),
         fontSize: 12, fontWeight: active ? 600 : 400,
-        cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left' as const,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        fontFamily: 'inherit',
+        textAlign: 'left' as const,
+        opacity: disabled ? 0.55 : 1,
       }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.background = 'transparent' }}
+      onMouseEnter={e => { if (!active && !disabled) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+      onMouseLeave={e => { if (!active && !disabled) e.currentTarget.style.background = 'transparent' }}
+      title={disabled ? 'Próximamente disponible' : undefined}
     >
-      <span style={{ color: active ? '#60a5fa' : '#3a5a7a', flexShrink: 0 }}>{icon}</span>
+      <span style={{ color: disabled ? '#1e3a5a' : (active ? '#60a5fa' : '#3a5a7a'), flexShrink: 0 }}>{icon}</span>
       {label}
-      {active && <span style={{ marginLeft: 'auto', width: 3, height: 14, background: '#3b82f6', borderRadius: 2 }} />}
+      {disabled && <BadgePronto />}
+      {active && !disabled && <span style={{ marginLeft: 'auto', width: 3, height: 14, background: '#3b82f6', borderRadius: 2 }} />}
     </button>
   )
 
@@ -122,18 +153,18 @@ const Sidebar = ({ onNavigate, currentPath }: { onNavigate: (p: string) => void;
         </div>
       </div>
       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>Principal</div>
-      {navItem('Dashboard',  <IconGrid />,    '/',          false)}
+      {navItem('Dashboard',  <IconGrid />,    '/',          false, true)}
       {navItem('Procesar',   <IconUpload />,  '/',          currentPath === '/')}
       {navItem('Actividad',  <IconHistory />, '/historial', currentPath === '/historial')}
       <div style={{ height: 1, background: 'rgba(56,139,221,0.08)', margin: '10px 0' }} />
       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>Análisis</div>
-      {navItem('Movimientos',  <IconList />,     '/', false)}
-      {navItem('Verificación', <IconShield />,   '/', false)}
-      {navItem('Exportar',     <IconDownload />, '/', false)}
+      {navItem('Movimientos',  <IconList />,     '/', false, true)}
+      {navItem('Verificación', <IconShield />,   '/', false, true)}
+      {navItem('Exportar',     <IconDownload />, '/', false, true)}
       <div style={{ height: 1, background: 'rgba(56,139,221,0.08)', margin: '10px 0' }} />
       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>Sistema</div>
-      {navItem('Saldos',    <IconSaldos />,   '/', false)}
-      {navItem('Productos', <IconProducts />, '/', false)}
+      {navItem('Saldos',    <IconSaldos />,   '/saldos', currentPath === '/saldos')}
+      {navItem('Productos', <IconProducts />, '/', false, true)}
     </aside>
   )
 }
@@ -176,7 +207,7 @@ export default function Historial() {
     try {
       const data = await getHistorial(LIMIT, (pagina - 1) * LIMIT)
       setProcesamientos(data)
-      setSelectedIds(new Set())   // limpiar selección al recargar
+      setSelectedIds(new Set())
     } catch (err) {
       const e = err as ApiError
       setError(e.message || 'Error al cargar el historial')
@@ -234,7 +265,6 @@ export default function Historial() {
       <Sidebar onNavigate={navigate} currentPath={location.pathname} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        {/* Topbar */}
         <header style={{ height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: '1px solid rgba(56,139,221,0.1)', background: '#080e1c', flexShrink: 0, position: 'sticky' as const, top: 0, zIndex: 30 }}>
           <div>
             <h1 style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 17, fontWeight: 700, color: '#e2e8f0', margin: 0, lineHeight: 1 }}>Actividad</h1>
@@ -275,10 +305,7 @@ export default function Historial() {
           </div>
         </header>
 
-        {/* Content */}
         <main style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
-
-          {/* Section label */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <div style={{ width: 2, height: 12, background: '#3b82f6', borderRadius: 2 }} />
             <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: '#1e3a5a', fontFamily: "'IBM Plex Mono', monospace" }}>
@@ -286,19 +313,14 @@ export default function Historial() {
             </span>
           </div>
 
-          {/* Error */}
           {error && (
             <div style={{ display: 'flex', gap: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#fca5a5', fontFamily: "'IBM Plex Mono', monospace", marginBottom: 12 }}>
               ✕ {error}
             </div>
           )}
 
-          {/* Table */}
           <div style={{ background: '#0d1525', border: '1px solid rgba(56,139,221,0.1)', borderRadius: 10, overflow: 'hidden' }}>
-
-            {/* Header */}
             <div style={{ padding: '9px 16px', borderBottom: '1px solid rgba(56,139,221,0.08)', background: 'rgba(56,139,221,0.03)', display: 'grid', gridTemplateColumns: colWidths.join(' '), gap: 10, alignItems: 'center' }}>
-              {/* Checkbox "seleccionar todo" */}
               <div>
                 {procesamientos.length > 0 && (
                   <Checkbox checked={allSelected} onChange={toggleSelectAll} />
@@ -312,10 +334,8 @@ export default function Historial() {
               <div></div>
             </div>
 
-            {/* Loading */}
             {loading && Array.from({ length: 8 }).map((_, i) => <SkeletonRow key={i} />)}
 
-            {/* Empty */}
             {!loading && !error && procesamientos.length === 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '64px 0', gap: 10 }}>
                 <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(56,139,221,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📭</div>
@@ -326,7 +346,6 @@ export default function Historial() {
               </div>
             )}
 
-            {/* Rows */}
             {!loading && procesamientos.map((p) => {
               const cfg = estadoConfig[p.estado]
               const isSelected = selectedIds.has(p.id)
@@ -346,7 +365,6 @@ export default function Historial() {
                   onMouseLeave={e => { e.currentTarget.style.background = isSelected ? 'rgba(59,130,246,0.06)' : 'transparent' }}
                 >
                   <Checkbox checked={isSelected} onChange={() => toggleSelect(p.id)} />
-
                   <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#1e3a5a' }}>#{p.id}</span>
 
                   <div style={{ minWidth: 0, textAlign: 'left' }}>
@@ -377,7 +395,6 @@ export default function Historial() {
             })}
           </div>
 
-          {/* Paginación */}
           {!loading && procesamientos.length > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 14 }}>
               <button type="button" onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1}

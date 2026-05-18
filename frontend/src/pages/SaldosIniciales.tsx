@@ -293,9 +293,8 @@ export default function SaldosIniciales() {
             onClick={() => { setSaldoEditando(null); setModalOpen(true) }}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: '7px 14px', borderRadius: 7, border: 'none',
               background: 'rgba(245,158,11,0.12)',
-              border2: '1px solid rgba(245,158,11,0.28)',
+              border: '1px solid rgba(245,158,11,0.28)',
               color: '#f59e0b',
               fontSize: 12, fontWeight: 600,
               cursor: 'pointer', fontFamily: 'inherit',
