@@ -18,7 +18,7 @@ TIPOS_OPERACION_VALIDOS = {
     "01 venta",
     "02 compra",
     "05 devolución recibida",
-    "06 devolución entregada",   # ✅ NUEVO
+    "06 devolución entregada",
 }
 
 # ── Mapeo ENUM BD ─────────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ TIPO_OP_MAP = {
     "01 venta": "01 Venta",
     "02 compra": "02 Compra",
     "05 devolución recibida": "05 Devolucion Recibida",
-    "06 devolución entregada": "06 Devolucion Entregada",   # ✅ NUEVO
+    "06 devolución entregada": "06 Devolucion Entregada",
 }
 
 
@@ -193,7 +193,7 @@ def parsear_movimientos(
 
         registros = []
 
-        for _, row in df_raw.iterrows():
+        for i, row in df_raw.iterrows():
 
             if len(row) < min_cols:
                 continue
@@ -234,7 +234,8 @@ def parsear_movimientos(
             sal_total = d(row.iloc[IDX_SAL_TOT])
 
             registros.append(
-                {
+                {   
+                    "_orden_original": i,
                     "Codigo": codigo,
                     "Fecha": fecha,
                     "Tipo": tipo_comp,
@@ -301,7 +302,7 @@ def calcular_saldo_final(
     - 01 Venta                 → SALIDA.  Costo promedio NO cambia.
     - 02 Compra                → ENTRADA. Costo promedio SE RECALCULA.
     - 05 Devolución Recibida   → ENTRADA. Costo unitario entrada = 0. Costo promedio NO cambia.
-    - 06 Devolución Entregada  → SALIDA.  Costo promedio NO cambia.  ✅ NUEVO
+    - 06 Devolución Entregada  → SALIDA.  Costo promedio NO cambia. 
 
     Todo el cálculo interno trabaja con Decimal.
     """
@@ -339,14 +340,10 @@ def calcular_saldo_final(
     df["Saldo_Negativo"] = False
 
     # Ordenar:
-    # compras antes que ventas el mismo día
-    df["_orden_op"] = df["Tipo_Operacion"].apply(
-        lambda x: 0 if "compra" in str(x).lower() else 1
-    )
-
-    df = df.sort_values(["Codigo", "Fecha", "_orden_op"]).reset_index(drop=True)
-
-    df = df.drop(columns=["_orden_op"])
+    # Mantener orden original del Excel
+    df = df.sort_values(
+        ["Codigo", "Fecha", "_orden_original"]
+    ).reset_index(drop=True)
 
     codigos_sin_saldo = []
     codigos_negativos = []
@@ -378,7 +375,7 @@ def calcular_saldo_final(
 
             tipo_op = str(df.at[idx, "Tipo_Operacion"]).strip().lower()
 
-            # ✅ DEVOLUCIÓN ENTREGADA (06) — al proveedor, SALE del almacén
+            # DEVOLUCIÓN ENTREGADA (06) — al proveedor, SALE del almacén
             # IMPORTANTE: evaluar ANTES que "venta" y "devolu" porque contiene "entregada"
             if "devolu" in tipo_op and "entreg" in tipo_op:
 
@@ -478,7 +475,7 @@ def verificar_integridad(
     for idx in df.index:
         tipo_op = str(df.at[idx, "Tipo_Operacion"]).strip().lower()
 
-        # ✅ Las devoluciones recibidas (05) no se verifican
+        #  Las devoluciones recibidas (05) no se verifican
         # porque vienen con costo 0 en el Excel original
         if "devolu" in tipo_op and "recib" in tipo_op:
             continue
