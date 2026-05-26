@@ -95,11 +95,37 @@ class SaldoService:
         )
 
     # ── Eliminar ──────────────────────────────────────────────────────────────
-    async def eliminar(self, saldo_id: int) -> dict:
-        total_proc = await self.saldo_repo.delete(saldo_id)
+    # ── Eliminar múltiple ─────────────────────────────────────────────────────
+    async def eliminar_multiple(self, ids: list[int]) -> dict:
+        """
+        Elimina varios saldos iniciales a la vez.
+        Cuenta cuántos tenían procesamientos asociados.
+        """
+        eliminados = 0
+        con_procesamientos = 0
+
+        for saldo_id in ids:
+            try:
+                total_proc = await self.saldo_repo.delete(saldo_id)
+                eliminados += 1
+                if total_proc > 0:
+                    con_procesamientos += 1
+            except Exception:
+                # Si un ID no existe o falla, lo saltamos y seguimos
+                continue
+
+        advertencia = None
+        if con_procesamientos > 0:
+            advertencia = (
+                f"{con_procesamientos} de los saldos eliminados ya habían sido "
+                f"usados en procesamientos. Los procesamientos anteriores no se "
+                f"recalcularán automáticamente."
+            )
+
         return {
-            "mensaje":     f"Saldo inicial #{saldo_id} eliminado correctamente.",
-            "advertencia": self._advertencia(total_proc),
+            "eliminados":  eliminados,
+            "mensaje":     f"{eliminados} saldo(s) eliminado(s) correctamente.",
+            "advertencia": advertencia,
         }
 
     # ── Helpers privados ──────────────────────────────────────────────────────

@@ -52,4 +52,9 @@ class SaldoInicialResponse(BaseModel):
 
 
 class SaldoInicialConAdvertencia(SaldoInicialResponse):
-    advertencia: Optional[str] = None   
+    advertencia: Optional[str] = None
+
+
+# ── Eliminación múltiple ──────────────────────────────────────────────────────
+class EliminarMultipleSaldosRequest(BaseModel):
+    ids: list[int]

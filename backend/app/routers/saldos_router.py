@@ -7,6 +7,7 @@ from app.schemas.saldo_inicial import (
     SaldoInicialUpdate,
     SaldoInicialResponse,
     SaldoInicialConAdvertencia,
+    EliminarMultipleSaldosRequest,
 )
 
 router = APIRouter(prefix="/saldos", tags=["Saldos Iniciales"])
@@ -64,6 +65,20 @@ async def actualizar_saldo(
     """
     service = SaldoService(db)
     return await service.actualizar(saldo_id, data)
+
+
+# ── Eliminar múltiple ─────────────────────────────────────────────────────────
+@router.post("/eliminar-multiple")
+async def eliminar_multiple_saldos(
+    payload: EliminarMultipleSaldosRequest,
+    db:      AsyncSession = Depends(get_db),
+):
+    """
+    Elimina varios saldos iniciales a la vez.
+    Recibe una lista de IDs.
+    """
+    service = SaldoService(db)
+    return await service.eliminar_multiple(payload.ids)
 
 
 # ── Eliminar ──────────────────────────────────────────────────────────────────

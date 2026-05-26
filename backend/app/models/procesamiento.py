@@ -18,7 +18,7 @@ class Procesamiento(Base):
     __tablename__ = "procesamientos"
 
     id:                    Mapped[int]            = mapped_column(primary_key=True, index=True)
-    nombre_archivo:        Mapped[str]            = mapped_column(String(255), nullable=False)
+    nombre_archivo:        Mapped[str]            = mapped_column(String(500), nullable=False)
     total_registros:       Mapped[int]            = mapped_column(Integer, default=0)
     productos_procesados:  Mapped[int]            = mapped_column(Integer, default=0)
     estado:                Mapped[EstadoProceso]  = mapped_column(

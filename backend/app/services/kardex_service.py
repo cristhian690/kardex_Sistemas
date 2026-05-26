@@ -1,5 +1,6 @@
 import time
 import pandas as pd
+from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.repositories import (
@@ -23,6 +24,15 @@ from app.schemas.procesamiento import AlertasProcesamiento, ProcesamientoResumen
 from app.schemas.movimiento import MovimientoResponse
 from app.exceptions import KardexException
 from datetime import date
+
+# ✅ FIX: límite seguro para Numeric(18,6)
+MAX_VAL = 999999999999.0
+
+def _clamp(v: float) -> float:
+    """Limita valores extremos para evitar desbordamiento en BD."""
+    if v != v:  # NaN check
+        return 0.0
+    return max(-MAX_VAL, min(MAX_VAL, v))
 
 
 class KardexService:
@@ -92,7 +102,17 @@ class KardexService:
 
         # ── 7. Persistir en BD ────────────────────────────────────────────────
         t0 = time.time()
-        nombre_archivo = ", ".join([f for f, _ in archivos_mov])
+
+        # ✅ FIX: nombre inteligente que no desborda VARCHAR(500)
+        archivos = [f for f, _ in archivos_mov]
+        total_arch = len(archivos)
+        if total_arch == 1:
+            nombre_archivo = archivos[0]
+        elif total_arch <= 3:
+            nombre_archivo = ", ".join(archivos)
+        else:
+            nombre_archivo = f"{archivos[0]}, {archivos[1]} y {total_arch - 2} archivos más"
+
         procesamiento  = await self.procesamiento_repo.crear(
             nombre_archivo       = nombre_archivo,
             total_registros      = len(df_all),
@@ -195,6 +215,7 @@ class KardexService:
     async def _cargar_saldos_desde_bd(self) -> dict:
         """
         🚀 OPTIMIZADO: una sola query con JOIN, sin N+1.
+        ✅ FIX: mantiene Decimal para preservar precisión
         """
         result = await self.db.execute(
             select(SaldoInicial, Producto)
@@ -204,15 +225,16 @@ class KardexService:
         for saldo, producto in result.all():
             saldos[producto.codigo] = {
                 "fecha":          saldo.fecha,
-                "cantidad":       float(saldo.cantidad),
-                "costo_unitario": float(saldo.costo_unitario),
-                "costo_total":    float(saldo.costo_total),
+                "cantidad":       saldo.cantidad,
+                "costo_unitario": saldo.costo_unitario,
+                "costo_total":    saldo.costo_total,
             }
         return saldos
 
     async def _persistir_saldos_iniciales(self, saldos: dict) -> None:
         """
         🚀 OPTIMIZADO: trae todos los productos en una sola query.
+        ✅ FIX: usa Decimal(str()) para preservar todos los decimales
         """
         from datetime import date as date_type
 
@@ -225,18 +247,15 @@ class KardexService:
             await self.saldo_repo.upsert(
                 producto_id    = producto.id,
                 fecha          = fecha,
-                cantidad       = datos["cantidad"],
-                costo_unitario = datos["costo_unitario"],
-                costo_total    = datos["costo_total"],
+                cantidad       = Decimal(str(datos["cantidad"])),
+                costo_unitario = Decimal(str(datos["costo_unitario"])),
+                costo_total    = Decimal(str(datos["costo_total"])),
             )
 
     async def _persistir_movimientos(self, df: pd.DataFrame, procesamiento_id: int) -> None:
         """
-        🚀 OPTIMIZADO:
-        - Trae todos los productos en UNA sola query (en vez de uno por fila)
-        - Usa itertuples (10x más rápido que iterrows)
+        🚀 OPTIMIZADO: bulk insert con clamp para evitar desbordamiento numérico.
         """
-        # Cache de productos: 1 sola query para todos los códigos
         codigos_unicos = df["Codigo"].astype(str).str.strip().unique().tolist()
         productos_map  = await self.producto_repo.get_or_create_bulk(codigos_unicos)
 
@@ -261,22 +280,22 @@ class KardexService:
                 "numero":           numero_val,
                 "tipo_operacion":   str(row.Tipo_Operacion),
                 # Entradas
-                "ent_cantidad":     float(row.Ent_Cantidad),
-                "ent_costo_unit":   float(row.Ent_Costo_Unit),
-                "ent_costo_total":  float(row.Ent_Costo_Total),
+                "ent_cantidad":     _clamp(float(row.Ent_Cantidad)),
+                "ent_costo_unit":   _clamp(float(row.Ent_Costo_Unit)),
+                "ent_costo_total":  _clamp(float(row.Ent_Costo_Total)),
                 # Salidas
-                "sal_cantidad":     float(row.Sal_Cantidad),
-                "sal_costo_unit":   float(row.Sal_Costo_Unit),
-                "sal_costo_total":  float(row.Sal_Costo_Total),
+                "sal_cantidad":     _clamp(float(row.Sal_Cantidad)),
+                "sal_costo_unit":   _clamp(float(row.Sal_Costo_Unit)),
+                "sal_costo_total":  _clamp(float(row.Sal_Costo_Total)),
                 # Saldo calculado
-                "saldo_cantidad":   float(row.Saldo_Cantidad),
-                "saldo_costo_unit": float(row.Saldo_Costo_Unit),
-                "saldo_costo_total":float(row.Saldo_Costo_Total),
+                "saldo_cantidad":   _clamp(float(row.Saldo_Cantidad)),
+                "saldo_costo_unit": _clamp(float(row.Saldo_Costo_Unit)),
+                "saldo_costo_total":_clamp(float(row.Saldo_Costo_Total)),
                 # Originales del Excel
-                "orig_ent_costo_unit":  float(row.Orig_Ent_Costo_Unit),
-                "orig_ent_costo_total": float(row.Orig_Ent_Costo_Total),
-                "orig_sal_costo_unit":  float(row.Orig_Sal_Costo_Unit),
-                "orig_sal_costo_total": float(row.Orig_Sal_Costo_Total),
+                "orig_ent_costo_unit":  _clamp(float(row.Orig_Ent_Costo_Unit)),
+                "orig_ent_costo_total": _clamp(float(row.Orig_Ent_Costo_Total)),
+                "orig_sal_costo_unit":  _clamp(float(row.Orig_Sal_Costo_Unit)),
+                "orig_sal_costo_total": _clamp(float(row.Orig_Sal_Costo_Total)),
                 # Flags
                 "saldo_negativo": bool(row.Saldo_Negativo),
                 "error_a":        bool(row.Error_A),
