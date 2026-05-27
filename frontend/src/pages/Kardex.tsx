@@ -157,8 +157,8 @@ const Sidebar = ({ id, onNavigate, currentPath }: SidebarProps) => {
       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>
         Sistema
       </div>
-      {navItem('Saldos',    <IconSaldos />,   `/kardex/${id}`, false)}
-      {navItem('Productos', <IconProducts />, `/kardex/${id}`, false)}
+      {navItem('Saldos',    <IconSaldos />,   '/saldos',    currentPath === '/saldos')}
+      {navItem('Empresas',  <IconProducts />, '/empresas',  currentPath === '/empresas')}
     </aside>
   )
 }
@@ -248,6 +248,18 @@ export default function Kardex() {
 
   const [codigo,          setCodigo]          = useState('')
   const [filtroFecha,     setFiltroFecha]     = useState<IFiltroFecha>({ modo: 'anio_mes' })
+
+  // ═══ Datos de empresa para el encabezado de impresión SUNAT ═══
+  const [empresaImpresion, setEmpresaImpresion] = useState<{
+    razon_social: string
+    ruc: string
+    establecimiento: string
+    tipo: string
+    codigo_existencia: string
+    unidad_medida: string
+    metodo_valuacion: string
+  } | null>(null)
+
   const [mostrarSemaforo, setMostrarSemaforo] = useState(false)
   const [filtrosAbiertos, setFiltrosAbiertos] = useState(true)
   const [draftCodigo, setDraftCodigo] = useState('')
@@ -300,24 +312,18 @@ export default function Kardex() {
   const handleExportar = () =>
     descargarExcel(codigo || undefined, filtroFecha.fecha_desde, filtroFecha.fecha_hasta)
 
-  // ═══ NUEVO: Imprimir ═══
-  // ═══ NUEVO: Imprimir (con preparación de todas las filas) ═══
-const handleImprimir = () => {
-  // 1. Activar modo impresión en la tabla (renderiza TODAS las filas)
-  ;(window as any).__kardexPrepararImpresion?.()
-
-  // 2. Esperar a que React renderice las filas adicionales
-  setTimeout(() => {
-    window.print()
-
-    // 3. Después de imprimir, volver al modo paginado
+  // ═══ Imprimir (con preparación de todas las filas) ═══
+  const handleImprimir = () => {
+    ;(window as any).__kardexPrepararImpresion?.()
     setTimeout(() => {
-      ;(window as any).__kardexTerminarImpresion?.()
-    }, 500)
-  }, 300)
-}
+      window.print()
+      setTimeout(() => {
+        ;(window as any).__kardexTerminarImpresion?.()
+      }, 500)
+    }, 300)
+  }
 
-  // ═══ NUEVO: Descripción de filtros aplicados para impresión ═══
+  // ═══ Descripción de filtros aplicados para impresión ═══
   const filtrosAplicadosTexto = useMemo(() => {
     const partes: string[] = []
     if (codigo) partes.push(`Código: ${codigo}`)
@@ -342,6 +348,20 @@ const handleImprimir = () => {
     const set = new Set(movimientos.map(m => m.codigo).filter(Boolean))
     return Array.from(set) as string[]
   }, [movimientos])
+
+  // ═══ Cargar datos de empresa del código visible (para impresión SUNAT) ═══
+  useEffect(() => {
+    const codigoActual = codigo || codigosVisibles[0]
+    if (!codigoActual) {
+      setEmpresaImpresion(null)
+      return
+    }
+    const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+    fetch(`${API}/api/v1/empresa/${codigoActual}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setEmpresaImpresion(data))
+      .catch(() => setEmpresaImpresion(null))
+  }, [codigo, codigosVisibles])
 
   if (!id) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#07101e', color: '#2a4a6a', fontFamily: "'IBM Plex Mono', monospace", fontSize: 13 }}>
@@ -388,10 +408,8 @@ const handleImprimir = () => {
             margin: 12mm 8mm;
           }
 
-          /* Esconder TODO menos el área de impresión */
           .kardex-no-print { display: none !important; }
 
-          /* Reset de fondos oscuros */
           body, html {
             background: white !important;
             color: black !important;
@@ -412,29 +430,36 @@ const handleImprimir = () => {
             box-shadow: none !important;
           }
 
-          /* Encabezado de impresión */
           .kardex-print-header {
             display: block !important;
             padding: 0 0 10px 0 !important;
-            border-bottom: 2px solid #333 !important;
             margin-bottom: 12px !important;
           }
-          .kardex-print-header .title {
-            font-size: 18px !important;
-            font-weight: 700 !important;
+
+          /* Tabla encabezado SUNAT */
+          .sunat-header-table {
+            width: 60% !important;
+            border-collapse: collapse !important;
             font-family: Arial, sans-serif !important;
-            margin: 0 !important;
+            margin-bottom: 10px !important;
+          }
+          .sunat-header-table td {
+            border: 1px solid #333 !important;
+            padding: 2px 6px !important;
+            font-size: 9px !important;
             color: black !important;
           }
-          .kardex-print-header .subtitle {
-            font-size: 11px !important;
-            font-family: Arial, sans-serif !important;
-            color: #444 !important;
-            margin-top: 4px !important;
+          .sunat-header-table .sunat-lbl {
+            font-weight: 700 !important;
+            background: #f0f0f0 !important;
+            width: 40% !important;
+          }
+          .sunat-header-table .sunat-val {
+            background: white !important;
           }
 
-          /* Tabla de movimientos */
-          .kardex-print-area table {
+          .kardex-print-area table.kardex-mov-table,
+          .kardex-print-area table:not(.sunat-header-table) {
             width: 100% !important;
             border-collapse: collapse !important;
             font-size: 8px !important;
@@ -467,11 +492,9 @@ const handleImprimir = () => {
             font-size: 8px !important;
           }
 
-          /* Ocultar paginación HTML, sparklines, etc */
           .kardex-print-area svg { display: none !important; }
           .kardex-print-area .pag-controls { display: none !important; }
 
-          /* Métricas impresas */
           .kardex-print-metrics {
             display: grid !important;
             grid-template-columns: repeat(4, 1fr) !important;
@@ -500,7 +523,6 @@ const handleImprimir = () => {
           }
         }
 
-        /* Ocultar el área de impresión cuando NO se imprime */
         @media screen {
           .kardex-print-only { display: none !important; }
         }
@@ -585,7 +607,6 @@ const handleImprimir = () => {
                 <IconShield /> Verificación
               </button>
 
-              {/* ═══ NUEVO BOTÓN IMPRIMIR ═══ */}
               <button
                 type="button"
                 onClick={handleImprimir}
@@ -626,16 +647,51 @@ const handleImprimir = () => {
           {/* ── SCROLLABLE CONTENT ── */}
           <div className="kardex-print-area" style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* ═══ ENCABEZADO SOLO PARA IMPRESIÓN ═══ */}
+            {/* ═══ ENCABEZADO SUNAT SOLO PARA IMPRESIÓN ═══ */}
             <div className="kardex-print-only kardex-print-header">
-              <div className="title">KARDEX SISTEMA CPP — #{id}</div>
-              <div className="subtitle">
-                {filtrosAplicadosTexto}
-                {' · '}
-                {movimientos.length.toLocaleString('es-PE')} de {totalRegistros.toLocaleString('es-PE')} registros
-                {' · '}
-                Generado: {new Date().toLocaleString('es-PE')}
-              </div>
+              <table className="sunat-header-table">
+                <tbody>
+                  <tr>
+                    <td className="sunat-lbl" colSpan={2}>REGISTRO DE INVENTARIO PERMANENTE VALORIZADO</td>
+                  </tr>
+                  <tr>
+                    <td className="sunat-lbl">Periodo</td>
+                    <td className="sunat-val">{filtroFecha.anio ?? new Date().getFullYear()}</td>
+                  </tr>
+                  <tr>
+                    <td className="sunat-lbl">Razón Social</td>
+                    <td className="sunat-val">{empresaImpresion?.razon_social ?? '—'}</td>
+                  </tr>
+                  <tr>
+                    <td className="sunat-lbl">R.U.C.</td>
+                    <td className="sunat-val">{empresaImpresion?.ruc ?? '—'}</td>
+                  </tr>
+                  <tr>
+                    <td className="sunat-lbl">Establecimiento</td>
+                    <td className="sunat-val">{empresaImpresion?.establecimiento ?? '—'}</td>
+                  </tr>
+                  <tr>
+                    <td className="sunat-lbl">Código de Existencia</td>
+                    <td className="sunat-val">{empresaImpresion?.codigo_existencia ?? '—'}</td>
+                  </tr>
+                  <tr>
+                    <td className="sunat-lbl">Tipo</td>
+                    <td className="sunat-val">{empresaImpresion?.tipo ?? '—'}</td>
+                  </tr>
+                  <tr>
+                    <td className="sunat-lbl">Descripción</td>
+                    <td className="sunat-val">{codigo || codigosVisibles[0] || '—'}</td>
+                  </tr>
+                  <tr>
+                    <td className="sunat-lbl">Código de la Unidad de Medida</td>
+                    <td className="sunat-val">{empresaImpresion?.unidad_medida ?? '—'}</td>
+                  </tr>
+                  <tr>
+                    <td className="sunat-lbl">Método de Valuación</td>
+                    <td className="sunat-val">{empresaImpresion?.metodo_valuacion ?? '—'}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
             {/* Alertas (ocultas en impresión) */}

@@ -7,11 +7,11 @@ import Home from './pages/Home'
 import Kardex from './pages/Kardex'
 import Historial from './pages/Historial'
 import SaldosIniciales from './pages/SaldosIniciales'
+import Empresas from './pages/Empresas' 
 
 function App() {
   return (
     <AuthProvider>
-      {/* Toaster global — aparece en todas las páginas */}
       <Toaster
         position="top-right"
         toastOptions={{
@@ -46,6 +46,7 @@ function App() {
         <Route path="/kardex/:procesamiento_id" element={<ProtectedRoute><Kardex />          </ProtectedRoute>} />
         <Route path="/historial"                element={<ProtectedRoute><Historial />       </ProtectedRoute>} />
         <Route path="/saldos"                   element={<ProtectedRoute><SaldosIniciales /> </ProtectedRoute>} />
+        <Route path="/empresas"                 element={<ProtectedRoute><Empresas />        </ProtectedRoute>} /> 
       </Routes>
     </AuthProvider>
   )
