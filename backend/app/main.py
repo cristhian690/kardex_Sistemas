@@ -3,10 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import engine, Base
 from app.routers import kardex_router, historial_router, saldos_router, productos_router, auth_router
+from app.routers.empresa_router import router as empresa_router  # ✅ NUEVO
 from app.exceptions import KardexException, kardex_exception_handler, generic_exception_handler
 
 # ── Importar modelos para que Alembic los detecte ─────────────────────────────
 from app.models import Producto, SaldoInicial, Procesamiento, Movimiento, Usuario  # noqa: F401
+from app.models.empresa import Empresa  # ✅ NUEVO
 
 
 # ── Instancia de la aplicación ────────────────────────────────────────────────
@@ -40,6 +42,7 @@ app.include_router(historial_router, prefix="/api/v1")
 app.include_router(saldos_router,    prefix="/api/v1")
 app.include_router(productos_router, prefix="/api/v1")
 app.include_router(auth_router,      prefix="/api/v1")
+app.include_router(empresa_router,   prefix="/api/v1")  # ✅ NUEVO
 
 
 # ── Eventos de inicio ─────────────────────────────────────────────────────────
