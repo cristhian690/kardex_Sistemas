@@ -88,9 +88,10 @@ export interface KardexRow extends Movimiento {
   error_a:           boolean   // ✅ agregar
   error_b:           boolean   // ✅ agregar
 
-  semaforo:          '🟢' | '🟡' | '🔴' | '⚫'
-  fila:              number    // (si ya lo estás usando)
+ semaforo:          '🟢' | '🟡' | '🔴' | '⚫'
+  fila:              number
   creado_en:         string
+  es_saldo_inicial?: boolean
 }
 
 // ── Métricas resumen ──────────────────────────────────────────────────────────

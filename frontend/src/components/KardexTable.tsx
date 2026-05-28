@@ -289,6 +289,37 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
 
           <tbody>
             {filas.map((row, i) => {
+              // ── Fila especial de saldo inicial ──────────────────────────
+              if (row.es_saldo_inicial) {
+                return (
+                  <tr key="saldo-inicial" style={{ background: "rgba(59,130,246,0.10)", borderLeft: "3px solid #3b82f6" }}>
+                    {mostrarSemaforo && <td style={td}>—</td>}
+                    <td style={{ ...td, color: "#60a5fa", fontWeight: 700 }}>—</td>
+                    <td style={{ ...td, color: "#378ADD", fontWeight: 600 }}>{row.codigo}</td>
+                    <td style={{ ...td, color: "#60a5fa" }}>{fmtFecha(row.fecha)}</td>
+                    <td style={td}>—</td>
+                    <td style={td}>—</td>
+                    <td style={td}>—</td>
+                    <td style={{ ...td, color: "#60a5fa", fontWeight: 700, letterSpacing: ".05em" }}>
+                      SALDO INICIAL
+                    </td>
+                    <td style={td}>—</td>
+                    <td style={td}>—</td>
+                    <td style={td}>—</td>
+                    <td style={td}>—</td>
+                    <td style={td}>—</td>
+                    <td style={td}>—</td>
+                    <td style={{ ...td, fontWeight: 700, color: "#60a5fa" }}>
+                      {fmtCant(row.saldo_cantidad)}
+                    </td>
+                    <td style={td}>—</td>
+                    <td style={{ ...td, fontWeight: 700, color: "#60a5fa" }}>
+                      {fmtTotal(row.saldo_costo_total)}
+                    </td>
+                  </tr>
+                );
+              }
+
               const globalIndex = imprimiendo ? i : (pagina - 1) * FILAS_POR_PAGINA + i;
               const esError = globalIndex === primerErrorIndex;
               const esHighlight = globalIndex === highlightIndex;

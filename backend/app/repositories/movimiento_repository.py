@@ -27,7 +27,7 @@ class MovimientoRepository:
 
     async def get_by_codigo(
         self,
-        codigo:        str,
+        codigo:           str,
         procesamiento_id: int,
     ) -> list[Movimiento]:
         result = await self.db.execute(
@@ -81,3 +81,29 @@ class MovimientoRepository:
         await self.db.execute(
             delete(Movimiento).where(Movimiento.procesamiento_id == procesamiento_id)
         )
+
+    async def get_saldo_anterior(
+        self,
+        procesamiento_id: int,
+        codigo: str,
+        antes_de: date,
+    ) -> Movimiento | None:
+        """
+        Devuelve el último movimiento del código ANTES de la fecha indicada.
+        Se usa para construir la fila 'SALDO INICIAL' al filtrar por mes.
+        """
+        result = await self.db.execute(
+            select(Movimiento)
+            .options(selectinload(Movimiento.producto))
+            .join(Movimiento.producto)
+            .where(
+                and_(
+                    Movimiento.procesamiento_id == procesamiento_id,
+                    Movimiento.producto.has(codigo=codigo),
+                    Movimiento.fecha < antes_de,
+                )
+            )
+            .order_by(Movimiento.fecha.desc(), Movimiento.id.desc())
+            .limit(1)
+        )
+        return result.scalars().first()

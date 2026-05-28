@@ -1,6 +1,7 @@
 import time
 import pandas as pd
 from decimal import Decimal
+from datetime import date, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.repositories import (
@@ -23,7 +24,6 @@ from app.schemas.kardex import KardexResponse, UploadResponse, FiltroKardex, Met
 from app.schemas.procesamiento import AlertasProcesamiento, ProcesamientoResumen
 from app.schemas.movimiento import MovimientoResponse
 from app.exceptions import KardexException
-from datetime import date
 
 # ✅ FIX: límite seguro para Numeric(18,6)
 MAX_VAL = 999999999999.0
@@ -47,8 +47,8 @@ class KardexService:
     # ── Carga y procesamiento de archivos ─────────────────────────────────────
     async def procesar_archivos(
         self,
-        saldo_bytes:      bytes | None,
-        archivos_mov:     list[tuple[str, bytes]],
+        saldo_bytes:  bytes | None,
+        archivos_mov: list[tuple[str, bytes]],
     ) -> UploadResponse:
         inicio_total = time.time()
 
@@ -103,8 +103,7 @@ class KardexService:
         # ── 7. Persistir en BD ────────────────────────────────────────────────
         t0 = time.time()
 
-        # ✅ FIX: nombre inteligente que no desborda VARCHAR(500)
-        archivos = [f for f, _ in archivos_mov]
+        archivos   = [f for f, _ in archivos_mov]
         total_arch = len(archivos)
         if total_arch == 1:
             nombre_archivo = archivos[0]
@@ -113,7 +112,7 @@ class KardexService:
         else:
             nombre_archivo = f"{archivos[0]}, {archivos[1]} y {total_arch - 2} archivos más"
 
-        procesamiento  = await self.procesamiento_repo.crear(
+        procesamiento = await self.procesamiento_repo.crear(
             nombre_archivo       = nombre_archivo,
             total_registros      = len(df_all),
             productos_procesados = df_all["Codigo"].nunique(),
@@ -160,20 +159,82 @@ class KardexService:
             fecha_hasta      = fecha_hasta,
         )
 
-        if not movimientos:
+        # ── Saldo inicial del periodo ─────────────────────────────────────────
+        fila_saldo_inicial = None
+        if filtros.anio and filtros.mes:
+            # Detectar cuántos productos distintos hay en los movimientos
+            codigos_distintos = list({m.producto.codigo for m in movimientos if m.producto})
+
+            # Solo mostrar saldo inicial si hay exactamente 1 producto
+            # (ya sea porque se filtró por código, o porque el mes solo tiene 1)
+            codigo_saldo = filtros.codigo or (codigos_distintos[0] if len(codigos_distintos) == 1 else None)
+
+            if codigo_saldo:
+                primer_dia = date(filtros.anio, filtros.mes, 1)
+                mov_anterior = await self.movimiento_repo.get_saldo_anterior(
+                    procesamiento_id = procesamiento_id,
+                    codigo           = codigo_saldo,
+                    antes_de         = primer_dia,
+                )
+                saldo_cant  = Decimal(str(mov_anterior.saldo_cantidad))    if mov_anterior else Decimal("0")
+                saldo_total = Decimal(str(mov_anterior.saldo_costo_total)) if mov_anterior else Decimal("0")
+
+                fila_saldo_inicial = MovimientoResponse(
+                    id                   = 0,
+                    procesamiento_id     = procesamiento_id,
+                    producto_id          = 0,
+                    codigo               = codigo_saldo,
+                    fecha                = primer_dia,
+                    tipo_comprobante     = 0,
+                    serie                = "",
+                    numero               = "",
+                    tipo_operacion       = "SALDO INICIAL",
+                    ent_cantidad         = Decimal("0"),
+                    ent_costo_unit       = Decimal("0"),
+                    ent_costo_total      = Decimal("0"),
+                    sal_cantidad         = Decimal("0"),
+                    sal_costo_unit       = Decimal("0"),
+                    sal_costo_total      = Decimal("0"),
+                    saldo_cantidad       = saldo_cant,
+                    saldo_costo_unit     = Decimal("0"),
+                    saldo_costo_total    = saldo_total,
+                    orig_ent_costo_unit  = Decimal("0"),
+                    orig_ent_costo_total = Decimal("0"),
+                    orig_sal_costo_unit  = Decimal("0"),
+                    orig_sal_costo_total = Decimal("0"),
+                    saldo_negativo       = False,
+                    error_a              = False,
+                    error_b              = False,
+                    semaforo             = "🟢",
+                    fila                 = 0,
+                    creado_en            = datetime.now(),
+                    es_saldo_inicial     = True,
+                )
+
+        # ── Validar que haya algo que mostrar ────────────────────────────────
+        if not movimientos and fila_saldo_inicial is None:
             raise KardexException("No se encontraron movimientos con los filtros aplicados.")
 
-        df_filtrado = pd.DataFrame([{
-            "Ent_Cantidad":      float(m.ent_cantidad),
-            "Ent_Costo_Total":   float(m.ent_costo_total),
-            "Sal_Cantidad":      float(m.sal_cantidad),
-            "Sal_Costo_Total":   float(m.sal_costo_total),
-            "Saldo_Cantidad":    float(m.saldo_cantidad),
-            "Saldo_Costo_Total": float(m.saldo_costo_total),
-        } for m in movimientos])
+        # ── Métricas (solo sobre movimientos reales, no el saldo inicial) ────
+        if movimientos:
+            df_filtrado = pd.DataFrame([{
+                "Ent_Cantidad":      float(m.ent_cantidad),
+                "Ent_Costo_Total":   float(m.ent_costo_total),
+                "Sal_Cantidad":      float(m.sal_cantidad),
+                "Sal_Costo_Total":   float(m.sal_costo_total),
+                "Saldo_Cantidad":    float(m.saldo_cantidad),
+                "Saldo_Costo_Total": float(m.saldo_costo_total),
+            } for m in movimientos])
+            metricas_dict = calcular_metricas(df_filtrado)
+        else:
+            # Mes sin movimientos: métricas vacías
+            metricas_dict = calcular_metricas(pd.DataFrame(columns=[
+                "Ent_Cantidad", "Ent_Costo_Total",
+                "Sal_Cantidad", "Sal_Costo_Total",
+                "Saldo_Cantidad", "Saldo_Costo_Total",
+            ]))
 
-        metricas_dict = calcular_metricas(df_filtrado)
-        alertas_dict  = procesamiento.alertas or {}
+        alertas_dict = procesamiento.alertas or {}
 
         def calcular_semaforo(m) -> str:
             if m.error_a and m.error_b:
@@ -194,12 +255,16 @@ class KardexService:
             for idx, m in enumerate(movimientos)
         ]
 
+        # ── Insertar fila de saldo inicial al inicio ──────────────────────────
+        if fila_saldo_inicial:
+            movimientos_response.insert(0, fila_saldo_inicial)
+
         errores = sum(1 for r in movimientos_response if r.semaforo != "🟢")
 
         return KardexResponse(
             procesamiento_id   = procesamiento_id,
             codigo             = filtros.codigo or "TODOS",
-            total_registros    = len(movimientos),
+            total_registros    = len(movimientos_response),
             errores_integridad = errores,
             alertas            = AlertasProcesamiento(**alertas_dict),
             metricas           = MetricasKardex(**metricas_dict),
