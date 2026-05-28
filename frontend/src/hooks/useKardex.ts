@@ -109,15 +109,17 @@ export const useKardex = () => {
 
   // ── Exportar a Excel ────────────────────────────────────────────────────────
   const descargarExcel = useCallback(async (
-    codigo?:      string,
-    fechaDesde?:  string,
-    fechaHasta?:  string,
+    codigo?:     string,
+    anio?:       number,
+    mes?:        number,
+    fechaDesde?: string,
+    fechaHasta?: string,
   ) => {
     if (!state.procesamientoId) return
 
     setExporting(true)
     try {
-      await exportarKardex(state.procesamientoId, codigo, fechaDesde, fechaHasta)
+      await exportarKardex(state.procesamientoId, codigo, anio, mes, fechaDesde, fechaHasta)
     } catch (err) {
       const error = err as ApiError
       setState(prev => ({

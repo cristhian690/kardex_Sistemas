@@ -93,12 +93,18 @@ class KardexService:
         print(f"⏱️  [5] Verificación: {time.time() - t0:.2f}s")
 
         # ── 6. Determinar estado ──────────────────────────────────────────────
-        tiene_alertas = (
+        tiene_saldo_negativo = len(alertas.saldo_negativo) > 0
+        tiene_alertas_leves  = (
             len(alertas.sin_saldo_inicial) > 0 or
-            len(alertas.saldo_negativo) > 0 or
             int((df_all["Semaforo"] != "🟢").sum()) > 0
         )
-        estado = "con_alertas" if tiene_alertas else "procesado"
+
+        if tiene_saldo_negativo:
+            estado = "error"
+        elif tiene_alertas_leves:
+            estado = "con_alertas"
+        else:
+            estado = "procesado"
 
         # ── 7. Persistir en BD ────────────────────────────────────────────────
         t0 = time.time()
@@ -162,11 +168,7 @@ class KardexService:
         # ── Saldo inicial del periodo ─────────────────────────────────────────
         fila_saldo_inicial = None
         if filtros.anio and filtros.mes:
-            # Detectar cuántos productos distintos hay en los movimientos
             codigos_distintos = list({m.producto.codigo for m in movimientos if m.producto})
-
-            # Solo mostrar saldo inicial si hay exactamente 1 producto
-            # (ya sea porque se filtró por código, o porque el mes solo tiene 1)
             codigo_saldo = filtros.codigo or (codigos_distintos[0] if len(codigos_distintos) == 1 else None)
 
             if codigo_saldo:
@@ -227,7 +229,6 @@ class KardexService:
             } for m in movimientos])
             metricas_dict = calcular_metricas(df_filtrado)
         else:
-            # Mes sin movimientos: métricas vacías
             metricas_dict = calcular_metricas(pd.DataFrame(columns=[
                 "Ent_Cantidad", "Ent_Costo_Total",
                 "Sal_Cantidad", "Sal_Costo_Total",
@@ -255,7 +256,6 @@ class KardexService:
             for idx, m in enumerate(movimientos)
         ]
 
-        # ── Insertar fila de saldo inicial al inicio ──────────────────────────
         if fila_saldo_inicial:
             movimientos_response.insert(0, fila_saldo_inicial)
 
@@ -278,10 +278,6 @@ class KardexService:
 
     # ── Helpers privados ──────────────────────────────────────────────────────
     async def _cargar_saldos_desde_bd(self) -> dict:
-        """
-        🚀 OPTIMIZADO: una sola query con JOIN, sin N+1.
-        ✅ FIX: mantiene Decimal para preservar precisión
-        """
         result = await self.db.execute(
             select(SaldoInicial, Producto)
             .join(Producto, SaldoInicial.producto_id == Producto.id)
@@ -297,10 +293,6 @@ class KardexService:
         return saldos
 
     async def _persistir_saldos_iniciales(self, saldos: dict) -> None:
-        """
-        🚀 OPTIMIZADO: trae todos los productos en una sola query.
-        ✅ FIX: usa Decimal(str()) para preservar todos los decimales
-        """
         from datetime import date as date_type
 
         codigos = list(saldos.keys())
@@ -318,9 +310,6 @@ class KardexService:
             )
 
     async def _persistir_movimientos(self, df: pd.DataFrame, procesamiento_id: int) -> None:
-        """
-        🚀 OPTIMIZADO: bulk insert con clamp para evitar desbordamiento numérico.
-        """
         codigos_unicos = df["Codigo"].astype(str).str.strip().unique().tolist()
         productos_map  = await self.producto_repo.get_or_create_bulk(codigos_unicos)
 
@@ -344,24 +333,19 @@ class KardexService:
                 "serie":            str(row.Serie),
                 "numero":           numero_val,
                 "tipo_operacion":   str(row.Tipo_Operacion),
-                # Entradas
                 "ent_cantidad":     _clamp(float(row.Ent_Cantidad)),
                 "ent_costo_unit":   _clamp(float(row.Ent_Costo_Unit)),
                 "ent_costo_total":  _clamp(float(row.Ent_Costo_Total)),
-                # Salidas
                 "sal_cantidad":     _clamp(float(row.Sal_Cantidad)),
                 "sal_costo_unit":   _clamp(float(row.Sal_Costo_Unit)),
                 "sal_costo_total":  _clamp(float(row.Sal_Costo_Total)),
-                # Saldo calculado
                 "saldo_cantidad":   _clamp(float(row.Saldo_Cantidad)),
                 "saldo_costo_unit": _clamp(float(row.Saldo_Costo_Unit)),
                 "saldo_costo_total":_clamp(float(row.Saldo_Costo_Total)),
-                # Originales del Excel
                 "orig_ent_costo_unit":  _clamp(float(row.Orig_Ent_Costo_Unit)),
                 "orig_ent_costo_total": _clamp(float(row.Orig_Ent_Costo_Total)),
                 "orig_sal_costo_unit":  _clamp(float(row.Orig_Sal_Costo_Unit)),
                 "orig_sal_costo_total": _clamp(float(row.Orig_Sal_Costo_Total)),
-                # Flags
                 "saldo_negativo": bool(row.Saldo_Negativo),
                 "error_a":        bool(row.Error_A),
                 "error_b":        bool(row.Error_B),

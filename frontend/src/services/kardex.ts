@@ -52,13 +52,17 @@ export const getKardex = async (
 // ── Exportar a Excel ──────────────────────────────────────────────────────────
 export const exportarKardex = async (
   procesamientoId: number,
-  codigo?: string,
+  codigo?:     string,
+  anio?:       number,
+  mes?:        number,
   fechaDesde?: string,
   fechaHasta?: string,
 ): Promise<void> => {
   const params: Record<string, string | number> = {}
 
   if (codigo)     params.codigo      = codigo
+  if (anio)       params.anio        = anio
+  if (mes)        params.mes         = mes
   if (fechaDesde) params.fecha_desde = fechaDesde
   if (fechaHasta) params.fecha_hasta = fechaHasta
 
@@ -71,9 +75,11 @@ export const exportarKardex = async (
   const link = document.createElement('a')
   link.href  = url
 
-  const nombreArchivo = codigo
-    ? `kardex_${procesamientoId}_${codigo}.xlsx`
-    : `kardex_${procesamientoId}.xlsx`
+  // Nombre del archivo refleja los filtros aplicados
+  let nombreArchivo = `kardex_${procesamientoId}`
+  if (codigo) nombreArchivo += `_${codigo}`
+  if (anio && mes) nombreArchivo += `_${anio}_${String(mes).padStart(2, '0')}`
+  nombreArchivo += '.xlsx'
 
   link.setAttribute('download', nombreArchivo)
   document.body.appendChild(link)

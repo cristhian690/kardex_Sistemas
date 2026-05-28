@@ -102,23 +102,29 @@ async def get_historial(
     return await service.get_historial(limit=limit, offset=offset)
 
 
-# ── Exportar a Excel ──────────────────────────────────────────────────────────
 @router.get("/exportar/{procesamiento_id}")
 async def exportar_excel(
     procesamiento_id: int,
-    codigo:      str | None  = Query(None, description="Filtrar por código"),
-    fecha_desde: str | None  = Query(None, description="Fecha inicio (YYYY-MM-DD)"),
-    fecha_hasta: str | None  = Query(None, description="Fecha fin (YYYY-MM-DD)"),
+    codigo:      str | None  = Query(None),
+    anio:        int | None  = Query(None),
+    mes:         int | None  = Query(None),
+    fecha_desde: str | None  = Query(None),
+    fecha_hasta: str | None  = Query(None),
     db:          AsyncSession = Depends(get_db),
 ):
-    """
-    Genera y descarga el Excel del kardex procesado.
-    """
-    fecha_desde_parsed = date.fromisoformat(fecha_desde) if fecha_desde else None
-    fecha_hasta_parsed = date.fromisoformat(fecha_hasta) if fecha_hasta else None
+    from calendar import monthrange
 
-    service      = ExcelService(db)
-    excel_bytes  = await service.exportar(
+    # Si viene anio+mes, calcular rango automáticamente
+    if anio and mes:
+        fecha_desde_parsed = date(anio, mes, 1)
+        ultimo_dia = monthrange(anio, mes)[1]
+        fecha_hasta_parsed = date(anio, mes, ultimo_dia)
+    else:
+        fecha_desde_parsed = date.fromisoformat(fecha_desde) if fecha_desde else None
+        fecha_hasta_parsed = date.fromisoformat(fecha_hasta) if fecha_hasta else None
+
+    service     = ExcelService(db)
+    excel_bytes = await service.exportar(
         procesamiento_id = procesamiento_id,
         codigo           = codigo,
         fecha_desde      = fecha_desde_parsed,
@@ -128,10 +134,12 @@ async def exportar_excel(
     nombre_archivo = f"kardex_{procesamiento_id}"
     if codigo:
         nombre_archivo += f"_{codigo}"
+    if anio and mes:
+        nombre_archivo += f"_{anio}_{mes:02d}"
     nombre_archivo += ".xlsx"
 
     return StreamingResponse(
         io.BytesIO(excel_bytes),
-        media_type   = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers      = {"Content-Disposition": f"attachment; filename={nombre_archivo}"}
+        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers    = {"Content-Disposition": f"attachment; filename={nombre_archivo}"}
     )
