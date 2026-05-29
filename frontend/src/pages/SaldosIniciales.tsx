@@ -1,10 +1,11 @@
+// SaldosIniciales.tsx — tu archivo con el buscador integrado
+
 import { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import ModalSaldoInicial from '../components/ModalSaldoInicial'
 
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
-/* ── Tipos ─────────────────────────────────────────── */
 interface Saldo {
   id: number
   codigo: string
@@ -15,7 +16,6 @@ interface Saldo {
   costo_total: number
 }
 
-/* ═══ Icons (solo los de esta página) ═══ */
 const IconSpinner = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ animation: 'kspin 1s linear infinite' }}>
     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2"/>
@@ -40,8 +40,13 @@ const IconTrash = () => (
     <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
   </svg>
 )
+// ── NUEVO: icono lupa ──────────────────────────────────
+const IconSearch = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+  </svg>
+)
 
-/* ═══ Checkbox ═══ */
 const Checkbox = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
   <span
     onClick={e => { e.stopPropagation(); onChange() }}
@@ -61,7 +66,6 @@ const Checkbox = ({ checked, onChange }: { checked: boolean; onChange: () => voi
   </span>
 )
 
-/* ── Helpers ────────────────────────────────────────── */
 const fmt2 = (n: number) =>
   n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -69,16 +73,16 @@ const fmtFecha = (f: string) => {
   try { return new Date(f + 'T00:00:00').toLocaleDateString('es-PE') } catch { return f }
 }
 
-/* ── Página ─────────────────────────────────────────── */
 export default function SaldosIniciales() {
   const [saldos,        setSaldos]        = useState<Saldo[]>([])
+  const [busqueda,      setBusqueda]      = useState('')          // ← NUEVO
   const [loading,       setLoading]       = useState(true)
   const [error,         setError]         = useState<string | null>(null)
   const [modalOpen,     setModalOpen]     = useState(false)
   const [saldoEditando, setSaldoEditando] = useState<Saldo | null>(null)
   const [mensaje,       setMensaje]       = useState<string | null>(null)
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
-  const [eliminando,  setEliminando]  = useState(false)
+  const [selectedIds,   setSelectedIds]   = useState<Set<number>>(new Set())
+  const [eliminando,    setEliminando]    = useState(false)
 
   const fetchSaldos = async () => {
     setLoading(true)
@@ -96,6 +100,15 @@ export default function SaldosIniciales() {
 
   useEffect(() => { fetchSaldos() }, [])
 
+  // ── NUEVO: filtrado ────────────────────────────────────
+  const saldosFiltrados = saldos.filter(s => {
+    const t = busqueda.toLowerCase()
+    return (
+      s.codigo.toLowerCase().includes(t) ||
+      (s.descripcion && s.descripcion.toLowerCase().includes(t))
+    )
+  })
+
   const toggleSelect = (id: number) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
@@ -106,14 +119,14 @@ export default function SaldosIniciales() {
   }
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === saldos.length) {
+    if (selectedIds.size === saldosFiltrados.length) {   // ← usa filtrados
       setSelectedIds(new Set())
     } else {
-      setSelectedIds(new Set(saldos.map(s => s.id)))
+      setSelectedIds(new Set(saldosFiltrados.map(s => s.id)))
     }
   }
 
-  const allSelected  = saldos.length > 0 && selectedIds.size === saldos.length
+  const allSelected  = saldosFiltrados.length > 0 && selectedIds.size === saldosFiltrados.length
   const hasSelection = selectedIds.size > 0
 
   const handleEliminarMultiple = async () => {
@@ -122,7 +135,6 @@ export default function SaldosIniciales() {
     const msg = cantidad === 1
       ? '¿Eliminar este saldo? Esta acción no se puede deshacer.'
       : `¿Eliminar ${cantidad} saldos? Esta acción no se puede deshacer.`
-
     if (!confirm(msg)) return
 
     setEliminando(true)
@@ -134,7 +146,6 @@ export default function SaldosIniciales() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.detail || 'Error al eliminar')
-
       let texto = data?.mensaje || `${data?.eliminados || 0} eliminado(s)`
       if (data?.advertencia) texto += ' — ' + data.advertencia
       setMensaje(texto)
@@ -283,17 +294,20 @@ export default function SaldosIniciales() {
             border: '1px solid rgba(56,139,221,0.1)',
             borderRadius: 10, overflow: 'hidden',
           }}>
+            {/* ── Toolbar ── */}
             <div style={{
               padding: '10px 14px',
               borderBottom: '1px solid rgba(56,139,221,0.08)',
               background: 'rgba(56,139,221,0.03)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              flexWrap: 'wrap', gap: 10,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 2, height: 12, background: '#f59e0b', borderRadius: 2 }} />
                 <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: '#1e3a5a', fontFamily: "'IBM Plex Mono', monospace" }}>
                   Saldos registrados
                 </span>
+                {/* ── NUEVO: contador usa filtrados ── */}
                 <span style={{
                   fontSize: 11, fontFamily: "'IBM Plex Mono', monospace",
                   padding: '1px 8px', borderRadius: 20,
@@ -301,8 +315,32 @@ export default function SaldosIniciales() {
                   border: '1px solid rgba(245,158,11,0.22)',
                   color: '#f59e0b',
                 }}>
-                  {saldos.length}
+                  {saldosFiltrados.length}
                 </span>
+              </div>
+
+              {/* ── NUEVO: buscador ── */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                background: '#07101e',
+                border: '1px solid rgba(56,139,221,0.2)',
+                borderRadius: 6,
+                padding: '5px 10px',
+                width: '100%', maxWidth: 250,
+              }}>
+                <span style={{ color: '#4a7a9a', display: 'flex' }}><IconSearch /></span>
+                <input
+                  type="text"
+                  placeholder="Buscar por código o desc..."
+                  value={busqueda}
+                  onChange={e => setBusqueda(e.target.value)}
+                  style={{
+                    background: 'transparent', border: 'none', outline: 'none',
+                    color: '#c8ddef', fontSize: 11,
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    width: '100%',
+                  }}
+                />
               </div>
             </div>
 
@@ -313,13 +351,17 @@ export default function SaldosIniciales() {
               </div>
             )}
 
-            {!loading && saldos.length === 0 && (
+            {/* ── NUEVO: mensaje vacío diferenciado ── */}
+            {!loading && saldosFiltrados.length === 0 && (
               <div style={{ padding: '48px 0', textAlign: 'center', color: '#1e3a5a', fontSize: 12, fontFamily: "'IBM Plex Mono', monospace" }}>
-                Sin saldos iniciales registrados
+                {saldos.length > 0
+                  ? 'No se encontraron resultados para tu búsqueda'
+                  : 'Sin saldos iniciales registrados'}
               </div>
             )}
 
-            {!loading && saldos.length > 0 && (
+            {/* ── Tabla usa saldosFiltrados ── */}
+            {!loading && saldosFiltrados.length > 0 && (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%', fontSize: 12 }}>
                   <thead>
@@ -337,7 +379,7 @@ export default function SaldosIniciales() {
                     </tr>
                   </thead>
                   <tbody>
-                    {saldos.map((s, i) => {
+                    {saldosFiltrados.map((s, i) => {
                       const isSelected = selectedIds.has(s.id)
                       return (
                         <tr

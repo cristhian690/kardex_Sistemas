@@ -16,7 +16,7 @@ router = APIRouter(prefix="/saldos", tags=["Saldos Iniciales"])
 # ── Listar todos ──────────────────────────────────────────────────────────────
 @router.get("/", response_model=list[SaldoInicialResponse])
 async def listar_saldos(
-    limit:  int = Query(100, ge=1, le=500),
+    limit:  int = Query(400, ge=1, le=500),
     offset: int = Query(0,   ge=0),
     db:     AsyncSession = Depends(get_db),
 ):

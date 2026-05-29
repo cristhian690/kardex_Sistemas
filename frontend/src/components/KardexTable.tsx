@@ -38,11 +38,83 @@ const fmtFecha = (fecha: string) => {
 
 const FILAS_POR_PAGINA = 100;
 
-// 🎯 mapa de color según TU lógica
+// ── NUEVO: tipo para tooltip ───────────────────────────────────────────────
+type TooltipInfo = {
+  emoji: string;
+  title: string;
+  description: string;
+};
+
+// ── ACTUALIZADO: lógica más detallada de semáforo ─────────────────────────
 const getSemaforo = (row: KardexRow) => {
+
+  // Caso más grave
   if (row.saldo_negativo) return "🔴";
-  if (row.error_a || row.error_b) return "🟡";
+
+  // Sin saldo inicial
+  if (row.sin_saldo_inicial) return "⚫";
+
+  // Ambos errores
+  if (row.error_a && row.error_b) return "⚫";
+
+  // Error matemático en el Excel original
+  if (row.error_b) return "🔴";
+
+  // Diferencia entre cálculo sistema vs Excel
+  if (row.error_a) return "🟡";
+
   return "🟢";
+};
+
+// ── NUEVO: función de tooltip por fila ────────────────────────────────────
+const getRowTooltip = (row: KardexRow): TooltipInfo | null => {
+
+  if (row.saldo_negativo) {
+    return {
+      emoji: "🔴",
+      title: "Stock Negativo",
+      description:
+        "Se registró una salida cuando el producto ya no tenía stock suficiente. Revisar compras, devoluciones o movimientos faltantes.",
+    };
+  }
+
+  if (row.sin_saldo_inicial) {
+    return {
+      emoji: "⚫",
+      title: "Sin Saldo Inicial",
+      description:
+        "El producto no tiene saldo inicial registrado.",
+    };
+  }
+
+  if (row.error_a && row.error_b) {
+    return {
+      emoji: "⚫",
+      title: "Inconsistencia Completa",
+      description:
+        "El Excel original presenta inconsistencias y además el cálculo recalculado difiere del sistema.",
+    };
+  }
+
+  if (row.error_b) {
+    return {
+      emoji: "🔴",
+      title: "Inconsistencia en Excel",
+      description:
+        "El Excel original presenta diferencias matemáticas entre cantidad, costo unitario y costo total.",
+    };
+  }
+
+  if (row.error_a) {
+    return {
+      emoji: "🟡",
+      title: "Diferencia de Cálculo",
+      description:
+        "El sistema recalculó valores diferentes a los registrados en el Excel original.",
+    };
+  }
+
+  return null;
 };
 
 const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function KardexTable(
@@ -55,31 +127,31 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
   const pendingScrollToAnomaly = useRef(false);
   const pendingScrollToCodigo = useRef<string | null>(null);
   const [highlightIndex, setHighlightIndex] = useState<number | null>(null);
+  // ── NUEVO: estado tooltip ─────────────────────────────────────────────
+  const [tooltip, setTooltip] = useState<(TooltipInfo & { left: number; top: number }) | null>(null);
 
-  // ✅ NUEVO: detectar cuando el usuario está imprimiendo
   const [imprimiendo, setImprimiendo] = useState(false);
 
   useEffect(() => {
-  const handleBeforePrint = () => setImprimiendo(true);
-  const handleAfterPrint  = () => setImprimiendo(false);
-  window.addEventListener('beforeprint', handleBeforePrint);
-  window.addEventListener('afterprint', handleAfterPrint);
+    const handleBeforePrint = () => setImprimiendo(true);
+    const handleAfterPrint  = () => setImprimiendo(false);
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
 
-  // ✅ NUEVO: función global para forzar todas las filas antes de imprimir
-  (window as any).__kardexPrepararImpresion = () => {
-    setImprimiendo(true);
-  };
-  (window as any).__kardexTerminarImpresion = () => {
-    setImprimiendo(false);
-  };
+    (window as any).__kardexPrepararImpresion = () => {
+      setImprimiendo(true);
+    };
+    (window as any).__kardexTerminarImpresion = () => {
+      setImprimiendo(false);
+    };
 
-  return () => {
-    window.removeEventListener('beforeprint', handleBeforePrint);
-    window.removeEventListener('afterprint', handleAfterPrint);
-    delete (window as any).__kardexPrepararImpresion;
-    delete (window as any).__kardexTerminarImpresion;
-  };
-}, []);
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+      delete (window as any).__kardexPrepararImpresion;
+      delete (window as any).__kardexTerminarImpresion;
+    };
+  }, []);
 
   const primerErrorIndex = useMemo(() => {
     return movimientos.findIndex(
@@ -87,7 +159,6 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
     );
   }, [movimientos]);
 
-  // Función interna: localizar primera fila por código
   const findPrimerIndexCodigo = (codigo: string) => {
     return movimientos.findIndex(m => String(m.codigo).trim() === String(codigo).trim());
   };
@@ -190,7 +261,6 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
 
   const totalPaginas = Math.ceil(movimientos.length / FILAS_POR_PAGINA);
 
-  // ✅ CAMBIO: al imprimir muestra TODAS las filas; si no, paginadas
   const filas = useMemo(() => {
     if (imprimiendo) {
       return movimientos;
@@ -206,8 +276,24 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
   }
 
   return (
-    <div style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-      {/* ✅ NUEVO: CSS de impresión */}
+    // ── ACTUALIZADO: position relative para el tooltip ────────────────
+    <div style={{ position: 'relative', fontFamily: "'JetBrains Mono', monospace" }}>
+
+      {/* ── NUEVO: tooltip flotante ──────────────────────────────────── */}
+      {tooltip && (
+        <div
+          className="kardex-tooltip"
+          style={{ left: tooltip.left, top: tooltip.top }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+            {tooltip.emoji} {tooltip.title}
+          </div>
+          <div style={{ fontSize: 11, color: '#c8d6e5', lineHeight: 1.45, whiteSpace: 'normal' }}>
+            {tooltip.description}
+          </div>
+        </div>
+      )}
+
       <style>{`
         @media print {
           .kardex-tbl-print {
@@ -236,6 +322,21 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
             page-break-inside: avoid !important;
           }
         }
+
+        /* ── NUEVO: estilo del tooltip ── */
+        .kardex-tooltip {
+          position: fixed;
+          z-index: 9999;
+          max-width: 320px;
+          background: rgba(10,18,32,0.95);
+          color: #f8fafc;
+          border: 1px solid rgba(96,165,250,0.16);
+          box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+          border-radius: 12px;
+          padding: 12px 14px;
+          pointer-events: none;
+          white-space: normal;
+        }
       `}</style>
 
       <div style={{ overflowX: "auto" }}>
@@ -247,7 +348,6 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
           minWidth: 1200
         }}>
 
-          {/* HEADER GRUPOS */}
           <thead>
             <tr>
               {mostrarSemaforo && <th style={thDark}></th>}
@@ -289,7 +389,7 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
 
           <tbody>
             {filas.map((row, i) => {
-              // ── Fila especial de saldo inicial ──────────────────────────
+              // ── Fila especial de saldo inicial ──────────────────────
               if (row.es_saldo_inicial) {
                 return (
                   <tr key="saldo-inicial" style={{ background: "rgba(59,130,246,0.10)", borderLeft: "3px solid #3b82f6" }}>
@@ -352,10 +452,24 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
                   ref={rowRef}
                   onMouseEnter={e => {
                     if (!esHighlight) {
-                      e.currentTarget.style.background = "rgba(56,139,221,0.09)"
+                      e.currentTarget.style.background = "rgba(56,139,221,0.09)";
                     }
+                    // ── NUEVO: mostrar tooltip si hay error ────────────
+                    const info = getRowTooltip(row);
+                    if (!info) {
+                      setTooltip(null);
+                      return;
+                    }
+                    const rowRect = e.currentTarget.getBoundingClientRect();
+                    const left = Math.max(rowRect.left + 12, 12);
+                    const top = rowRect.top + rowRect.height + 6;
+                    setTooltip({ ...info, left, top });
                   }}
-                  onMouseLeave={e => { e.currentTarget.style.background = bgBase }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = bgBase;
+                    // ── NUEVO: ocultar tooltip ─────────────────────────
+                    setTooltip(null);
+                  }}
                   style={{
                     background: bgBase,
                     transition: "background .3s",
@@ -395,7 +509,6 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
         </table>
       </div>
 
-      {/* PAGINACIÓN — ✅ con clase para ocultar al imprimir */}
       {totalPaginas > 1 && (
         <div className="kardex-pagination-bar" style={{
           display: "flex",

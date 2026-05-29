@@ -234,7 +234,7 @@ def parsear_movimientos(
             sal_total = d(row.iloc[IDX_SAL_TOT])
 
             registros.append(
-                {   
+                {
                     "_orden_original": i,
                     "Codigo": codigo,
                     "Fecha": fecha,
@@ -302,7 +302,7 @@ def calcular_saldo_final(
     - 01 Venta                 → SALIDA.  Costo promedio NO cambia.
     - 02 Compra                → ENTRADA. Costo promedio SE RECALCULA.
     - 05 Devolución Recibida   → ENTRADA. Costo unitario entrada = 0. Costo promedio NO cambia.
-    - 06 Devolución Entregada  → SALIDA.  Costo promedio NO cambia. 
+    - 06 Devolución Entregada  → SALIDA.  Costo promedio NO cambia.
 
     Todo el cálculo interno trabaja con Decimal.
     """
@@ -339,8 +339,7 @@ def calcular_saldo_final(
     df["Sin_Saldo_Inicial"] = False
     df["Saldo_Negativo"] = False
 
-    # Ordenar:
-    # Mantener orden original del Excel
+    # Ordenar: mantener orden original del Excel
     df = df.sort_values(
         ["Codigo", "Fecha", "_orden_original"]
     ).reset_index(drop=True)
@@ -380,16 +379,28 @@ def calcular_saldo_final(
             if "devolu" in tipo_op and "entreg" in tipo_op:
 
                 sal_cant = d(df.at[idx, "Sal_Cantidad"])
-                sal_unit = d(df.at[idx, "Orig_Sal_Costo_Unit"])
+
+                # Tomar costo original si existe
+                orig_unit = d(df.at[idx, "Orig_Sal_Costo_Unit"])
+
+                # Si no existe, usar promedio vigente
+                if orig_unit > ZERO:
+                    sal_unit = orig_unit
+                else:
+                    sal_unit = s_unit
+
                 sal_total = q(sal_cant * sal_unit)
 
+                # Guardar valores finales
                 df.at[idx, "Sal_Costo_Unit"] = sal_unit
                 df.at[idx, "Sal_Costo_Total"] = sal_total
 
+                # Actualizar saldo
                 s_cant = q(s_cant - sal_cant)
                 s_total = q(s_total - sal_total)
 
-                # El costo promedio NO cambia (es una devolución de algo ya comprado)
+                # El promedio NO cambia
+
                 if s_cant < ZERO:
                     df.at[idx, "Saldo_Negativo"] = True
                     tiene_negativo = True
@@ -398,16 +409,27 @@ def calcular_saldo_final(
             elif "venta" in tipo_op:
 
                 sal_cant = d(df.at[idx, "Sal_Cantidad"])
-                sal_unit = d(df.at[idx, "Orig_Sal_Costo_Unit"])
+
+                # Tomar costo original del Excel
+                orig_unit = d(df.at[idx, "Orig_Sal_Costo_Unit"])
+
+                # Si el Excel no trae costo, usar promedio vigente
+                if orig_unit > ZERO:
+                    sal_unit = orig_unit
+                else:
+                    sal_unit = s_unit
+
                 sal_total = q(sal_cant * sal_unit)
 
+                # Guardar valores calculados/finales
                 df.at[idx, "Sal_Costo_Unit"] = sal_unit
                 df.at[idx, "Sal_Costo_Total"] = sal_total
 
+                # Actualizar saldo
                 s_cant = q(s_cant - sal_cant)
                 s_total = q(s_total - sal_total)
 
-                # El costo promedio NO cambia
+                # El promedio NO cambia
                 if s_cant < ZERO:
                     df.at[idx, "Saldo_Negativo"] = True
                     tiene_negativo = True
@@ -433,13 +455,26 @@ def calcular_saldo_final(
 
                 dev_cant = d(df.at[idx, "Ent_Cantidad"])
 
-                df.at[idx, "Ent_Costo_Unit"] = ZERO
-                df.at[idx, "Ent_Costo_Total"] = ZERO
+                # Tomar valor original del Excel si existe
+                orig_unit = d(df.at[idx, "Orig_Ent_Costo_Unit"])
 
+                # Si el Excel no trae costo, usar promedio actual
+                if orig_unit > ZERO:
+                    ent_unit = orig_unit
+                else:
+                    ent_unit = s_unit
+
+                ent_total = q(dev_cant * ent_unit)
+
+                # Guardar visualmente en el movimiento
+                df.at[idx, "Ent_Costo_Unit"] = ent_unit
+                df.at[idx, "Ent_Costo_Total"] = ent_total
+
+                # Actualizar saldo
                 s_cant = q(s_cant + dev_cant)
+                s_total = q(s_total + ent_total)
 
-                # costo promedio NO cambia
-                s_total = q(s_cant * s_unit)
+                # El promedio NO cambia
 
             # ── Guardar saldo final ────────────────────────────────────
             df.at[idx, "Saldo_Cantidad"] = s_cant
@@ -475,7 +510,7 @@ def verificar_integridad(
     for idx in df.index:
         tipo_op = str(df.at[idx, "Tipo_Operacion"]).strip().lower()
 
-        #  Las devoluciones recibidas (05) no se verifican
+        # Las devoluciones recibidas (05) no se verifican
         # porque vienen con costo 0 en el Excel original
         if "devolu" in tipo_op and "recib" in tipo_op:
             continue

@@ -85,8 +85,9 @@ export interface KardexRow extends Movimiento {
   saldo_costo_total: number
   saldo_negativo:    boolean
 
-  error_a:           boolean   // ✅ agregar
-  error_b:           boolean   // ✅ agregar
+  error_a:           boolean   
+  error_b:           boolean   
+  sin_saldo_inicial: boolean 
 
  semaforo:          '🟢' | '🟡' | '🔴' | '⚫'
   fila:              number
