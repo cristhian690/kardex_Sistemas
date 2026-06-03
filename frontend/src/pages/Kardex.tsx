@@ -355,18 +355,43 @@ const handleExportar = () =>
     return Array.from(set) as string[]
   }, [movimientos])
 
-  // ═══ Cargar datos de empresa del código visible (para impresión SUNAT) ═══
+  // ═══ Cargar datos de empresa para impresión SUNAT ═══
+  // Lógica: 1) busca por código filtrado  2) si no → busca "default"  3) si no → toma el primero de la lista
   useEffect(() => {
-    const codigoActual = codigo || codigosVisibles[0]
-    if (!codigoActual) {
-      setEmpresaImpresion(null)
-      return
-    }
     const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-    fetch(`${API}/api/v1/empresa/${codigoActual}`)
-      .then(res => res.ok ? res.json() : null)
-      .then(data => setEmpresaImpresion(data))
-      .catch(() => setEmpresaImpresion(null))
+    const codigoActual = codigo || codigosVisibles[0]
+
+    const fetchEmpresa = async () => {
+      // Intento 1: por código de producto actual
+      if (codigoActual) {
+        try {
+          const res = await fetch(`${API}/api/v1/empresa/${codigoActual}`)
+          if (res.ok) {
+            const data = await res.json()
+            if (data) { setEmpresaImpresion(data); return }
+          }
+        } catch { /* continúa */ }
+      }
+      // Intento 2: registro "default"
+      try {
+        const res = await fetch(`${API}/api/v1/empresa/default`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data) { setEmpresaImpresion(data); return }
+        }
+      } catch { /* continúa */ }
+      // Intento 3: primera empresa de la lista
+      try {
+        const res = await fetch(`${API}/api/v1/empresa/`)
+        if (res.ok) {
+          const lista = await res.json()
+          if (Array.isArray(lista) && lista.length > 0) { setEmpresaImpresion(lista[0]); return }
+        }
+      } catch { /* continúa */ }
+      setEmpresaImpresion(null)
+    }
+
+    fetchEmpresa()
   }, [codigo, codigosVisibles])
 
   if (!id) return (
@@ -411,10 +436,28 @@ const handleExportar = () =>
         @media print {
           @page {
             size: A4 landscape;
-            margin: 12mm 8mm;
+            margin: 8mm 6mm;
           }
 
-          .kardex-no-print { display: none !important; }
+          /* ── Ocultar todo lo que no debe imprimirse ── */
+          .kardex-no-print,
+          .kardex-metrics-web,
+          .kardex-print-metrics,
+          .col-hide-print {
+            display: none !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+          }
+          /* Forzar ocultado incluso con style inline */
+          [class*="kardex-no-print"],
+          [class*="kardex-metrics-web"] {
+            display: none !important;
+          }
 
           body, html {
             background: white !important;
@@ -428,8 +471,9 @@ const handleExportar = () =>
             display: block !important;
             padding: 0 !important;
             overflow: visible !important;
+            gap: 4px !important;
           }
-          .kardex-print-area * {
+          .kardex-print-area *:not(.hdr-wrap):not(.hdr-top):not(.hdr-titulo):not(.hdr-periodo-box):not(.hdr-periodo-box *):not(.hdr-campos):not(.hdr-campos *):not(.hdr-divider) {
             color: black !important;
             background: white !important;
             border-color: #ccc !important;
@@ -438,30 +482,100 @@ const handleExportar = () =>
 
           .kardex-print-header {
             display: block !important;
-            padding: 0 0 10px 0 !important;
-            margin-bottom: 12px !important;
+            padding: 0 !important;
+            margin-bottom: 5px !important;
           }
 
-          /* Tabla encabezado SUNAT */
-          .sunat-header-table {
-            width: 60% !important;
-            border-collapse: collapse !important;
+          /* ═══ ENCABEZADO AUDITORÍA V3 ═══ */
+          .hdr-wrap {
+            width: 100% !important;
             font-family: Arial, sans-serif !important;
-            margin-bottom: 10px !important;
+            margin-bottom: 8px !important;
           }
-          .sunat-header-table td {
+          /* Casilla periodo — pequeña, esquina derecha */
+          .hdr-periodo-box {
+            border-collapse: collapse !important;
+            font-size: 7px !important;
+            text-align: center !important;
+            width: auto !important;
+            max-width: 160px !important;
+            flex-shrink: 0 !important;
+          }
+          .hdr-periodo-box th {
+            background: #e8e8e8 !important;
             border: 1px solid #333 !important;
-            padding: 2px 6px !important;
-            font-size: 9px !important;
+            padding: 1px 8px !important;
+            font-size: 7px !important;
+            font-weight: 900 !important;
+            letter-spacing: .06em !important;
             color: black !important;
+            white-space: nowrap !important;
           }
-          .sunat-header-table .sunat-lbl {
+          .hdr-periodo-box td {
+            border: 1px solid #333 !important;
+            padding: 2px 8px !important;
+            font-size: 9px !important;
             font-weight: 700 !important;
-            background: #f0f0f0 !important;
-            width: 40% !important;
+            color: black !important;
+            white-space: nowrap !important;
           }
-          .sunat-header-table .sunat-val {
-            background: white !important;
+          .hdr-top {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: flex-start !important;
+            margin-bottom: 4px !important;
+            width: 100% !important;
+          }
+          .hdr-titulo {
+            font-size: 13px !important;
+            font-weight: 900 !important;
+            color: black !important;
+            line-height: 1.15 !important;
+            text-transform: uppercase !important;
+            flex: 1 !important;
+          }
+          .hdr-titulo span {
+            display: block !important;
+            font-size: 9px !important;
+            font-weight: 700 !important;
+            letter-spacing: .04em !important;
+          }
+          /* Línea separadora doble */
+          .hdr-divider {
+            border: none !important;
+            border-top: 3px double #333 !important;
+            margin: 4px 0 6px 0 !important;
+          }
+          /* Campos en 2 columnas */
+          .hdr-campos {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            font-size: 9px !important;
+          }
+          .hdr-campos td {
+            padding: 2px 6px 3px 0 !important;
+            vertical-align: bottom !important;
+            color: black !important;
+            border: none !important;
+            white-space: nowrap !important;
+          }
+          .hdr-lbl {
+            font-weight: 700 !important;
+            text-align: right !important;
+            width: 100px !important;
+            padding-right: 5px !important;
+          }
+          .hdr-val {
+            border-bottom: 1px solid #9ca3af !important;
+            min-width: 180px !important;
+            width: 220px !important;
+            padding-bottom: 1px !important;
+          }
+          .hdr-val-desc {
+            border-bottom: 1px solid #9ca3af !important;
+            min-width: 280px !important;
+            font-weight: 700 !important;
+            padding-bottom: 1px !important;
           }
 
           .kardex-print-area table.kardex-mov-table,
@@ -504,27 +618,27 @@ const handleExportar = () =>
           .kardex-print-metrics {
             display: grid !important;
             grid-template-columns: repeat(4, 1fr) !important;
-            gap: 8px !important;
-            margin-bottom: 12px !important;
+            gap: 4px !important;
+            margin-bottom: 5px !important;
           }
           .kardex-print-metrics > div {
             border: 1px solid #999 !important;
-            padding: 6px 8px !important;
+            padding: 4px 6px !important;
           }
           .kardex-print-metrics .lbl {
-            font-size: 8px !important;
+            font-size: 7px !important;
             text-transform: uppercase !important;
             color: #555 !important;
             font-weight: 700 !important;
           }
           .kardex-print-metrics .val {
-            font-size: 14px !important;
+            font-size: 12px !important;
             font-weight: 700 !important;
             color: black !important;
             font-family: Arial, sans-serif !important;
           }
           .kardex-print-metrics .sub {
-            font-size: 8px !important;
+            font-size: 7px !important;
             color: #666 !important;
           }
         }
@@ -653,51 +767,75 @@ const handleExportar = () =>
           {/* ── SCROLLABLE CONTENT ── */}
           <div className="kardex-print-area" style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* ═══ ENCABEZADO SUNAT SOLO PARA IMPRESIÓN ═══ */}
+            {/* ═══ ENCABEZADO AUDITORÍA — SOLO IMPRESIÓN ═══ */}
             <div className="kardex-print-only kardex-print-header">
-              <table className="sunat-header-table">
-                <tbody>
-                  <tr>
-                    <td className="sunat-lbl" colSpan={2}>REGISTRO DE INVENTARIO PERMANENTE VALORIZADO</td>
-                  </tr>
-                  <tr>
-                    <td className="sunat-lbl">Periodo</td>
-                    <td className="sunat-val">{filtroFecha.anio ?? new Date().getFullYear()}</td>
-                  </tr>
-                  <tr>
-                    <td className="sunat-lbl">Razón Social</td>
-                    <td className="sunat-val">{empresaImpresion?.razon_social ?? '—'}</td>
-                  </tr>
-                  <tr>
-                    <td className="sunat-lbl">R.U.C.</td>
-                    <td className="sunat-val">{empresaImpresion?.ruc ?? '—'}</td>
-                  </tr>
-                  <tr>
-                    <td className="sunat-lbl">Establecimiento</td>
-                    <td className="sunat-val">{empresaImpresion?.establecimiento ?? '—'}</td>
-                  </tr>
-                  <tr>
-                    <td className="sunat-lbl">Código de Existencia</td>
-                    <td className="sunat-val">{empresaImpresion?.codigo_existencia ?? '—'}</td>
-                  </tr>
-                  <tr>
-                    <td className="sunat-lbl">Tipo</td>
-                    <td className="sunat-val">{empresaImpresion?.tipo ?? '—'}</td>
-                  </tr>
-                  <tr>
-                    <td className="sunat-lbl">Descripción</td>
-                    <td className="sunat-val">{codigo || codigosVisibles[0] || '—'}</td>
-                  </tr>
-                  <tr>
-                    <td className="sunat-lbl">Código de la Unidad de Medida</td>
-                    <td className="sunat-val">{empresaImpresion?.unidad_medida ?? '—'}</td>
-                  </tr>
-                  <tr>
-                    <td className="sunat-lbl">Método de Valuación</td>
-                    <td className="sunat-val">{empresaImpresion?.metodo_valuacion ?? '—'}</td>
-                  </tr>
-                </tbody>
-              </table>
+              <div className="hdr-wrap">
+
+                {/* Fila superior: título izquierda + casilla periodo derecha */}
+                <div className="hdr-top">
+                  <div className="hdr-titulo">
+                    REGISTRO DE INVENTARIO
+                    <span>PERMANENTE VALORIZADO</span>
+                  </div>
+
+                  <table className="hdr-periodo-box">
+                    <thead>
+                      <tr><th colSpan={3}>PERIODO DE REPORTE</th></tr>
+                      <tr>
+                        <th>DÍA</th>
+                        <th>MES</th>
+                        <th>AÑO</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>{new Date().getDate().toString().padStart(2,'0')}</td>
+                        <td>{filtroFecha.mes?.toString().padStart(2,'0') ?? new Date().getMonth()+1}</td>
+                        <td>{filtroFecha.anio ?? new Date().getFullYear()}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Línea doble separadora */}
+                <hr className="hdr-divider" />
+
+                {/* Campos en 2 columnas */}
+                <table className="hdr-campos">
+                  <tbody>
+                    <tr>
+                      <td className="hdr-lbl">Razón Social:</td>
+                      <td className="hdr-val">{empresaImpresion?.razon_social ?? ''}</td>
+                      <td style={{ width: 30 }}></td>
+                      <td className="hdr-lbl">R.U.C.:</td>
+                      <td className="hdr-val">{empresaImpresion?.ruc ?? ''}</td>
+                    </tr>
+                    <tr>
+                      <td className="hdr-lbl">Establecimiento:</td>
+                      <td className="hdr-val">{empresaImpresion?.establecimiento ?? 'Almacén'}</td>
+                      <td></td>
+                      <td className="hdr-lbl">Tipo:</td>
+                      <td className="hdr-val">{empresaImpresion?.tipo ?? 'Mercadería'}</td>
+                    </tr>
+                    <tr>
+                      <td className="hdr-lbl">Descripción:</td>
+                      <td className="hdr-val-desc" colSpan={4}>
+                        {codigosVisibles.length > 1
+                          ? codigosVisibles.join(' | ')
+                          : (codigo || codigosVisibles[0] || '')}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="hdr-lbl">M. de Valuación:</td>
+                      <td className="hdr-val">{empresaImpresion?.metodo_valuacion ?? 'Costo Promedio'}</td>
+                      <td></td>
+                      <td className="hdr-lbl">Cód. Existencia:</td>
+                      <td className="hdr-val">{empresaImpresion?.codigo_existencia || (codigo || codigosVisibles[0] || '')}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+              </div>
             </div>
 
             {/* Alertas (ocultas en impresión) */}
@@ -707,7 +845,7 @@ const handleExportar = () =>
 
             {/* ── Métricas (versión web) ── */}
             {metricas && (
-              <div className="kardex-no-print" style={{ display: 'flex', gap: 12 }}>
+              <div className="kardex-no-print kardex-metrics-web" style={{ display: 'flex', gap: 12 }}>
                 <MetricCard
                   label="Total registros"
                   value={totalRegistros.toLocaleString('es-PE')}

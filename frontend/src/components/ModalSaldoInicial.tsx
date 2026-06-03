@@ -22,7 +22,7 @@ interface SaldoExistente {
 interface Props {
   open:          boolean
   onClose:       () => void
-  onGuardado?:   () => void
+  onGuardado?:   (codigo: string) => void //  Actualizado
   saldoEditar?:  SaldoExistente | null
 }
 
@@ -218,7 +218,7 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
 
       setAdvertencia(res.advertencia ?? null)
       setSuccess(true)
-      onGuardado?.()
+      onGuardado?.(codigo.trim().toUpperCase())
       setTimeout(() => onClose(), 1200)
 
     } catch (e) {
