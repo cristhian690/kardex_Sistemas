@@ -774,8 +774,8 @@ const handleExportar = () =>
                 {/* Fila superior: título izquierda + casilla periodo derecha */}
                 <div className="hdr-top">
                   <div className="hdr-titulo">
-                    REGISTRO DE INVENTARIO
-                    <span>PERMANENTE VALORIZADO</span>
+                    REGISTRO DE KARDEX
+                    <span>INVENTARIO</span>
                   </div>
 
                   <table className="hdr-periodo-box">
