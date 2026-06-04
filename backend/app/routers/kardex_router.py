@@ -9,6 +9,7 @@ from app.schemas.kardex import KardexResponse, UploadResponse, FiltroKardex
 from app.schemas.procesamiento import ProcesamientoResumen
 from app.exceptions import ArchivoInvalidoException
 from datetime import date
+from calendar import monthrange
 import io
 
 
@@ -22,15 +23,9 @@ async def procesar_kardex(
     saldos:      Annotated[UploadFile | None, File(description="Archivo de saldos iniciales (opcional)")] = None,
     db:          AsyncSession = Depends(get_db),
 ):
-    """
-    Sube y procesa archivos Excel de kardex.
-    Acepta uno o varios archivos de movimientos (sin límite).
-    Calcula el saldo final, verifica integridad y persiste en BD.
-    """
     if not movimientos:
         raise ArchivoInvalidoException("Debes subir al menos un archivo de movimientos")
 
-    # Validar extensiones
     archivos_invalidos = [
         f.filename for f in movimientos
         if not f.filename.endswith(".xlsx")
@@ -42,7 +37,6 @@ async def procesar_kardex(
     if saldos and not saldos.filename.endswith(".xlsx"):
         raise ArchivoInvalidoException("El archivo de saldos iniciales debe ser .xlsx")
 
-    # Leer bytes
     saldo_bytes = await saldos.read() if saldos else None
     archivos_mov = [
         (f.filename, await f.read())
@@ -60,18 +54,27 @@ async def procesar_kardex(
 @router.get("/consultar/{procesamiento_id}", response_model=KardexResponse)
 async def consultar_kardex(
     procesamiento_id: int,
-    codigo:           str | None  = Query(None, description="Código del producto"),
-    anio:             int | None  = Query(None, description="Año"),
-    mes:              int | None  = Query(None, description="Mes (1-12)"),
-    fecha_exacta:     str | None  = Query(None, description="Fecha exacta (YYYY-MM-DD)"),
-    fecha_desde:      str | None  = Query(None, description="Fecha inicio (YYYY-MM-DD)"),
-    fecha_hasta:      str | None  = Query(None, description="Fecha fin (YYYY-MM-DD)"),
+    codigo:           str | None  = Query(None),
+    anio:             int | None  = Query(None),
+    mes:              int | None  = Query(None),
+    fecha_exacta:     str | None  = Query(None),
+    fecha_desde:      str | None  = Query(None),
+    fecha_hasta:      str | None  = Query(None),
     db:               AsyncSession = Depends(get_db),
 ):
-    """
-    Consulta el kardex procesado desde BD con filtros opcionales.
-    No reprocesa el archivo, usa los datos almacenados.
-    """
+    # ✅ FIX: si viene fecha_desde sin fecha_hasta en modo rango,
+    # auto-completar con el último día del mes de fecha_desde
+    if fecha_desde and not fecha_hasta and not anio and not mes and not fecha_exacta:
+        try:
+            d = date.fromisoformat(fecha_desde)
+            ultimo_dia = monthrange(d.year, d.month)[1]
+            fecha_hasta = date(d.year, d.month, ultimo_dia).isoformat()
+            print(f"⚠️  fecha_hasta auto-completada: {fecha_hasta}")
+        except Exception:
+            pass
+
+    print(f"🔍 FILTRO: codigo={codigo} anio={anio} mes={mes} desde={fecha_desde} hasta={fecha_hasta}")
+
     filtros = FiltroKardex(
         codigo       = codigo,
         anio         = anio,
@@ -95,13 +98,11 @@ async def get_historial(
     offset: int = Query(0,  ge=0),
     db:     AsyncSession = Depends(get_db),
 ):
-    """
-    Retorna el historial de procesamientos paginado.
-    """
     service = KardexService(db)
     return await service.get_historial(limit=limit, offset=offset)
 
 
+# ── Exportar a Excel ──────────────────────────────────────────────────────────
 @router.get("/exportar/{procesamiento_id}")
 async def exportar_excel(
     procesamiento_id: int,
@@ -112,16 +113,18 @@ async def exportar_excel(
     fecha_hasta: str | None  = Query(None),
     db:          AsyncSession = Depends(get_db),
 ):
-    from calendar import monthrange
-
-    # Si viene anio+mes, calcular rango automáticamente
     if anio and mes:
         fecha_desde_parsed = date(anio, mes, 1)
         ultimo_dia = monthrange(anio, mes)[1]
         fecha_hasta_parsed = date(anio, mes, ultimo_dia)
     else:
         fecha_desde_parsed = date.fromisoformat(fecha_desde) if fecha_desde else None
-        fecha_hasta_parsed = date.fromisoformat(fecha_hasta) if fecha_hasta else None
+        # ✅ mismo fix: si viene fecha_desde sin fecha_hasta, completar
+        if fecha_desde_parsed and not fecha_hasta:
+            ultimo_dia = monthrange(fecha_desde_parsed.year, fecha_desde_parsed.month)[1]
+            fecha_hasta_parsed = date(fecha_desde_parsed.year, fecha_desde_parsed.month, ultimo_dia)
+        else:
+            fecha_hasta_parsed = date.fromisoformat(fecha_hasta) if fecha_hasta else None
 
     service     = ExcelService(db)
     excel_bytes = await service.exportar(

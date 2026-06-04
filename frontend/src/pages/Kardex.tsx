@@ -775,7 +775,7 @@ const handleExportar = () =>
                 <div className="hdr-top">
                   <div className="hdr-titulo">
                     REGISTRO DE KARDEX
-                    <span>INVENTARIO</span>
+                    <span>PERMANENTE VALORIZADO</span>
                   </div>
 
                   <table className="hdr-periodo-box">
@@ -1006,22 +1006,36 @@ const handleExportar = () =>
                 )}
 
                 {draftFiltroFecha.modo === 'rango' && (
-                  <>
-                    <input
-                      type="date"
-                      value={draftFiltroFecha.fecha_desde ?? ''}
-                      onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, fecha_desde: e.target.value || undefined })}
-                      style={filterInputStyle}
-                    />
-                    <span style={{ fontSize: 11, color: '#2a5a7a' }}>–</span>
-                    <input
-                      type="date"
-                      value={draftFiltroFecha.fecha_hasta ?? ''}
-                      onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, fecha_hasta: e.target.value || undefined })}
-                      style={filterInputStyle}
-                    />
-                  </>
-                )}
+  <>
+    <input
+      type="date"
+      value={draftFiltroFecha.fecha_desde ?? ''}
+      onChange={e => {
+        const val = e.target.value
+        if (val) {
+          const [y, m, d] = val.split('-').map(Number)
+          if (new Date(y, m - 1, d).getMonth() + 1 !== m) return
+        }
+        setDraftFiltroFecha({ ...draftFiltroFecha, fecha_desde: val || undefined })
+      }}
+      style={filterInputStyle}
+    />
+    <span style={{ fontSize: 11, color: '#2a5a7a' }}>–</span>
+    <input
+      type="date"
+      value={draftFiltroFecha.fecha_hasta ?? ''}
+      onChange={e => {
+        const val = e.target.value
+        if (val) {
+          const [y, m, d] = val.split('-').map(Number)
+          if (new Date(y, m - 1, d).getMonth() + 1 !== m) return
+        }
+        setDraftFiltroFecha({ ...draftFiltroFecha, fecha_hasta: val || undefined })
+      }}
+      style={filterInputStyle}
+    />
+  </>
+)}
 
                 <div style={{ width: 40 }} />
 

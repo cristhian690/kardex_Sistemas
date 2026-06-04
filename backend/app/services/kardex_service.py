@@ -35,6 +35,47 @@ def _clamp(v: float) -> float:
     return max(-MAX_VAL, min(MAX_VAL, v))
 
 
+def _build_fila_saldo_inicial(
+    procesamiento_id: int,
+    codigo: str,
+    fecha: date,
+    saldo_cant: Decimal,
+    saldo_total: Decimal,
+) -> MovimientoResponse:
+    """Construye la fila de saldo inicial para cualquier modo de filtro."""
+    return MovimientoResponse(
+        id                   = 0,
+        procesamiento_id     = procesamiento_id,
+        producto_id          = 0,
+        codigo               = codigo,
+        fecha                = fecha,
+        tipo_comprobante     = 0,
+        serie                = "",
+        numero               = "",
+        tipo_operacion       = "SALDO INICIAL",
+        ent_cantidad         = Decimal("0"),
+        ent_costo_unit       = Decimal("0"),
+        ent_costo_total      = Decimal("0"),
+        sal_cantidad         = Decimal("0"),
+        sal_costo_unit       = Decimal("0"),
+        sal_costo_total      = Decimal("0"),
+        saldo_cantidad       = saldo_cant,
+        saldo_costo_unit     = Decimal("0"),
+        saldo_costo_total    = saldo_total,
+        orig_ent_costo_unit  = Decimal("0"),
+        orig_ent_costo_total = Decimal("0"),
+        orig_sal_costo_unit  = Decimal("0"),
+        orig_sal_costo_total = Decimal("0"),
+        saldo_negativo       = False,
+        error_a              = False,
+        error_b              = False,
+        semaforo             = "🟢",
+        fila                 = 0,
+        creado_en            = datetime.now(),
+        es_saldo_inicial     = True,
+    )
+
+
 class KardexService:
 
     def __init__(self, db: AsyncSession):
@@ -167,57 +208,41 @@ class KardexService:
 
         # ── Saldo inicial del periodo ─────────────────────────────────────────
         fila_saldo_inicial = None
-        if filtros.anio and filtros.mes:
-            codigos_distintos = list({m.producto.codigo for m in movimientos if m.producto})
-            codigo_saldo = filtros.codigo or (codigos_distintos[0] if len(codigos_distintos) == 1 else None)
+        codigos_distintos  = list({m.producto.codigo for m in movimientos if m.producto})
+        codigo_saldo       = filtros.codigo or (codigos_distintos[0] if len(codigos_distintos) == 1 else None)
 
-            if codigo_saldo:
-                primer_dia = date(filtros.anio, filtros.mes, 1)
-                mov_anterior = await self.movimiento_repo.get_saldo_anterior(
-                    procesamiento_id = procesamiento_id,
-                    codigo           = codigo_saldo,
-                    antes_de         = primer_dia,
-                )
-                saldo_cant  = Decimal(str(mov_anterior.saldo_cantidad))    if mov_anterior else Decimal("0")
-                saldo_total = Decimal(str(mov_anterior.saldo_costo_total)) if mov_anterior else Decimal("0")
+        # MODO AÑO/MES — primer día del mes seleccionado
+        if filtros.anio and filtros.mes and codigo_saldo:
+            antes_de = date(filtros.anio, filtros.mes, 1)
+            mov_anterior = await self.movimiento_repo.get_saldo_anterior(
+                procesamiento_id = procesamiento_id,
+                codigo           = codigo_saldo,
+                antes_de         = antes_de,
+            )
+            saldo_cant  = Decimal(str(mov_anterior.saldo_cantidad))    if mov_anterior else Decimal("0")
+            saldo_total = Decimal(str(mov_anterior.saldo_costo_total)) if mov_anterior else Decimal("0")
+            fila_saldo_inicial = _build_fila_saldo_inicial(
+                procesamiento_id, codigo_saldo, antes_de, saldo_cant, saldo_total
+            )
 
-                fila_saldo_inicial = MovimientoResponse(
-                    id                   = 0,
-                    procesamiento_id     = procesamiento_id,
-                    producto_id          = 0,
-                    codigo               = codigo_saldo,
-                    fecha                = primer_dia,
-                    tipo_comprobante     = 0,
-                    serie                = "",
-                    numero               = "",
-                    tipo_operacion       = "SALDO INICIAL",
-                    ent_cantidad         = Decimal("0"),
-                    ent_costo_unit       = Decimal("0"),
-                    ent_costo_total      = Decimal("0"),
-                    sal_cantidad         = Decimal("0"),
-                    sal_costo_unit       = Decimal("0"),
-                    sal_costo_total      = Decimal("0"),
-                    saldo_cantidad       = saldo_cant,
-                    saldo_costo_unit     = Decimal("0"),
-                    saldo_costo_total    = saldo_total,
-                    orig_ent_costo_unit  = Decimal("0"),
-                    orig_ent_costo_total = Decimal("0"),
-                    orig_sal_costo_unit  = Decimal("0"),
-                    orig_sal_costo_total = Decimal("0"),
-                    saldo_negativo       = False,
-                    error_a              = False,
-                    error_b              = False,
-                    semaforo             = "🟢",
-                    fila                 = 0,
-                    creado_en            = datetime.now(),
-                    es_saldo_inicial     = True,
-                )
+        # MODO RANGO — primer día del rango seleccionado
+        elif fecha_desde and codigo_saldo:
+            mov_anterior = await self.movimiento_repo.get_saldo_anterior(
+                procesamiento_id = procesamiento_id,
+                codigo           = codigo_saldo,
+                antes_de         = fecha_desde,
+            )
+            saldo_cant  = Decimal(str(mov_anterior.saldo_cantidad))    if mov_anterior else Decimal("0")
+            saldo_total = Decimal(str(mov_anterior.saldo_costo_total)) if mov_anterior else Decimal("0")
+            fila_saldo_inicial = _build_fila_saldo_inicial(
+                procesamiento_id, codigo_saldo, fecha_desde, saldo_cant, saldo_total
+            )
 
-        # ── Validar que haya algo que mostrar ────────────────────────────────
+        # ── Validar que haya algo que mostrar ─────────────────────────────────
         if not movimientos and fila_saldo_inicial is None:
             raise KardexException("No se encontraron movimientos con los filtros aplicados.")
 
-        # ── Métricas (solo sobre movimientos reales, no el saldo inicial) ────
+        # ── Métricas (solo sobre movimientos reales, no el saldo inicial) ─────
         if movimientos:
             df_filtrado = pd.DataFrame([{
                 "Ent_Cantidad":      float(m.ent_cantidad),

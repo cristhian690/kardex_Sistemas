@@ -61,9 +61,11 @@ class MovimientoRepository:
 
         if fecha_exacta:
             conditions.append(Movimiento.fecha == fecha_exacta)
-        elif fecha_desde and fecha_hasta:
-            conditions.append(Movimiento.fecha >= fecha_desde)
-            conditions.append(Movimiento.fecha <= fecha_hasta)
+        elif fecha_desde or fecha_hasta:
+            if fecha_desde:
+                conditions.append(Movimiento.fecha >= fecha_desde)
+            if fecha_hasta:
+                conditions.append(Movimiento.fecha <= fecha_hasta)
         elif anio:
             conditions.append(extract("year", Movimiento.fecha) == anio)
             if mes:
@@ -90,7 +92,7 @@ class MovimientoRepository:
     ) -> Movimiento | None:
         """
         Devuelve el último movimiento del código ANTES de la fecha indicada.
-        Se usa para construir la fila 'SALDO INICIAL' al filtrar por mes.
+        Se usa para construir la fila 'SALDO INICIAL' al filtrar por mes o rango.
         """
         result = await self.db.execute(
             select(Movimiento)
