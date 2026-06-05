@@ -1,16 +1,18 @@
 from pydantic import BaseModel
-from datetime import date, datetime
+from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
 
 class ProductoUpdate(BaseModel):
-    descripcion: Optional[str] = None
+    descripcion:       Optional[str] = None
+    codigo_existencia: Optional[str] = None
+    unidad_medida:     Optional[str] = None
 
 
 class SaldoInicialResumen(BaseModel):
     id:             int
-    fecha:          date
+    fecha:          str
     cantidad:       Decimal
     costo_unitario: Decimal
     costo_total:    Decimal
@@ -19,15 +21,18 @@ class SaldoInicialResumen(BaseModel):
 
 
 class ProductoResponse(BaseModel):
-    id:            int
-    codigo:        str
-    descripcion:   Optional[str]
-    creado_en:     datetime
-    saldo_inicial: Optional[SaldoInicialResumen] = None
+    id:                int
+    empresa_id:        int
+    codigo:            str
+    descripcion:       Optional[str]
+    codigo_existencia: Optional[str]
+    unidad_medida:     Optional[str]
+    creado_en:         datetime
+    saldo_inicial:     Optional[list[SaldoInicialResumen]] = None
 
     model_config = {"from_attributes": True}
 
 
 class ProductoConEstadisticas(ProductoResponse):
-    total_movimientos:   int   = 0
-    total_procesamientos: int  = 0
+    total_movimientos:    int = 0
+    total_procesamientos: int = 0

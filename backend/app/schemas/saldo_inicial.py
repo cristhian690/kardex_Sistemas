@@ -5,12 +5,13 @@ from typing import Optional
 
 
 class SaldoInicialCreate(BaseModel):
+    empresa_id:     int
     codigo:         str
-    descripcion:    Optional[str]    = None
+    descripcion:    Optional[str]     = None
     fecha:          date
     cantidad:       Decimal
     costo_unitario: Decimal
-    costo_total:    Optional[Decimal] = None  # si no se envía se calcula
+    costo_total:    Optional[Decimal] = None
 
     @model_validator(mode="after")
     def calcular_costo_total(self):
@@ -55,6 +56,5 @@ class SaldoInicialConAdvertencia(SaldoInicialResponse):
     advertencia: Optional[str] = None
 
 
-# ── Eliminación múltiple ──────────────────────────────────────────────────────
 class EliminarMultipleSaldosRequest(BaseModel):
     ids: list[int]
