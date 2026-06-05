@@ -85,11 +85,12 @@ export interface KardexRow extends Movimiento {
   saldo_costo_total: number
   saldo_negativo:    boolean
 
-  error_a:           boolean   
-  error_b:           boolean   
-  sin_saldo_inicial: boolean 
+  error_a:            boolean
+  error_b:            boolean
+  sin_saldo_inicial:  boolean
+  costo_reconstruido: boolean
 
- semaforo:          '🟢' | '🟡' | '🔴' | '⚫'
+  semaforo:          '🟢' | '🟡' | '🔴' | '⚫'
   fila:              number
   creado_en:         string
   es_saldo_inicial?: boolean
@@ -133,6 +134,7 @@ export interface ApiError {
   message: string
   status?: number
 }
+
 // ── Autenticación ─────────────────────────────────────────────────────────────
 export interface Usuario {
   id:              number

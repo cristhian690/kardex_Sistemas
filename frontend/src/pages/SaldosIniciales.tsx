@@ -1,5 +1,3 @@
-// SaldosIniciales.tsx — tu archivo con el buscador integrado
-
 import { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
 import ModalSaldoInicial from '../components/ModalSaldoInicial'
@@ -40,7 +38,6 @@ const IconTrash = () => (
     <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
   </svg>
 )
-// ── NUEVO: icono lupa ──────────────────────────────────
 const IconSearch = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -75,7 +72,7 @@ const fmtFecha = (f: string) => {
 
 export default function SaldosIniciales() {
   const [saldos,        setSaldos]        = useState<Saldo[]>([])
-  const [busqueda,      setBusqueda]      = useState('')          // ← NUEVO
+  const [busqueda,      setBusqueda]      = useState('')
   const [loading,       setLoading]       = useState(true)
   const [error,         setError]         = useState<string | null>(null)
   const [modalOpen,     setModalOpen]     = useState(false)
@@ -100,7 +97,6 @@ export default function SaldosIniciales() {
 
   useEffect(() => { fetchSaldos() }, [])
 
-  // ── NUEVO: filtrado ────────────────────────────────────
   const saldosFiltrados = saldos.filter(s => {
     const t = busqueda.toLowerCase()
     return (
@@ -119,7 +115,7 @@ export default function SaldosIniciales() {
   }
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === saldosFiltrados.length) {   // ← usa filtrados
+    if (selectedIds.size === saldosFiltrados.length) {
       setSelectedIds(new Set())
     } else {
       setSelectedIds(new Set(saldosFiltrados.map(s => s.id)))
@@ -192,7 +188,9 @@ export default function SaldosIniciales() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: '#07101e', fontFamily: "'Inter', sans-serif", color: '#c8ddef' }}>
 
-      <Sidebar onAgregarSaldo={() => { setSaldoEditando(null); setModalOpen(true) }} />
+      <Sidebar
+        onAgregarSaldo={() => { setSaldoEditando(null); setModalOpen(true) }}
+      />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
@@ -294,7 +292,6 @@ export default function SaldosIniciales() {
             border: '1px solid rgba(56,139,221,0.1)',
             borderRadius: 10, overflow: 'hidden',
           }}>
-            {/* ── Toolbar ── */}
             <div style={{
               padding: '10px 14px',
               borderBottom: '1px solid rgba(56,139,221,0.08)',
@@ -307,7 +304,6 @@ export default function SaldosIniciales() {
                 <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: '#1e3a5a', fontFamily: "'IBM Plex Mono', monospace" }}>
                   Saldos registrados
                 </span>
-                {/* ── NUEVO: contador usa filtrados ── */}
                 <span style={{
                   fontSize: 11, fontFamily: "'IBM Plex Mono', monospace",
                   padding: '1px 8px', borderRadius: 20,
@@ -319,7 +315,6 @@ export default function SaldosIniciales() {
                 </span>
               </div>
 
-              {/* ── NUEVO: buscador ── */}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 background: '#07101e',
@@ -351,7 +346,6 @@ export default function SaldosIniciales() {
               </div>
             )}
 
-            {/* ── NUEVO: mensaje vacío diferenciado ── */}
             {!loading && saldosFiltrados.length === 0 && (
               <div style={{ padding: '48px 0', textAlign: 'center', color: '#1e3a5a', fontSize: 12, fontFamily: "'IBM Plex Mono', monospace" }}>
                 {saldos.length > 0
@@ -360,7 +354,6 @@ export default function SaldosIniciales() {
               </div>
             )}
 
-            {/* ── Tabla usa saldosFiltrados ── */}
             {!loading && saldosFiltrados.length > 0 && (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%', fontSize: 12 }}>

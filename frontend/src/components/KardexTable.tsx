@@ -50,15 +50,41 @@ const getSemaforo = (row: KardexRow) => {
   if (row.error_a && row.error_b) return "⚫";
   if (row.error_b) return "🔴";
   if (row.error_a) return "🟡";
+  if (row.costo_reconstruido) return "🟦";
   return "🟢";
 };
 
 const getRowTooltip = (row: KardexRow): TooltipInfo | null => {
-  if (row.saldo_negativo) return { emoji: "🔴", title: "Stock Negativo", description: "Se registró una salida cuando el producto ya no tenía stock suficiente. Revisar compras, devoluciones o movimientos faltantes." };
-  if (row.sin_saldo_inicial) return { emoji: "⚫", title: "Sin Saldo Inicial", description: "El producto no tiene saldo inicial registrado." };
-  if (row.error_a && row.error_b) return { emoji: "⚫", title: "Inconsistencia Completa", description: "El Excel original presenta inconsistencias y además el cálculo recalculado difiere del sistema." };
-  if (row.error_b) return { emoji: "🔴", title: "Inconsistencia en Excel", description: "El Excel original presenta diferencias matemáticas entre cantidad, costo unitario y costo total." };
-  if (row.error_a) return { emoji: "🟡", title: "Diferencia de Cálculo", description: "El sistema recalculó valores diferentes a los registrados en el Excel original." };
+  if (row.saldo_negativo) return {
+    emoji: "🔴",
+    title: "Stock Negativo",
+    description: "Se registró una salida cuando el producto ya no tenía stock suficiente. Revisar compras, devoluciones o movimientos faltantes.",
+  };
+  if (row.sin_saldo_inicial) return {
+    emoji: "⚫",
+    title: "Sin Saldo Inicial",
+    description: "El producto no tiene saldo inicial registrado.",
+  };
+  if (row.error_a && row.error_b) return {
+    emoji: "⚫",
+    title: "Inconsistencia Completa",
+    description: "El Excel original presenta inconsistencias internas y además el cálculo del sistema difiere del valor original.",
+  };
+  if (row.error_b) return {
+    emoji: "🔴",
+    title: "Inconsistencia en Excel",
+    description: "El Excel original presenta diferencias matemáticas entre cantidad, costo unitario y costo total.",
+  };
+  if (row.error_a) return {
+    emoji: "🟡",
+    title: "Dato Recalculado",
+    description: "El valor original del Excel estaba vacío, en cero o incompleto, por lo que el sistema reconstruyó el costo usando el promedio vigente.",
+  };
+  if (row.costo_reconstruido) return {
+    emoji: "🟦",
+    title: "Costo Reconstruido",
+    description: "El sistema completó automáticamente el costo porque el Excel original no traía un valor confiable para esta operación.",
+  };
   return null;
 };
 
@@ -210,7 +236,6 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
           .kardex-tbl-print td {
             color: black !important;
           }
-          /* Solo ocultar # y Cód. — Entradas y Salidas SÍ se muestran */
           .col-num, .col-cod,
           .col-grp-num, .col-grp-cod {
             display: none !important;
@@ -245,10 +270,8 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
           <thead>
             <tr>
               {mostrarSemaforo && <th style={thDark}></th>}
-              {/* ocultar en print */}
               <th className="col-grp-num" style={thDark}></th>
               <th className="col-grp-cod" style={thDark}></th>
-
               <th colSpan={4} style={{ ...thGrupo, background: "#185FA5" }}>Comprobante</th>
               <th style={{ ...thGrupo, background: "#0F6E56" }}>Tipo operación</th>
               <th colSpan={3} style={{ ...thGrupo, background: "#0B5E3A" }}>Entradas</th>
@@ -259,22 +282,17 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
               {mostrarSemaforo && <th style={thSub}>Est</th>}
               <th className="col-num" style={thSub}>#</th>
               <th className="col-cod" style={thSub}>Cód.</th>
-
               <th style={thSub}>Fecha</th>
               <th style={thSub}>Tipo</th>
               <th style={thSub}>Serie</th>
               <th style={thSub}>Número</th>
-
               <th style={thSub}>Operación</th>
-
               <th style={thSub}>Cant</th>
               <th style={thSub}>C.Unit</th>
               <th style={thSub}>Total</th>
-
               <th style={thSub}>Cant</th>
               <th style={thSub}>C.Unit</th>
               <th style={thSub}>Total</th>
-
               <th style={thSub}>Cant</th>
               <th style={thSub}>C.Unit</th>
               <th style={thSub}>Total</th>
@@ -343,22 +361,17 @@ const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(function Kar
                   {mostrarSemaforo && <td style={td}>{semaforo}</td>}
                   <td className="col-num" style={td}>{row.fila}</td>
                   <td className="col-cod" style={{ ...td, color: "#378ADD", fontWeight: 600 }}>{row.codigo}</td>
-
                   <td style={td}>{fmtFecha(row.fecha)}</td>
                   <td style={td}>{row.tipo_comprobante}</td>
                   <td style={td}>{row.serie}</td>
                   <td style={td}>{row.numero}</td>
-
                   <td style={td}>{row.tipo_operacion}</td>
-
                   <td style={td}>{fmtCant(row.ent_cantidad)}</td>
                   <td style={td}>{fmtUnit(row.ent_costo_unit)}</td>
                   <td style={td}>{fmtTotal(row.ent_costo_total)}</td>
-
                   <td style={td}>{fmtCant(row.sal_cantidad)}</td>
                   <td style={td}>{fmtUnit(row.sal_costo_unit)}</td>
                   <td style={td}>{fmtTotal(row.sal_costo_total)}</td>
-
                   <td style={{ ...td, fontWeight: 600, color: "#85b7eb" }}>{fmtCant(row.saldo_cantidad)}</td>
                   <td style={td}>{fmtUnit(row.saldo_costo_unit)}</td>
                   <td style={{ ...td, fontWeight: 600, color: "#85b7eb" }}>{fmtTotal(row.saldo_costo_total)}</td>
