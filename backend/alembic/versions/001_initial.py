@@ -18,43 +18,49 @@ depends_on:    Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
 
-    # ── 1. PRODUCTOS ──────────────────────────────────────────────────────────
-    op.create_table(
-        "productos",
-        sa.Column("id",          sa.Integer(),   nullable=False),
-        sa.Column("codigo",      sa.String(20),  nullable=False),
-        sa.Column("descripcion", sa.String(255), nullable=True),
-        sa.Column("creado_en",   sa.DateTime(timezone=True),
-                  server_default=sa.text("now()"), nullable=False),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index("ix_productos_id",     "productos", ["id"])
-    op.create_index("ix_productos_codigo", "productos", ["codigo"], unique=True)
-
-    # ── 2. EMPRESA ────────────────────────────────────────────────────────────
-    # ✅ AÑADIDO del doc 8: tabla empresa para encabezado SUNAT en impresión
+    # ── 1. EMPRESA ────────────────────────────────────────────────────────────
+    # Va primero porque productos la referencia con FK
     op.create_table(
         "empresa",
-        sa.Column("id",                sa.Integer(),    nullable=False),
-        sa.Column("nombre",            sa.String(100),  nullable=False),
-        sa.Column("ruc",               sa.String(20),   nullable=False),
-        sa.Column("direccion",         sa.String(300), nullable=True),
-        sa.Column("codigo_existencia", sa.String(20),   nullable=True),
-        sa.Column("unidad_medida",     sa.String(20),   nullable=True),
-        sa.Column("creado_en",         sa.DateTime(timezone=True),
+        sa.Column("id",        sa.Integer(),    nullable=False),
+        sa.Column("nombre",    sa.String(200),  nullable=False),
+        sa.Column("ruc",       sa.String(20),   nullable=False),
+        sa.Column("direccion", sa.String(300),  nullable=True),
+        sa.Column("creado_en", sa.DateTime(timezone=True),
                   server_default=sa.text("now()"), nullable=False),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("ruc", name="uq_empresa_ruc"),
     )
     op.create_index("ix_empresas_id", "empresa", ["id"])
 
+    # ── 2. PRODUCTOS ──────────────────────────────────────────────────────────
+    # Ahora tiene empresa_id FK + codigo_existencia + unidad_medida
+    # El unique ya NO es por codigo solo, sino por (empresa_id, codigo)
+    op.create_table(
+        "productos",
+        sa.Column("id",                sa.Integer(),    nullable=False),
+        sa.Column("empresa_id",        sa.Integer(),    nullable=False),
+        sa.Column("codigo",            sa.String(20),   nullable=False),
+        sa.Column("descripcion",       sa.String(255),  nullable=True),
+        sa.Column("codigo_existencia", sa.String(20),   nullable=True),
+        sa.Column("unidad_medida",     sa.String(20),   nullable=True),
+        sa.Column("creado_en",         sa.DateTime(timezone=True),
+                  server_default=sa.text("now()"), nullable=False),
+        sa.ForeignKeyConstraint(["empresa_id"], ["empresa.id"]),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("empresa_id", "codigo", name="uq_producto_empresa_codigo"),
+    )
+    op.create_index("ix_productos_id",         "productos", ["id"])
+    op.create_index("ix_productos_empresa_id", "productos", ["empresa_id"])
+    op.create_index("ix_productos_codigo",     "productos", ["codigo"])
+
     # ── 3. SALDOS INICIALES ───────────────────────────────────────────────────
+    # Unique por (producto_id, fecha) — permite historial de saldos por período
     op.create_table(
         "saldos_iniciales",
         sa.Column("id",             sa.Integer(),       nullable=False),
         sa.Column("producto_id",    sa.Integer(),       nullable=False),
         sa.Column("fecha",          sa.Date(),          nullable=False),
-        # ✅ CAMBIADO del doc 8: Numeric(18,6) → Numeric(22,10) mayor precisión
         sa.Column("cantidad",       sa.Numeric(22, 10), nullable=False),
         sa.Column("costo_unitario", sa.Numeric(22, 10), nullable=False),
         sa.Column("costo_total",    sa.Numeric(22, 10), nullable=False),
@@ -70,13 +76,14 @@ def upgrade() -> None:
     op.create_index("ix_saldos_iniciales_id", "saldos_iniciales", ["id"])
 
     # ── 4. PROCESAMIENTOS ─────────────────────────────────────────────────────
+    # Sin cambios — no se agrega empresa_id según el diseño
     op.create_table(
         "procesamientos",
-        sa.Column("id",                   sa.Integer(),   nullable=False),
-        sa.Column("nombre_archivo",       sa.String(255), nullable=False),
-        sa.Column("total_registros",      sa.Integer(),   nullable=True),
-        sa.Column("productos_procesados", sa.Integer(),   nullable=True),
-        sa.Column("estado",               sa.String(20),  nullable=False),
+        sa.Column("id",                   sa.Integer(),       nullable=False),
+        sa.Column("nombre_archivo",       sa.String(255),     nullable=False),
+        sa.Column("total_registros",      sa.Integer(),       nullable=True),
+        sa.Column("productos_procesados", sa.Integer(),       nullable=True),
+        sa.Column("estado",               sa.String(20),      nullable=False),
         sa.Column("alertas",              postgresql.JSONB(), nullable=True),
         sa.Column("creado_en",            sa.DateTime(timezone=True),
                   server_default=sa.text("now()"), nullable=False),
@@ -87,6 +94,7 @@ def upgrade() -> None:
     op.create_index("ix_procesamientos_creado_en", "procesamientos", ["creado_en"])
 
     # ── 5. MOVIMIENTOS ────────────────────────────────────────────────────────
+    # Se elimina unique_movimiento_procesamiento — archivos reales tienen duplicados
     op.create_table(
         "movimientos",
         sa.Column("id",               sa.Integer(),      nullable=False),
@@ -98,7 +106,6 @@ def upgrade() -> None:
         sa.Column("numero",           sa.String(20),     nullable=False),
         sa.Column("tipo_operacion",   sa.String(50),     nullable=False),
         # Entradas
-        # ✅ CAMBIADO del doc 8: Numeric(18,6) → Numeric(22,10) mayor precisión
         sa.Column("ent_cantidad",     sa.Numeric(22, 10), nullable=True),
         sa.Column("ent_costo_unit",   sa.Numeric(22, 10), nullable=True),
         sa.Column("ent_costo_total",  sa.Numeric(22, 10), nullable=True),
@@ -115,8 +122,7 @@ def upgrade() -> None:
         sa.Column("orig_ent_costo_total", sa.Numeric(22, 10), nullable=True),
         sa.Column("orig_sal_costo_unit",  sa.Numeric(22, 10), nullable=True),
         sa.Column("orig_sal_costo_total", sa.Numeric(22, 10), nullable=True),
-        # Flags de validación — semáforo se calcula en runtime
-        # ✅ CAMBIADO del doc 8: nullable=True+default → nullable=False+server_default
+        # Flags de validación
         sa.Column(
             "saldo_negativo",
             sa.Boolean(),
@@ -140,11 +146,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["producto_id"],      ["productos.id"]),
         sa.ForeignKeyConstraint(["procesamiento_id"], ["procesamientos.id"]),
         sa.PrimaryKeyConstraint("id"),
-        # ✅ CONSERVADO de tu versión: evita duplicados por procesamiento
-        sa.UniqueConstraint(
-            "procesamiento_id", "producto_id", "serie", "numero",
-            name="unique_movimiento_procesamiento"
-        ),
+        # Sin unique constraint — archivos reales tienen documentos repetidos
     )
     op.create_index("ix_movimientos_id",               "movimientos", ["id"])
     op.create_index("ix_movimientos_producto_id",      "movimientos", ["producto_id"])
@@ -158,5 +160,5 @@ def downgrade() -> None:
     op.drop_table("movimientos")
     op.drop_table("procesamientos")
     op.drop_table("saldos_iniciales")
-    op.drop_table("empresa")
     op.drop_table("productos")
+    op.drop_table("empresa")

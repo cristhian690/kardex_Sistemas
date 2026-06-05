@@ -1,19 +1,17 @@
-from sqlalchemy import Column, Integer, String, DateTime, func
+from sqlalchemy import String, DateTime, func
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
+from datetime import datetime
 
 
 class Empresa(Base):
     __tablename__ = "empresa"
 
-    id                = Column(Integer, primary_key=True, index=True)
-    codigo_producto   = Column(String(20),  unique=True, nullable=False, index=True)
-    razon_social      = Column(String(200), nullable=False)
-    ruc               = Column(String(20),  nullable=False)
-    direccion         = Column(String(300), nullable=True)
-    establecimiento   = Column(String(100), nullable=True, default="Almacén")
-    tipo              = Column(String(100), nullable=True, default="Mercadería")
-    codigo_existencia = Column(String(20),  nullable=True)
-    unidad_medida     = Column(String(20),  nullable=True, default="01")
-    metodo_valuacion  = Column(String(100), nullable=True, default="Costo Promedio")
-    creado_en         = Column(DateTime(timezone=True), server_default=func.now())
-    actualizado_en    = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    id:        Mapped[int]      = mapped_column(primary_key=True, index=True)
+    nombre:    Mapped[str]      = mapped_column(String(200), nullable=False)
+    ruc:       Mapped[str]      = mapped_column(String(20),  nullable=False, unique=True)
+    direccion: Mapped[str]      = mapped_column(String(300), nullable=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    # ── Relación ──────────────────────────────────────────────────────────────
+    productos: Mapped[list["Producto"]] = relationship("Producto", back_populates="empresa")
