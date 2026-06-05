@@ -25,7 +25,7 @@ from app.schemas.procesamiento import AlertasProcesamiento, ProcesamientoResumen
 from app.schemas.movimiento import MovimientoResponse
 from app.exceptions import KardexException
 
-# ✅ FIX: límite seguro para Numeric(18,6)
+# FIX: límite seguro para Numeric(18,6)
 MAX_VAL = 999999999999.0
 
 def _clamp(v: float) -> float:
@@ -35,6 +35,7 @@ def _clamp(v: float) -> float:
     return max(-MAX_VAL, min(MAX_VAL, v))
 
 
+# ✅ NUEVO: helper extraído para no duplicar el bloque MovimientoResponse
 def _build_fila_saldo_inicial(
     procesamiento_id: int,
     codigo: str,
@@ -134,6 +135,7 @@ class KardexService:
         print(f"⏱️  [5] Verificación: {time.time() - t0:.2f}s")
 
         # ── 6. Determinar estado ──────────────────────────────────────────────
+        # ✅ CAMBIO: distingue "error" (saldo negativo) de "con_alertas" (alertas leves)
         tiene_saldo_negativo = len(alertas.saldo_negativo) > 0
         tiene_alertas_leves  = (
             len(alertas.sin_saldo_inicial) > 0 or
@@ -211,7 +213,7 @@ class KardexService:
         codigos_distintos  = list({m.producto.codigo for m in movimientos if m.producto})
         codigo_saldo       = filtros.codigo or (codigos_distintos[0] if len(codigos_distintos) == 1 else None)
 
-        # MODO AÑO/MES — primer día del mes seleccionado
+        # ✅ CAMBIO: MODO AÑO/MES — primer día del mes seleccionado
         if filtros.anio and filtros.mes and codigo_saldo:
             antes_de = date(filtros.anio, filtros.mes, 1)
             mov_anterior = await self.movimiento_repo.get_saldo_anterior(
@@ -225,7 +227,7 @@ class KardexService:
                 procesamiento_id, codigo_saldo, antes_de, saldo_cant, saldo_total
             )
 
-        # MODO RANGO — primer día del rango seleccionado
+        # ✅ NUEVO: MODO RANGO — primer día del rango seleccionado
         elif fecha_desde and codigo_saldo:
             mov_anterior = await self.movimiento_repo.get_saldo_anterior(
                 procesamiento_id = procesamiento_id,
@@ -263,6 +265,8 @@ class KardexService:
         alertas_dict = procesamiento.alertas or {}
 
         def calcular_semaforo(m) -> str:
+            if m.saldo_negativo:
+                return "🔴"
             if m.error_a and m.error_b:
                 return "⚫"
             elif m.error_a:
@@ -271,12 +275,22 @@ class KardexService:
                 return "🟡"
             return "🟢"
 
+        def es_costo_reconstruido(m) -> bool:
+            tipo = (m.tipo_operacion or "").lower()
+            if "venta" not in tipo:
+                return False
+            return (
+                float(m.orig_sal_costo_unit) == 0
+                and float(m.sal_costo_unit) > 0
+            )
+
         movimientos_response = [
             MovimientoResponse(
                 **{c.key: getattr(m, c.key) for c in m.__table__.columns},
-                codigo   = m.producto.codigo if m.producto else None,
-                semaforo = calcular_semaforo(m),
-                fila     = idx + 1,
+                codigo             = m.producto.codigo if m.producto else None,
+                semaforo           = calcular_semaforo(m),
+                fila               = idx + 1,
+                costo_reconstruido = es_costo_reconstruido(m),
             )
             for idx, m in enumerate(movimientos)
         ]

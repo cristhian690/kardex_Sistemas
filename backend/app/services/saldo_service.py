@@ -94,7 +94,6 @@ class SaldoService:
             advertencia = self._advertencia(total_proc),
         )
 
-    # ── Eliminar ──────────────────────────────────────────────────────────────
     # ── Eliminar múltiple ─────────────────────────────────────────────────────
     async def eliminar_multiple(self, ids: list[int]) -> dict:
         """

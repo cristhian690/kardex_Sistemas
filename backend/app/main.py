@@ -48,10 +48,7 @@ app.include_router(empresa_router,   prefix="/api/v1")  # ✅ NUEVO
 # ── Eventos de inicio ─────────────────────────────────────────────────────────
 @app.on_event("startup")
 async def startup():
-    # solo en desarrollo — en producción usar Alembic
-    if settings.DEBUG:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+   pass
 
 
 # ── Health check ──────────────────────────────────────────────────────────────

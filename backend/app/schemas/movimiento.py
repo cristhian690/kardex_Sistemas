@@ -43,8 +43,10 @@ class MovimientoResponse(MovimientoBase):
 
     # Flags de validación consolidados
     saldo_negativo: bool
-    error_a:        bool
-    error_b:        bool
+    error_a:        bool   # calculado vs original
+    error_b:        bool   # consistencia interna
+
+    costo_reconstruido: bool = False
 
     # Semáforo calculado en runtime (no viene de BD)
     semaforo: Literal["🟢", "🟡", "🔴", "⚫"] = "🟢"
@@ -54,7 +56,7 @@ class MovimientoResponse(MovimientoBase):
 
     creado_en: datetime
 
-    # ✅ NUEVO: identifica la fila sintética de saldo inicial
+    # identifica la fila sintética de saldo inicial
     es_saldo_inicial: bool = False
 
     model_config = {"from_attributes": True}
