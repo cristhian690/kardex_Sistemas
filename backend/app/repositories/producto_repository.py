@@ -3,7 +3,6 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from app.models.producto import Producto
 from app.models.movimiento import Movimiento
-from app.models.saldo_inicial import SaldoInicial
 
 
 class ProductoRepository:
@@ -19,31 +18,44 @@ class ProductoRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_by_codigo(self, codigo: str) -> Producto | None:
+    async def get_by_codigo_y_empresa(
+        self,
+        codigo:     str,
+        empresa_id: int,
+    ) -> Producto | None:
         result = await self.db.execute(
             select(Producto)
             .options(selectinload(Producto.saldo_inicial))
-            .where(Producto.codigo == codigo)
+            .where(
+                Producto.codigo     == codigo,
+                Producto.empresa_id == empresa_id,
+            )
         )
         return result.scalar_one_or_none()
 
     async def get_or_create(
         self,
         codigo:      str,
+        empresa_id:  int,
         descripcion: str | None = None,
     ) -> Producto:
-        producto = await self.get_by_codigo(codigo)
+        producto = await self.get_by_codigo_y_empresa(codigo, empresa_id)
         if not producto:
-            producto = Producto(codigo=codigo, descripcion=descripcion)
+            producto = Producto(
+                codigo      = codigo,
+                empresa_id  = empresa_id,
+                descripcion = descripcion,
+            )
             self.db.add(producto)
             await self.db.flush()
         return producto
 
     async def get_all(
         self,
-        limit:  int = 100,
-        offset: int = 0,
-        search: str | None = None,
+        empresa_id: int | None = None,
+        limit:      int        = 100,
+        offset:     int        = 0,
+        search:     str | None = None,
     ) -> list[Producto]:
         q = (
             select(Producto)
@@ -52,13 +64,21 @@ class ProductoRepository:
             .limit(limit)
             .offset(offset)
         )
+        if empresa_id:
+            q = q.where(Producto.empresa_id == empresa_id)
         if search:
             q = q.where(Producto.codigo.ilike(f"%{search}%"))
         result = await self.db.execute(q)
         return list(result.scalars().all())
 
-    async def count(self, search: str | None = None) -> int:
+    async def count(
+        self,
+        empresa_id: int | None = None,
+        search:     str | None = None,
+    ) -> int:
         q = select(func.count(Producto.id))
+        if empresa_id:
+            q = q.where(Producto.empresa_id == empresa_id)
         if search:
             q = q.where(Producto.codigo.ilike(f"%{search}%"))
         result = await self.db.execute(q)
@@ -66,13 +86,17 @@ class ProductoRepository:
 
     async def update(
         self,
-        producto_id: int,
-        descripcion: str | None,
+        producto_id:       int,
+        descripcion:       str | None = None,
+        codigo_existencia: str | None = None,
+        unidad_medida:     str | None = None,
     ) -> Producto | None:
         producto = await self.get_by_id(producto_id)
         if not producto:
             return None
-        producto.descripcion = descripcion
+        if descripcion       is not None: producto.descripcion       = descripcion
+        if codigo_existencia is not None: producto.codigo_existencia = codigo_existencia
+        if unidad_medida     is not None: producto.unidad_medida     = unidad_medida
         await self.db.flush()
         return producto
 
@@ -82,28 +106,31 @@ class ProductoRepository:
             .where(Movimiento.producto_id == producto_id)
         )
         return result.scalar() or 0
-    
-    async def get_or_create_bulk(self, codigos: list[str]) -> dict[str, Producto]:
+
+    async def get_or_create_bulk(
+        self,
+        codigos:    list[str],
+        empresa_id: int,
+    ) -> dict[str, Producto]:
         """
         Versión optimizada para procesar muchos códigos a la vez.
-        Crea los que falten en una sola operación.
-        Retorna dict { codigo: Producto }
+        Ahora requiere empresa_id porque el unique es (empresa_id, codigo).
         """
         if not codigos:
             return {}
 
-        # 1 sola query para traer todos los existentes
         result = await self.db.execute(
-            select(Producto).where(Producto.codigo.in_(codigos))
+            select(Producto).where(
+                Producto.empresa_id == empresa_id,
+                Producto.codigo.in_(codigos),
+            )
         )
         existentes = {p.codigo: p for p in result.scalars().all()}
 
-        # Detectar los que faltan
         faltantes = [c for c in codigos if c not in existentes]
 
-        # Crear los faltantes en una sola operación
         if faltantes:
-            nuevos = [Producto(codigo=c) for c in faltantes]
+            nuevos = [Producto(codigo=c, empresa_id=empresa_id) for c in faltantes]
             self.db.add_all(nuevos)
             await self.db.flush()
             for p in nuevos:
