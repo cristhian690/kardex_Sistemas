@@ -4,11 +4,11 @@ import type { KardexResponse, UploadResponse, FiltroFecha, ProcesamientoResumen 
 // ── Procesar archivos ─────────────────────────────────────────────────────────
 export const procesarArchivos = async (
   archivosMovimientos: File[],
-  archivoSaldos?: File | null,
+  archivoSaldos:       File | null,
+  empresaId:           number,
 ): Promise<UploadResponse> => {
   const formData = new FormData()
 
-  // Todos los archivos bajo el MISMO nombre "movimientos" — FastAPI los recibe como List
   archivosMovimientos.forEach(file => {
     formData.append('movimientos', file)
   })
@@ -19,6 +19,7 @@ export const procesarArchivos = async (
 
   const response = await api.post('/api/v1/kardex/procesar', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    params:  { empresa_id: empresaId },
   })
 
   return response.data
@@ -75,7 +76,6 @@ export const exportarKardex = async (
   const link = document.createElement('a')
   link.href  = url
 
-  // Nombre del archivo refleja los filtros aplicados
   let nombreArchivo = `kardex_${procesamientoId}`
   if (codigo) nombreArchivo += `_${codigo}`
   if (anio && mes) nombreArchivo += `_${anio}_${String(mes).padStart(2, '0')}`
@@ -98,12 +98,11 @@ export const getHistorial = async (
   })
   return response.data
 }
-// ── Eliminar un procesamiento ─────────────────────────────────────────────────
+
 export const eliminarProcesamiento = async (procesamientoId: number): Promise<void> => {
   await api.delete(`/api/v1/historial/${procesamientoId}`)
 }
 
-// ── Eliminar varios procesamientos ────────────────────────────────────────────
 export const eliminarProcesamientosMultiple = async (ids: number[]): Promise<{ eliminados: number; fallidos: number[] }> => {
   const response = await api.post('/api/v1/historial/eliminar-multiple', { ids })
   return response.data

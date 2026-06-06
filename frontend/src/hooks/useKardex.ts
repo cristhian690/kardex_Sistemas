@@ -8,7 +8,6 @@ import type {
   ApiError,
 } from '../types'
 
-// ── Estado del hook ───────────────────────────────────────────────────────────
 interface UseKardexState {
   movimientos:        KardexRow[]
   metricas:           Metricas | null
@@ -31,7 +30,6 @@ const initialState: UseKardexState = {
   erroresIntegridad: 0,
 }
 
-// ── Hook ──────────────────────────────────────────────────────────────────────
 export const useKardex = () => {
   const [state,     setState]     = useState<UseKardexState>(initialState)
   const [uploading, setUploading] = useState(false)
@@ -40,16 +38,15 @@ export const useKardex = () => {
   // ── Subir y procesar archivos ───────────────────────────────────────────────
   const subirArchivos = useCallback(async (
     archivosMovimientos: File[],
-    archivoSaldos?: File | null,
+    archivoSaldos:       File | null,
+    empresaId:           number,
   ) => {
     setUploading(true)
     setState(prev => ({ ...prev, error: null }))
 
     try {
-      const upload = await procesarArchivos(archivosMovimientos, archivoSaldos)
-
-      // Cargar automáticamente el kardex tras el upload
-      const data = await getKardex(upload.procesamiento_id)
+      const upload = await procesarArchivos(archivosMovimientos, archivoSaldos, empresaId)
+      const data   = await getKardex(upload.procesamiento_id)
 
       setState({
         movimientos:       data.movimientos,
@@ -131,7 +128,6 @@ export const useKardex = () => {
     }
   }, [state.procesamientoId])
 
-  // ── Limpiar estado ──────────────────────────────────────────────────────────
   const limpiar = useCallback(() => setState(initialState), [])
 
   return {
