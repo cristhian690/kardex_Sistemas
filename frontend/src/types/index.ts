@@ -1,3 +1,24 @@
+// ── Empresa ───────────────────────────────────────────────────────────────────
+export interface Empresa {
+  id:        number
+  nombre:    string
+  ruc:       string
+  direccion: string | null
+  creado_en: string
+}
+
+export interface EmpresaCreate {
+  nombre:    string
+  ruc:       string
+  direccion?: string
+}
+
+export interface EmpresaUpdate {
+  nombre?:    string
+  ruc?:       string
+  direccion?: string
+}
+
 // ── Alertas ───────────────────────────────────────────────────────────────────
 export interface AlertasProcesamiento {
   sin_saldo_inicial: string[]
@@ -37,19 +58,26 @@ export interface UploadResponse {
 
 // ── Producto ──────────────────────────────────────────────────────────────────
 export interface Producto {
-  id:          number
-  codigo:      string
-  descripcion: string
+  id:                number
+  empresa_id:        number
+  codigo:            string
+  descripcion:       string | null
+  codigo_existencia: string | null
+  unidad_medida:     string | null
+  creado_en:         string
 }
 
 // ── Saldo Inicial ─────────────────────────────────────────────────────────────
 export interface SaldoInicial {
   id:             number
   producto_id:    number
+  codigo:         string
+  descripcion:    string | null
   fecha:          string
   cantidad:       number
   costo_unitario: number
   costo_total:    number
+  creado_en:      string
 }
 
 // ── Movimiento base ───────────────────────────────────────────────────────────
@@ -57,39 +85,34 @@ export interface Movimiento {
   id:               number
   producto_id:      number
   procesamiento_id: number
-  codigo:           string   // ← viene del join con productos en el backend
+  codigo:           string
   fecha:            string
   tipo_comprobante: number
   serie:            string
   numero:           string
   tipo_operacion:   string
-  // Entradas
-  ent_cantidad:    number
-  ent_costo_unit:  number
-  ent_costo_total: number
-  // Salidas
-  sal_cantidad:    number
-  sal_costo_unit:  number
-  sal_costo_total: number
-  // Originales del Excel (para verificación de integridad)
+  ent_cantidad:     number
+  ent_costo_unit:   number
+  ent_costo_total:  number
+  sal_cantidad:     number
+  sal_costo_unit:   number
+  sal_costo_total:  number
   orig_ent_costo_unit:  number
   orig_ent_costo_total: number
   orig_sal_costo_unit:  number
   orig_sal_costo_total: number
 }
 
-// ── Fila del Kardex (movimiento + saldo calculado + flags) ────────────────────
+// ── Fila del Kardex ───────────────────────────────────────────────────────────
 export interface KardexRow extends Movimiento {
   saldo_cantidad:    number
   saldo_costo_unit:  number
   saldo_costo_total: number
   saldo_negativo:    boolean
-
   error_a:            boolean
   error_b:            boolean
   sin_saldo_inicial:  boolean
   costo_reconstruido: boolean
-
   semaforo:          '🟢' | '🟡' | '🔴' | '⚫'
   fila:              number
   creado_en:         string

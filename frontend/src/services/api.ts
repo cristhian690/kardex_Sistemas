@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { ApiError } from '../types'
+import type { ApiError, Empresa, EmpresaCreate, EmpresaUpdate } from '../types'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -13,34 +13,27 @@ export const tokenStorage = {
 
 const api = axios.create({
   baseURL: BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
   timeout: 1000000,
 })
 
-// ── Interceptor de request: adjunta el token automáticamente ──────────────
+// ── Interceptor de request ────────────────────────────────────────────────────
 api.interceptors.request.use((config) => {
   const token = tokenStorage.get()
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
-// ── Interceptor de respuesta ──────────────────────────────────────────────
+// ── Interceptor de respuesta ──────────────────────────────────────────────────
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Token expirado o inválido → limpiar y forzar re-login
     if (error.response?.status === 401) {
       tokenStorage.clear()
-      // Solo redirigir si no estamos ya en /login (evita bucles)
       if (window.location.pathname !== '/login') {
         window.location.href = '/login'
       }
     }
-
     const apiError: ApiError = {
       message:
         error.response?.data?.detail ||
@@ -48,9 +41,26 @@ api.interceptors.response.use(
         'Error de conexión con el servidor',
       status: error.response?.status || 500,
     }
-
     return Promise.reject(apiError)
   }
 )
+
+// ── Empresa API ───────────────────────────────────────────────────────────────
+export const empresaApi = {
+  listar: (): Promise<Empresa[]> =>
+    api.get('/api/v1/empresa/').then(r => r.data),
+
+  obtener: (id: number): Promise<Empresa> =>
+    api.get(`/api/v1/empresa/${id}`).then(r => r.data),
+
+  crear: (data: EmpresaCreate): Promise<Empresa> =>
+    api.post('/api/v1/empresa/', data).then(r => r.data),
+
+  actualizar: (id: number, data: EmpresaUpdate): Promise<Empresa> =>
+    api.put(`/api/v1/empresa/${id}`, data).then(r => r.data),
+
+  eliminar: (id: number): Promise<void> =>
+    api.delete(`/api/v1/empresa/${id}`).then(r => r.data),
+}
 
 export default api
