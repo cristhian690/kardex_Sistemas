@@ -10,7 +10,7 @@ from decimal import (
 from app.schemas.procesamiento import AlertasProcesamiento
 
 # ── Configuración Decimal ─────────────────────────────────────────────────────
-DECIMAL_PLACES = Decimal("0.0000000001")  # 10 decimales
+DECIMAL_PLACES = Decimal("0.0000000001") 
 ZERO = Decimal("0")
 TOLERANCIA = Decimal("0.10")
 
