@@ -3,28 +3,17 @@ import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 interface Empresa {
-  id?:             number
-  codigo_producto: string
-  razon_social:    string
-  ruc:             string
-  direccion:       string
-  establecimiento: string
-  tipo:            string
-  codigo_existencia: string
-  unidad_medida:   string
-  metodo_valuacion: string
+  id:        number
+  nombre:    string
+  ruc:       string
+  direccion: string | null
+  creado_en: string
 }
 
-const EMPTY: Omit<Empresa, 'id'> = {
-  codigo_producto:   '',
-  razon_social:      '',
-  ruc:               '',
-  direccion:         '',
-  establecimiento:   'Almacén',
-  tipo:              'Mercadería',
-  codigo_existencia: '',
-  unidad_medida:     '01',
-  metodo_valuacion:  'Costo Promedio',
+const EMPTY = {
+  nombre:    '',
+  ruc:       '',
+  direccion: '',
 }
 
 export type EmpresaConfigHandle = { abrirCrear: () => void }
@@ -32,10 +21,10 @@ export type EmpresaConfigHandle = { abrirCrear: () => void }
 const EmpresaConfig = forwardRef<EmpresaConfigHandle>((_props, ref) => {
   const [empresas,     setEmpresas]     = useState<Empresa[]>([])
   const [form,         setForm]         = useState({ ...EMPTY })
-  const [editando,     setEditando]     = useState<string | null>(null)
+  const [editando,     setEditando]     = useState<number | null>(null)
   const [loading,      setLoading]      = useState(true)
   const [saving,       setSaving]       = useState(false)
-  const [deleting,     setDeleting]     = useState<string | null>(null)
+  const [deleting,     setDeleting]     = useState<number | null>(null)
   const [mensaje,      setMensaje]      = useState<{ texto: string; tipo: 'ok' | 'error' } | null>(null)
   const [modalAbierto, setModalAbierto] = useState(false)
 
@@ -62,24 +51,18 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle>((_props, ref) => {
 
   const abrirEditar = (e: Empresa) => {
     setForm({
-      codigo_producto:   e.codigo_producto,
-      razon_social:      e.razon_social,
-      ruc:               e.ruc,
-      direccion:         e.direccion ?? '',
-      establecimiento:   e.establecimiento,
-      tipo:              e.tipo,
-      codigo_existencia: e.codigo_existencia ?? '',
-      unidad_medida:     e.unidad_medida ?? '01',
-      metodo_valuacion:  e.metodo_valuacion,
+      nombre:    e.nombre,
+      ruc:       e.ruc,
+      direccion: e.direccion ?? '',
     })
-    setEditando(e.codigo_producto)
+    setEditando(e.id)
     setMensaje(null)
     setModalAbierto(true)
   }
 
   const handleGuardar = async () => {
-    if (!form.codigo_producto || !form.razon_social || !form.ruc) {
-      setMensaje({ texto: 'Código, razón social y RUC son requeridos', tipo: 'error' })
+    if (!form.nombre || !form.ruc) {
+      setMensaje({ texto: 'Nombre y RUC son requeridos', tipo: 'error' })
       return
     }
     setSaving(true)
@@ -87,9 +70,11 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle>((_props, ref) => {
     try {
       const url    = editando ? `${API}/api/v1/empresa/${editando}` : `${API}/api/v1/empresa/`
       const method = editando ? 'PUT' : 'POST'
-      const body   = editando
-        ? { razon_social: form.razon_social, ruc: form.ruc, direccion: form.direccion, establecimiento: form.establecimiento, tipo: form.tipo, codigo_existencia: form.codigo_existencia, unidad_medida: form.unidad_medida, metodo_valuacion: form.metodo_valuacion }
-        : form
+      const body   = {
+        nombre:    form.nombre,
+        ruc:       form.ruc,
+        direccion: form.direccion || null,
+      }
 
       const res  = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const data = await res.json()
@@ -105,11 +90,11 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle>((_props, ref) => {
     }
   }
 
-  const handleEliminar = async (codigo: string) => {
-    if (!confirm(`¿Eliminar empresa del código ${codigo}?`)) return
-    setDeleting(codigo)
+  const handleEliminar = async (id: number) => {
+    if (!confirm('¿Eliminar esta empresa?')) return
+    setDeleting(id)
     try {
-      await fetch(`${API}/api/v1/empresa/${codigo}`, { method: 'DELETE' })
+      await fetch(`${API}/api/v1/empresa/${id}`, { method: 'DELETE' })
       await fetchEmpresas()
     } finally {
       setDeleting(null)
@@ -155,8 +140,8 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle>((_props, ref) => {
           <table style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%' }}>
             <thead>
               <tr>
-                <th style={th}>Código</th>
-                <th style={th}>Razón Social</th>
+                <th style={th}>ID</th>
+                <th style={th}>Nombre</th>
                 <th style={th}>RUC</th>
                 <th style={th}>Dirección</th>
                 <th style={{ ...th, textAlign: 'center' }}>Acciones</th>
@@ -165,15 +150,15 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle>((_props, ref) => {
             <tbody>
               {empresas.map((e, i) => (
                 <tr key={e.id} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(55,138,221,0.03)' }}>
-                  <td style={{ ...td, color: '#60a5fa', fontWeight: 600 }}>{e.codigo_producto}</td>
-                  <td style={td}>{e.razon_social}</td>
+                  <td style={{ ...td, color: '#60a5fa', fontWeight: 600 }}>{e.id}</td>
+                  <td style={td}>{e.nombre}</td>
                   <td style={td}>{e.ruc}</td>
                   <td style={td}>{e.direccion || '—'}</td>
                   <td style={{ ...td, textAlign: 'center' }}>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
                       <button onClick={() => abrirEditar(e)} style={{ padding: '4px 10px', borderRadius: 6, border: 'none', background: 'rgba(56,139,221,0.12)', color: '#60a5fa', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Editar</button>
-                      <button onClick={() => handleEliminar(e.codigo_producto)} disabled={deleting === e.codigo_producto} style={{ padding: '4px 10px', borderRadius: 6, border: 'none', background: 'rgba(239,68,68,0.1)', color: '#f87171', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
-                        {deleting === e.codigo_producto ? '...' : 'Eliminar'}
+                      <button onClick={() => handleEliminar(e.id)} disabled={deleting === e.id} style={{ padding: '4px 10px', borderRadius: 6, border: 'none', background: 'rgba(239,68,68,0.1)', color: '#f87171', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                        {deleting === e.id ? '...' : 'Eliminar'}
                       </button>
                     </div>
                   </td>
@@ -192,37 +177,20 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle>((_props, ref) => {
           <div style={{ width: 480, maxHeight: '90vh', overflowY: 'auto', background: '#0d1525', border: '1px solid rgba(56,139,221,0.18)', borderTop: '2px solid #f59e0b', borderRadius: 12, padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
             <div style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0' }}>
-              {editando ? `Editar: ${editando}` : 'Nueva empresa'}
+              {editando ? `Editar empresa #${editando}` : 'Nueva empresa'}
             </div>
 
             <div style={{ height: 1, background: 'rgba(56,139,221,0.1)' }} />
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {/* Código — solo al crear */}
               <div>
-                <label style={labelStyle}>Código del Producto *</label>
-                <input
-                  style={{ ...inputStyle, opacity: editando ? 0.5 : 1 }}
-                  value={form.codigo_producto}
-                  onChange={e => setForm({ ...form, codigo_producto: e.target.value })}
-                  disabled={!!editando}
-                  placeholder="Ej: 021002"
-                />
+                <label style={labelStyle}>Nombre *</label>
+                <input style={inputStyle} value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} placeholder="Ej: AGROPECUARIA SARAVIA S.R.LTDA" />
               </div>
-
-              {/* Razón Social */}
-              <div>
-                <label style={labelStyle}>Razón Social *</label>
-                <input style={inputStyle} value={form.razon_social} onChange={e => setForm({ ...form, razon_social: e.target.value })} placeholder="Ej: AGROPECUARIA SARAVIA S.R.LTDA" />
-              </div>
-
-              {/* RUC */}
               <div>
                 <label style={labelStyle}>R.U.C. *</label>
                 <input style={inputStyle} value={form.ruc} onChange={e => setForm({ ...form, ruc: e.target.value })} placeholder="Ej: 20367775247" />
               </div>
-
-              {/* Dirección */}
               <div>
                 <label style={labelStyle}>Dirección</label>
                 <input style={inputStyle} value={form.direccion} onChange={e => setForm({ ...form, direccion: e.target.value })} placeholder="Ej: Av. Principal 123, Lima" />
