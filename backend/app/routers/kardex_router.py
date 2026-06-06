@@ -21,6 +21,7 @@ router = APIRouter(prefix="/kardex", tags=["Kardex"])
 async def procesar_kardex(
     movimientos: Annotated[List[UploadFile], File(description="Archivos de movimientos (uno o varios)")],
     saldos:      Annotated[UploadFile | None, File(description="Archivo de saldos iniciales (opcional)")] = None,
+    empresa_id:  int = Query(..., description="ID de la empresa a la que pertenecen los archivos"),
     db:          AsyncSession = Depends(get_db),
 ):
     if not movimientos:
@@ -37,16 +38,14 @@ async def procesar_kardex(
     if saldos and not saldos.filename.endswith(".xlsx"):
         raise ArchivoInvalidoException("El archivo de saldos iniciales debe ser .xlsx")
 
-    saldo_bytes = await saldos.read() if saldos else None
-    archivos_mov = [
-        (f.filename, await f.read())
-        for f in movimientos
-    ]
+    saldo_bytes  = await saldos.read() if saldos else None
+    archivos_mov = [(f.filename, await f.read()) for f in movimientos]
 
     service = KardexService(db)
     return await service.procesar_archivos(
         saldo_bytes  = saldo_bytes,
         archivos_mov = archivos_mov,
+        empresa_id   = empresa_id,
     )
 
 
@@ -62,11 +61,9 @@ async def consultar_kardex(
     fecha_hasta:      str | None  = Query(None),
     db:               AsyncSession = Depends(get_db),
 ):
-    # ✅ FIX: si viene fecha_desde sin fecha_hasta en modo rango,
-    # auto-completar con el último día del mes de fecha_desde
     if fecha_desde and not fecha_hasta and not anio and not mes and not fecha_exacta:
         try:
-            d = date.fromisoformat(fecha_desde)
+            d          = date.fromisoformat(fecha_desde)
             ultimo_dia = monthrange(d.year, d.month)[1]
             fecha_hasta = date(d.year, d.month, ultimo_dia).isoformat()
             print(f"⚠️  fecha_hasta auto-completada: {fecha_hasta}")
@@ -115,13 +112,12 @@ async def exportar_excel(
 ):
     if anio and mes:
         fecha_desde_parsed = date(anio, mes, 1)
-        ultimo_dia = monthrange(anio, mes)[1]
+        ultimo_dia         = monthrange(anio, mes)[1]
         fecha_hasta_parsed = date(anio, mes, ultimo_dia)
     else:
         fecha_desde_parsed = date.fromisoformat(fecha_desde) if fecha_desde else None
-        # ✅ mismo fix: si viene fecha_desde sin fecha_hasta, completar
         if fecha_desde_parsed and not fecha_hasta:
-            ultimo_dia = monthrange(fecha_desde_parsed.year, fecha_desde_parsed.month)[1]
+            ultimo_dia         = monthrange(fecha_desde_parsed.year, fecha_desde_parsed.month)[1]
             fecha_hasta_parsed = date(fecha_desde_parsed.year, fecha_desde_parsed.month, ultimo_dia)
         else:
             fecha_hasta_parsed = date.fromisoformat(fecha_hasta) if fecha_hasta else None
