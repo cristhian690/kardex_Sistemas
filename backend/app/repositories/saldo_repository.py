@@ -1,7 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, func
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 from app.models.saldo_inicial import SaldoInicial
+from app.models.producto import Producto
 from app.models.movimiento import Movimiento
 from app.exceptions import KardexException
 from datetime import date
@@ -42,13 +43,12 @@ class SaldoRepository:
 
     async def get_saldo_vigente(
         self,
-        producto_id:          int,
+        producto_id:             int,
         fecha_primer_movimiento: date,
     ) -> SaldoInicial | None:
         """
         Busca el saldo inicial más reciente cuya fecha
         sea <= fecha_primer_movimiento.
-        Implementa la lógica del diseño:
         SELECT * FROM saldos_iniciales
         WHERE producto_id = :id AND fecha <= :fecha
         ORDER BY fecha DESC LIMIT 1
@@ -66,16 +66,31 @@ class SaldoRepository:
 
     async def get_all(
         self,
-        limit:  int = 100,
-        offset: int = 0,
+        limit:       int          = 100,
+        offset:      int          = 0,
+        empresa_id:  int | None   = None,   # ✅ NUEVO: filtrar por empresa
+        producto_id: int | None   = None,   # ✅ NUEVO: historial de un producto
     ) -> list[SaldoInicial]:
-        result = await self.db.execute(
+        q = (
             select(SaldoInicial)
             .options(selectinload(SaldoInicial.producto))
             .order_by(SaldoInicial.producto_id, SaldoInicial.fecha)
             .limit(limit)
             .offset(offset)
         )
+
+        if producto_id is not None:
+            # Devuelve todo el historial de fechas de ese producto
+            q = q.where(SaldoInicial.producto_id == producto_id)
+
+        elif empresa_id is not None:
+            # Filtra por empresa haciendo join a productos
+            q = (
+                q.join(Producto, SaldoInicial.producto_id == Producto.id)
+                .where(Producto.empresa_id == empresa_id)
+            )
+
+        result = await self.db.execute(q)
         return list(result.scalars().all())
 
     async def count_procesamientos(self, producto_id: int) -> int:
@@ -97,7 +112,7 @@ class SaldoRepository:
     ) -> tuple[SaldoInicial, int]:
         """
         Crea o actualiza el saldo de un producto para una fecha específica.
-        Ahora permite múltiples saldos por producto (uno por fecha).
+        Permite múltiples saldos por producto (uno por fecha).
         """
         total_proc = await self.count_procesamientos(producto_id)
 

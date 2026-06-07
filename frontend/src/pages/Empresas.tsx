@@ -18,10 +18,15 @@ export default function Empresas() {
     <div style={{ minHeight: '100vh', display: 'flex', background: '#07101e', fontFamily: "'Inter', sans-serif", color: '#c8ddef' }}>
       <Sidebar onAgregarSaldo={() => setModalSaldoOpen(true)} />
 
+      {/* ✅ CORREGIDO: saldoEditar={null} y onGuardado cierra el modal */}
       <ModalSaldoInicial
         open={modalSaldoOpen}
         onClose={() => setModalSaldoOpen(false)}
-        onGuardado={() => toast.success('Saldo inicial guardado correctamente')}
+        saldoEditar={null}
+        onGuardado={() => {
+          setModalSaldoOpen(false)
+          toast.success('Saldo inicial guardado correctamente')
+        }}
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>

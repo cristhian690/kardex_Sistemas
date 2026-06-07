@@ -20,10 +20,17 @@ class SaldoService:
     # ── Listar ────────────────────────────────────────────────────────────────
     async def listar(
         self,
-        limit:  int = 100,
-        offset: int = 0,
+        limit:       int          = 100,
+        offset:      int          = 0,
+        empresa_id:  int | None   = None,   # ✅ NUEVO: filtrar por empresa
+        producto_id: int | None   = None,   # ✅ NUEVO: historial de un producto
     ) -> list[SaldoInicialResponse]:
-        saldos = await self.saldo_repo.get_all(limit=limit, offset=offset)
+        saldos = await self.saldo_repo.get_all(
+            limit=limit,
+            offset=offset,
+            empresa_id=empresa_id,
+            producto_id=producto_id,
+        )
         return [self._to_response(s) for s in saldos]
 
     # ── Obtener uno ───────────────────────────────────────────────────────────
@@ -36,8 +43,8 @@ class SaldoService:
     # ── Crear ─────────────────────────────────────────────────────────────────
     async def crear(self, data: SaldoInicialCreate) -> SaldoInicialConAdvertencia:
         producto = await self.producto_repo.get_or_create(
-            codigo     = data.codigo,
-            empresa_id = data.empresa_id,
+            codigo      = data.codigo,
+            empresa_id  = data.empresa_id,
             descripcion = data.descripcion,
         )
 
@@ -114,6 +121,17 @@ class SaldoService:
         return {
             "eliminados":  eliminados,
             "mensaje":     f"{eliminados} saldo(s) eliminado(s) correctamente.",
+            "advertencia": advertencia,
+        }
+
+    # ── Eliminar uno ──────────────────────────────────────────────────────────
+    async def eliminar(self, saldo_id: int) -> dict:
+        """Elimina un saldo individual con advertencia si fue usado en procesamientos."""
+        total_proc = await self.saldo_repo.delete(saldo_id)
+
+        advertencia = self._advertencia(total_proc)
+        return {
+            "mensaje":     f"Saldo inicial #{saldo_id} eliminado correctamente.",
             "advertencia": advertencia,
         }
 

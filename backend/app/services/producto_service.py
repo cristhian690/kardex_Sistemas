@@ -9,20 +9,27 @@ from app.exceptions import KardexException
 class ProductoService:
 
     def __init__(self, db: AsyncSession):
-        self.db             = db
-        self.producto_repo  = ProductoRepository(db)
+        self.db            = db
+        self.producto_repo = ProductoRepository(db)
 
     # ── Listar ────────────────────────────────────────────────────────────────
     async def listar(
         self,
-        limit:  int = 100,
-        offset: int = 0,
-        search: str | None = None,
+        limit:      int        = 100,
+        offset:     int        = 0,
+        search:     str | None = None,
+        empresa_id: int | None = None,   # ✅ NUEVO: filtrar por empresa
     ) -> dict:
         productos = await self.producto_repo.get_all(
-            limit=limit, offset=offset, search=search
+            limit=limit,
+            offset=offset,
+            search=search,
+            empresa_id=empresa_id,
         )
-        total = await self.producto_repo.count(search=search)
+        total = await self.producto_repo.count(
+            search=search,
+            empresa_id=empresa_id,
+        )
 
         return {
             "total":     total,
@@ -35,9 +42,8 @@ class ProductoService:
         if not producto:
             raise KardexException(f"Producto #{producto_id} no encontrado.", status_code=404)
 
-        total_mov  = await self.producto_repo.count_movimientos(producto_id)
+        total_mov = await self.producto_repo.count_movimientos(producto_id)
 
-        # Contar procesamientos distintos
         result = await self.db.execute(
             select(func.count(Movimiento.procesamiento_id.distinct()))
             .where(Movimiento.producto_id == producto_id)
@@ -50,15 +56,18 @@ class ProductoService:
             total_procesamientos = total_proc,
         )
 
-    # ── Actualizar descripción ────────────────────────────────────────────────
+    # ── Actualizar ────────────────────────────────────────────────────────────
     async def actualizar(
         self,
         producto_id: int,
         data:        ProductoUpdate,
     ) -> ProductoResponse:
+        # ✅ NUEVO: ahora también actualiza codigo_existencia y unidad_medida
         producto = await self.producto_repo.update(
-            producto_id = producto_id,
-            descripcion = data.descripcion,
+            producto_id       = producto_id,
+            descripcion       = data.descripcion,
+            codigo_existencia = data.codigo_existencia,
+            unidad_medida     = data.unidad_medida,
         )
         if not producto:
             raise KardexException(f"Producto #{producto_id} no encontrado.", status_code=404)
@@ -78,7 +87,7 @@ class ProductoService:
                 f"No se puede eliminar el producto #{producto_id} porque tiene "
                 f"{total_mov} movimiento(s) registrado(s). "
                 f"Elimina primero los procesamientos asociados.",
-                status_code=409
+                status_code=409,
             )
 
         eliminado = await self.producto_repo.delete(producto_id)

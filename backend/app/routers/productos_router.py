@@ -10,14 +10,24 @@ router = APIRouter(prefix="/productos", tags=["Productos"])
 # ── Listar ────────────────────────────────────────────────────────────────────
 @router.get("/")
 async def listar_productos(
-    limit:  int            = Query(100, ge=1, le=500),
-    offset: int            = Query(0,   ge=0),
-    search: str | None     = Query(None, description="Buscar por código"),
-    db:     AsyncSession   = Depends(get_db),
+    limit:      int          = Query(100, ge=1, le=500),
+    offset:     int          = Query(0,   ge=0),
+    search:     str | None   = Query(None, description="Buscar por código o descripción"),
+    empresa_id: int | None   = Query(None, description="Filtrar por empresa"),
+    db:         AsyncSession = Depends(get_db),
 ):
-    """Lista todos los productos con paginación y búsqueda opcional por código."""
+    """
+    Lista todos los productos con paginación y búsqueda opcional.
+    - Si se pasa empresa_id, devuelve solo los productos de esa empresa.
+    - El mismo código puede existir en distintas empresas (ej: 011004 en Empresa A y B).
+    """
     service = ProductoService(db)
-    return await service.listar(limit=limit, offset=offset, search=search)
+    return await service.listar(
+        limit=limit,
+        offset=offset,
+        search=search,
+        empresa_id=empresa_id,
+    )
 
 
 # ── Obtener uno ───────────────────────────────────────────────────────────────
@@ -26,19 +36,25 @@ async def obtener_producto(
     producto_id: int,
     db:          AsyncSession = Depends(get_db),
 ):
-    """Obtiene un producto con su saldo inicial y estadísticas de movimientos."""
+    """
+    Obtiene un producto con su empresa, saldo inicial vigente
+    y estadísticas de movimientos.
+    """
     service = ProductoService(db)
     return await service.obtener(producto_id)
 
 
-# ── Actualizar descripción ────────────────────────────────────────────────────
+# ── Actualizar ────────────────────────────────────────────────────────────────
 @router.patch("/{producto_id}", response_model=ProductoResponse)
 async def actualizar_producto(
     producto_id: int,
     data:        ProductoUpdate,
     db:          AsyncSession = Depends(get_db),
 ):
-    """Actualiza la descripción de un producto."""
+    """
+    Actualiza los campos editables de un producto:
+    descripcion, codigo_existencia, unidad_medida.
+    """
     service = ProductoService(db)
     return await service.actualizar(producto_id, data)
 
