@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 
 interface SaldoPayload {
+  empresa_id:     number
   codigo:         string
   descripcion:    string
   fecha:          string
@@ -8,7 +9,6 @@ interface SaldoPayload {
   costo_unitario: number
 }
 
-// Saldo completo para modo edición
 interface SaldoExistente {
   id:             number
   codigo:         string
@@ -21,12 +21,25 @@ interface SaldoExistente {
 
 interface Props {
   open:          boolean
+  empresaId?:    number
   onClose:       () => void
-  onGuardado?:   (codigo: string) => void //  Actualizado
+  onGuardado?:   (codigo: string) => void
   saldoEditar?:  SaldoExistente | null
 }
 
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+
+function parseFastApiError(data: any, status: number): string {
+  if (!data?.detail) return `Error ${status}`
+  if (typeof data.detail === 'string') return data.detail
+  if (Array.isArray(data.detail)) {
+    return data.detail.map((err: any) => {
+      const campo = err.loc?.[err.loc.length - 1] || 'Campo'
+      return `Error en ${campo}: ${err.msg}`
+    }).join(' | ')
+  }
+  return JSON.stringify(data.detail)
+}
 
 async function crearSaldo(payload: SaldoPayload) {
   const res = await fetch(`${API}/api/v1/saldos/`, {
@@ -35,7 +48,7 @@ async function crearSaldo(payload: SaldoPayload) {
     body:    JSON.stringify(payload),
   })
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data?.detail ?? `Error ${res.status}`)
+  if (!res.ok) throw new Error(parseFastApiError(data, res.status))
   return data
 }
 
@@ -46,11 +59,10 @@ async function editarSaldo(id: number, payload: Omit<SaldoPayload, 'codigo'> & {
     body:    JSON.stringify(payload),
   })
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data?.detail ?? `Error ${res.status}`)
+  if (!res.ok) throw new Error(parseFastApiError(data, res.status))
   return data
 }
 
-/* ── Icons ───────────────────────────────────────────────────────────────── */
 const IconX = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -75,7 +87,6 @@ const IconSaldo = () => (
   </svg>
 )
 
-/* ── Helpers visuales ─────────────────────────────────────────────────────── */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -99,15 +110,13 @@ function Msg({ children, color }: { children: React.ReactNode; color: string }) 
   )
 }
 
-/* ── Helper: convertir cualquier cosa a número seguro ─────────────────────── */
 const toNum = (v: number | string | null | undefined): number => {
   if (v === null || v === undefined || v === '') return 0
   const n = typeof v === 'number' ? v : parseFloat(String(v))
   return isNaN(n) ? 0 : n
 }
 
-/* ── Componente principal ─────────────────────────────────────────────────── */
-export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEditar }: Props) {
+export default function ModalSaldoInicial({ open, empresaId, onClose, onGuardado, saldoEditar }: Props) {
   const hoy        = new Date().toISOString().split('T')[0]
   const modoEditar = !!saldoEditar
 
@@ -116,9 +125,7 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
   const [fecha,              setFecha]              = useState(hoy)
   const [cantidad,           setCantidad]           = useState('')
   const [costoUnit,          setCostoUnit]          = useState('')
-  // ✅ FIX: guardamos el costo_total original de la BD
   const [costoTotalOriginal, setCostoTotalOriginal] = useState<number | null>(null)
-  // ✅ FIX: rastreamos si el usuario modificó cantidad o costo unitario
   const [camposModificados,  setCamposModificados]  = useState(false)
 
   const [loading,     setLoading]     = useState(false)
@@ -128,22 +135,18 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
 
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Cargar datos cuando se abre el modal
   useEffect(() => {
     if (!open) return
 
     if (saldoEditar) {
-      // Modo edición — cargar datos existentes (convertir a número por si vienen como string)
       setCodigo(saldoEditar.codigo)
       setDescripcion(saldoEditar.descripcion ?? '')
       setFecha(saldoEditar.fecha)
       setCantidad(String(toNum(saldoEditar.cantidad)))
       setCostoUnit(String(toNum(saldoEditar.costo_unitario)))
-      // ✅ FIX: convertir a número antes de guardar (la BD lo devuelve como string)
       setCostoTotalOriginal(toNum(saldoEditar.costo_total))
       setCamposModificados(false)
     } else {
-      // Modo creación — limpiar formulario
       setCodigo('')
       setDescripcion('')
       setFecha(hoy)
@@ -159,14 +162,12 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
     setTimeout(() => inputRef.current?.focus(), 80)
   }, [open, saldoEditar])
 
-  // Cerrar con Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
-  // ✅ FIX: usa el total original de BD a menos que el usuario haya cambiado los campos
   const costoTotal: number = (!modoEditar || camposModificados || costoTotalOriginal === null)
     ? toNum(cantidad) * toNum(costoUnit)
     : costoTotalOriginal
@@ -176,7 +177,6 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
     toNum(cantidad) > 0 &&
     toNum(costoUnit) > 0
 
-  // ✅ FIX: handlers que marcan cuando el usuario modifica manualmente
   const handleCantidadChange = (val: string) => {
     setCantidad(val)
     setCamposModificados(true)
@@ -197,8 +197,8 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
       let res
 
       if (modoEditar && saldoEditar) {
-        // PUT /saldos/{id}
         res = await editarSaldo(saldoEditar.id, {
+          empresa_id:     empresaId ?? 0,
           descripcion:    descripcion.trim(),
           fecha,
           cantidad:       toNum(cantidad),
@@ -206,8 +206,8 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
           costo_total:    costoTotal,
         })
       } else {
-        // POST /saldos/
         res = await crearSaldo({
+          empresa_id:     empresaId ?? 0,
           codigo:         codigo.trim().toUpperCase(),
           descripcion:    descripcion.trim(),
           fecha,
@@ -298,7 +298,6 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
           </button>
         </div>
 
-        {/* Divider */}
         <div style={{ height: 1, background: 'rgba(56,139,221,0.1)' }} />
 
         {/* Formulario */}
@@ -363,7 +362,6 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
           }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <span style={{ fontSize: 11, color: '#1e3a5a' }}>Costo total calculado</span>
-              {/* ✅ FIX: indicador visual de si es original o recalculado */}
               {modoEditar && (
                 <span style={{ fontSize: 9, color: camposModificados ? '#f59e0b' : '#2a5a6a', fontFamily: "'IBM Plex Mono', monospace" }}>
                   {camposModificados ? '⚠ recalculado' : '✓ valor original BD'}
@@ -399,7 +397,8 @@ export default function ModalSaldoInicial({ open, onClose, onGuardado, saldoEdit
             onClick={handleGuardar}
             disabled={!valido || loading}
             style={{
-              padding: '7px 18px', borderRadius: 7, cursor: !valido || loading ? 'not-allowed' : 'pointer',
+              padding: '7px 18px', borderRadius: 7,
+              cursor: !valido || loading ? 'not-allowed' : 'pointer',
               background: !valido || loading
                 ? 'rgba(29,78,216,0.3)'
                 : modoEditar

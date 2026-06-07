@@ -10,7 +10,7 @@ from decimal import (
 from app.schemas.procesamiento import AlertasProcesamiento
 
 # ── Configuración Decimal ─────────────────────────────────────────────────────
-DECIMAL_PLACES = Decimal("0.0000000001") 
+DECIMAL_PLACES = Decimal("0.0000000001")  # 10 decimales
 ZERO = Decimal("0")
 TOLERANCIA = Decimal("0.10")
 
@@ -366,14 +366,16 @@ def calcular_saldo_final(
         indices = list(df[mask].index)
 
         saldos_producto = saldos_iniciales.get(codigo, [])
+        
+        # --- PARCHE DE COMPATIBILIDAD ---
+        # Si el saldo llega como diccionario único, lo metemos en una lista
+        if isinstance(saldos_producto, dict):
+            saldos_producto = [saldos_producto]
+        # --------------------------------
+        
         saldo_ini = None
 
         primer_mov_fecha = df.loc[mask, "Fecha"].min()
-
-        
-
-        
-
         fecha_mov = (
             primer_mov_fecha.date()
             if hasattr(primer_mov_fecha, "date")

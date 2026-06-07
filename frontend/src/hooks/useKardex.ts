@@ -9,14 +9,14 @@ import type {
 } from '../types'
 
 interface UseKardexState {
-  movimientos:        KardexRow[]
-  metricas:           Metricas | null
-  alertas:            AlertasProcesamiento | null
-  loading:            boolean
-  error:              string | null
-  procesamientoId:    number | null
-  totalRegistros:     number
-  erroresIntegridad:  number
+  movimientos:       KardexRow[]
+  metricas:          Metricas | null
+  alertas:           AlertasProcesamiento | null
+  loading:           boolean
+  error:             string | null
+  procesamientoId:   number | null
+  totalRegistros:    number
+  erroresIntegridad: number
 }
 
 const initialState: UseKardexState = {
@@ -35,17 +35,18 @@ export const useKardex = () => {
   const [uploading, setUploading] = useState(false)
   const [exporting, setExporting] = useState(false)
 
-  // ── Subir y procesar archivos ───────────────────────────────────────────────
+  // ── Subir y procesar archivos (MODO UNIVERSAL) ─────────────────────────────
   const subirArchivos = useCallback(async (
     archivosMovimientos: File[],
     archivoSaldos:       File | null,
-    empresaId:           number,
+    // 🧠 ¡Quitamos empresaId de aquí!
   ) => {
     setUploading(true)
     setState(prev => ({ ...prev, error: null }))
 
     try {
-      const upload = await procesarArchivos(archivosMovimientos, archivoSaldos, empresaId)
+      // 🧠 Invocación limpia en cascada directa al backend universal
+      const upload = await procesarArchivos(archivosMovimientos, archivoSaldos)
       const data   = await getKardex(upload.procesamiento_id)
 
       setState({
@@ -73,7 +74,7 @@ export const useKardex = () => {
     }
   }, [])
 
-  // ── Consultar kardex con filtros ────────────────────────────────────────────
+  // ── Consultar kardex con filtros (Se mantiene igual) ───────────────────────
   const cargarKardex = useCallback(async (
     procesamientoId: number,
     filtro?: FiltroFecha & { codigo?: string },
@@ -104,7 +105,7 @@ export const useKardex = () => {
     }
   }, [])
 
-  // ── Exportar a Excel ────────────────────────────────────────────────────────
+  // ── Exportar a Excel (Se mantiene igual) ───────────────────────────────────
   const descargarExcel = useCallback(async (
     codigo?:     string,
     anio?:       number,

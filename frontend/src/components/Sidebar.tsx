@@ -29,13 +29,6 @@ const BadgePronto = () => (
   </span>
 )
 
-/**
- * Sidebar compartido por TODAS las páginas.
- * Para agregar un ítem al menú, hazlo SOLO aquí.
- *
- * onAgregarSaldo es opcional: si una página no maneja el modal de saldo,
- * el botón "+" simplemente no hace nada peligroso.
- */
 export default function Sidebar({ onAgregarSaldo }: { onAgregarSaldo?: () => void }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -101,7 +94,8 @@ export default function Sidebar({ onAgregarSaldo }: { onAgregarSaldo?: () => voi
 
       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>Sistema</div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      {/* Fila del Botón de Saldos + Botón de Acceso Directo Rápido "+" */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 2 }}>
         <div style={{ flex: 1 }}>
           {navItem('Saldos', <IconSaldos />, '/saldos', currentPath === '/saldos')}
         </div>
@@ -117,7 +111,11 @@ export default function Sidebar({ onAgregarSaldo }: { onAgregarSaldo?: () => voi
         </button>
       </div>
 
-{navItem('Empresas', <IconEmpresa />, '/empresas', currentPath === '/empresas')}
+      {/* ✅ NUEVO: Acceso Directo al Maestro de Productos */}
+      {navItem('Productos', <IconProducts />, '/productos', currentPath === '/productos')}
+
+      {navItem('Empresas', <IconEmpresa />, '/empresas', currentPath === '/empresas')}
+      
       <div style={{ flex: 1 }} />
       <div style={{ height: 1, background: 'rgba(56,139,221,0.08)', margin: '10px 0' }} />
       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>Cuenta</div>

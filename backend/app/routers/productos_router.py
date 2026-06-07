@@ -1,11 +1,23 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.services.producto_service import ProductoService
-from app.schemas.producto import ProductoResponse, ProductoConEstadisticas, ProductoUpdate
+from app.schemas.producto import ProductoResponse, ProductoConEstadisticas, ProductoUpdate, ProductoCreate
 
 router = APIRouter(prefix="/productos", tags=["Productos"])
 
+# EndPoint para crear un producto de manera manual
+@router.post("/", response_model=ProductoResponse, status_code=status.HTTP_201_CREATED)
+async def crear_producto(
+    data: ProductoCreate,
+    db:   AsyncSession = Depends(get_db),
+):
+    """
+    Crea un nuevo producto en el catálogo de forma manual.
+    - Valida que la combinación de `empresa_id` y `codigo` no se encuentre duplicada.
+    """
+    service = ProductoService(db)
+    return await service.crear(data)
 
 # ── Listar ────────────────────────────────────────────────────────────────────
 @router.get("/")
@@ -54,6 +66,7 @@ async def actualizar_producto(
     """
     Actualiza los campos editables de un producto:
     descripcion, codigo_existencia, unidad_medida.
+    - Permite cambiar la `empresa_id` para reclasificar productos (ej: de 'SIN ASIGNAR' a otra empresa real).
     """
     service = ProductoService(db)
     return await service.actualizar(producto_id, data)

@@ -20,17 +20,10 @@ class SaldoService:
     # ── Listar ────────────────────────────────────────────────────────────────
     async def listar(
         self,
-        limit:       int          = 100,
-        offset:      int          = 0,
-        empresa_id:  int | None   = None,   # ✅ NUEVO: filtrar por empresa
-        producto_id: int | None   = None,   # ✅ NUEVO: historial de un producto
+        limit:  int = 100,
+        offset: int = 0,
     ) -> list[SaldoInicialResponse]:
-        saldos = await self.saldo_repo.get_all(
-            limit=limit,
-            offset=offset,
-            empresa_id=empresa_id,
-            producto_id=producto_id,
-        )
+        saldos = await self.saldo_repo.get_all(limit=limit, offset=offset)
         return [self._to_response(s) for s in saldos]
 
     # ── Obtener uno ───────────────────────────────────────────────────────────
@@ -43,8 +36,8 @@ class SaldoService:
     # ── Crear ─────────────────────────────────────────────────────────────────
     async def crear(self, data: SaldoInicialCreate) -> SaldoInicialConAdvertencia:
         producto = await self.producto_repo.get_or_create(
-            codigo      = data.codigo,
-            empresa_id  = data.empresa_id,
+            codigo     = data.codigo,
+            empresa_id = data.empresa_id,
             descripcion = data.descripcion,
         )
 
@@ -124,28 +117,21 @@ class SaldoService:
             "advertencia": advertencia,
         }
 
-    # ── Eliminar uno ──────────────────────────────────────────────────────────
-    async def eliminar(self, saldo_id: int) -> dict:
-        """Elimina un saldo individual con advertencia si fue usado en procesamientos."""
-        total_proc = await self.saldo_repo.delete(saldo_id)
-
-        advertencia = self._advertencia(total_proc)
-        return {
-            "mensaje":     f"Saldo inicial #{saldo_id} eliminado correctamente.",
-            "advertencia": advertencia,
-        }
-
     # ── Helpers privados ──────────────────────────────────────────────────────
     def _to_response(self, saldo) -> SaldoInicialResponse:
+        # Definimos el formato deseado: '0.00' para 2 decimales, o '0.0000' para 4.
+        formato = Decimal('0.0000')
+        
         return SaldoInicialResponse(
             id             = saldo.id,
+            empresa_id     = saldo.producto.empresa_id,
             producto_id    = saldo.producto_id,
             codigo         = saldo.producto.codigo if saldo.producto else "",
             descripcion    = saldo.producto.descripcion if saldo.producto else None,
             fecha          = saldo.fecha,
-            cantidad       = saldo.cantidad,
-            costo_unitario = saldo.costo_unitario,
-            costo_total    = saldo.costo_total,
+            cantidad       = saldo.cantidad.quantize(formato),       
+            costo_unitario = saldo.costo_unitario.quantize(formato), 
+            costo_total    = saldo.costo_total.quantize(formato),
             creado_en      = saldo.creado_en,
         )
 

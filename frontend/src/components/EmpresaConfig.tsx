@@ -156,10 +156,31 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle>((_props, ref) => {
                   <td style={td}>{e.direccion || '—'}</td>
                   <td style={{ ...td, textAlign: 'center' }}>
                     <div style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
+
+                      {/* ✅ CONDICIONAL: Ocultar acciones si es la empresa del sistema (ID: 1) */}
+                      {e.id === 1 ? (
+                        <span style={{ 
+                          fontSize: 10, 
+                          fontWeight: 700, 
+                          color: '#2a5a8a', 
+                          background: 'rgba(56,139,221,0.06)', 
+                          padding: '3px 8px', 
+                          borderRadius: 5,
+                          border: '1px solid rgba(56,139,221,0.12)',
+                          letterSpacing: '.05em',
+                          textTransform: 'uppercase'
+                        }}>
+                          Sistema
+                        </span>
+                      ) : (
+                        <>
+
                       <button onClick={() => abrirEditar(e)} style={{ padding: '4px 10px', borderRadius: 6, border: 'none', background: 'rgba(56,139,221,0.12)', color: '#60a5fa', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>Editar</button>
                       <button onClick={() => handleEliminar(e.id)} disabled={deleting === e.id} style={{ padding: '4px 10px', borderRadius: 6, border: 'none', background: 'rgba(239,68,68,0.1)', color: '#f87171', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
                         {deleting === e.id ? '...' : 'Eliminar'}
                       </button>
+                      </>
+                      )}
                     </div>
                   </td>
                 </tr>

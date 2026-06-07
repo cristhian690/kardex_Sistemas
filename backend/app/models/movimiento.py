@@ -11,10 +11,10 @@ import enum
 
 
 class TipoOperacion(str, enum.Enum):
-    venta                  = "01 Venta"
-    compra                 = "02 Compra"
-    devolucion             = "05 Devolucion Recibida"
-    devolucion_entregada   = "06 Devolucion Entregada"   # ✅ NUEVO
+    venta       = "01 Venta"
+    compra      = "02 Compra"
+    devolucion  = "05 Devolucion Recibida"
+    devolucion_entregada   = "06 Devolucion Entregada" 
 
 
 class Movimiento(Base):
@@ -30,7 +30,7 @@ class Movimiento(Base):
     )
 
     id:               Mapped[int]           = mapped_column(primary_key=True, index=True)
-    producto_id:      Mapped[int]           = mapped_column(ForeignKey("productos.id"),      nullable=False, index=True)
+    producto_id:      Mapped[int]           = mapped_column(ForeignKey("productos.id", ondelete="CASCADE"),      nullable=False, index=True)
     procesamiento_id: Mapped[int]           = mapped_column(ForeignKey("procesamientos.id"), nullable=False, index=True)
 
     # ── Comprobante ────────────────────────────────────────────────────────────

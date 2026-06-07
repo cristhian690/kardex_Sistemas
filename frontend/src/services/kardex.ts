@@ -1,11 +1,11 @@
 import api from './api'
 import type { KardexResponse, UploadResponse, FiltroFecha, ProcesamientoResumen } from '../types'
 
-// ── Procesar archivos ─────────────────────────────────────────────────────────
+// ── Procesar archivos (MODO UNIVERSAL) ─────────────────────────────────────────
 export const procesarArchivos = async (
   archivosMovimientos: File[],
   archivoSaldos:       File | null,
-  empresaId:           number,
+  // 🧠 ¡Removido empresaId de los argumentos de entrada!
 ): Promise<UploadResponse> => {
   const formData = new FormData()
 
@@ -17,15 +17,15 @@ export const procesarArchivos = async (
     formData.append('saldos', archivoSaldos)
   }
 
+  // 🧠 Envío universal puro: Se elimina por completo el objeto config 'params'
   const response = await api.post('/api/v1/kardex/procesar', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
-    params:  { empresa_id: empresaId },
   })
 
   return response.data
 }
 
-// ── Consultar kardex con filtros ──────────────────────────────────────────────
+// ── Consultar kardex con filtros (Se mantiene igual) ──────────────────────────────
 export const getKardex = async (
   procesamientoId: number,
   filtro?: FiltroFecha & { codigo?: string },
@@ -50,7 +50,7 @@ export const getKardex = async (
   return response.data
 }
 
-// ── Exportar a Excel ──────────────────────────────────────────────────────────
+// ── Exportar a Excel (Se mantiene igual) ──────────────────────────────────────────
 export const exportarKardex = async (
   procesamientoId: number,
   codigo?:     string,
@@ -61,7 +61,7 @@ export const exportarKardex = async (
 ): Promise<void> => {
   const params: Record<string, string | number> = {}
 
-  if (codigo)     params.codigo      = codigo
+  if (codigo)      params.codigo      = codigo
   if (anio)       params.anio        = anio
   if (mes)        params.mes         = mes
   if (fechaDesde) params.fecha_desde = fechaDesde
@@ -88,7 +88,7 @@ export const exportarKardex = async (
   window.URL.revokeObjectURL(url)
 }
 
-// ── Historial de procesamientos ───────────────────────────────────────────────
+// ── Historial de procesamientos (Se mantiene igual) ───────────────────────────────
 export const getHistorial = async (
   limit  = 20,
   offset = 0,

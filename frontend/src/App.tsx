@@ -1,6 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider } from './context/AuthContex'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import Login from './pages/Login'
 import Home from './pages/Home'
@@ -8,10 +8,12 @@ import Kardex from './pages/Kardex'
 import Historial from './pages/Historial'
 import SaldosIniciales from './pages/SaldosIniciales'
 import Empresas from './pages/Empresas' 
+import Productos from './pages/Productos'
 
 function App() {
   return (
     <AuthProvider>
+      {/* Toaster global — aparece en todas las páginas */}
       <Toaster
         position="top-right"
         toastOptions={{
@@ -46,7 +48,10 @@ function App() {
         <Route path="/kardex/:procesamiento_id" element={<ProtectedRoute><Kardex />          </ProtectedRoute>} />
         <Route path="/historial"                element={<ProtectedRoute><Historial />       </ProtectedRoute>} />
         <Route path="/saldos"                   element={<ProtectedRoute><SaldosIniciales /> </ProtectedRoute>} />
-        <Route path="/empresas"                 element={<ProtectedRoute><Empresas />        </ProtectedRoute>} /> 
+        <Route path="/empresas"                 element={<ProtectedRoute><Empresas />        </
+        ProtectedRoute>} />
+        <Route path="/productos"                 element={<ProtectedRoute><Productos />        </
+        ProtectedRoute>} />
       </Routes>
     </AuthProvider>
   )

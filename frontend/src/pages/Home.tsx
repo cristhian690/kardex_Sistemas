@@ -1,13 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import Sidebar from '../components/Sidebar'
 import FileUploader from '../components/FileUploader'
 import ModalSaldoInicial from '../components/ModalSaldoInicial'
 import { useKardex } from '../hooks/useKardex'
-import type { Empresa } from '../types'
-
-const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 const IconUpload = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -38,32 +35,17 @@ export default function Home() {
 
   const [archivosMovimientos, setArchivosMovimientos] = useState<File[]>([])
   const [archivoSaldos,       setArchivoSaldos]       = useState<File[]>([])
-  const [modalSaldoOpen,      setModalSaldoOpen]       = useState(false)
-  const [empresas,            setEmpresas]             = useState<Empresa[]>([])
-  const [empresaId,           setEmpresaId]            = useState<number | null>(null)
-
-  useEffect(() => {
-    fetch(`${API}/api/v1/empresa/`)
-      .then(r => r.json())
-      .then((data: Empresa[]) => {
-        setEmpresas(data)
-        if (data.length === 1) setEmpresaId(data[0].id)
-      })
-      .catch(() => {})
-  }, [])
+  const [modalSaldoOpen,      setModalSaldoOpen]      = useState(false)
 
   const handleProcesar = async () => {
     if (archivosMovimientos.length === 0) return
-    if (!empresaId) {
-      toast.error('Selecciona una empresa antes de procesar')
-      return
-    }
-    const toastId = toast.loading('Procesando Kardex…')
+
+    const toastId = toast.loading('Procesando Catálogo Universal…')
     try {
+      // 🧠 Enfoque Universal: Enviamos solo los binarios, el backend se encarga de la distribución
       const resultado = await subirArchivos(
         archivosMovimientos,
-        archivoSaldos[0] ?? null,
-        empresaId,
+        archivoSaldos[0] ?? null
       )
       if (resultado) {
         toast.success(`Kardex procesado: ${resultado.total_registros ?? 'OK'} registros`, { id: toastId })
@@ -76,7 +58,8 @@ export default function Home() {
     }
   }
 
-  const listo = archivosMovimientos.length > 0 && !!empresaId
+  // ✅ CORREGIDO: "listo" ahora solo depende de que se haya cargado el Excel de movimientos
+  const listo = archivosMovimientos.length > 0
 
   const card = (topColor: string): React.CSSProperties => ({
     background: '#0d1525',
@@ -86,14 +69,6 @@ export default function Home() {
     padding: '32px',
   })
 
-  const selectStyle: React.CSSProperties = {
-    padding: '7px 11px', borderRadius: 6,
-    border: '1px solid rgba(56,139,221,0.2)',
-    background: '#0d1525', color: '#c8ddef',
-    fontSize: 12, fontFamily: "'IBM Plex Mono', monospace",
-    outline: 'none', cursor: 'pointer', minWidth: 220,
-  }
-
   return (
     <div style={{ height: '100vh', display: 'flex', background: '#07101e', fontFamily: "'Inter', sans-serif", color: '#c8ddef' }}>
 
@@ -101,7 +76,9 @@ export default function Home() {
 
       <ModalSaldoInicial
         open={modalSaldoOpen}
+        empresaId={1} // Fallback seguro a SIN ASIGNAR para inserciones directas
         onClose={() => setModalSaldoOpen(false)}
+        saldoEditar={null}
         onGuardado={() => toast.success('Saldo inicial guardado correctamente')}
       />
 
@@ -109,34 +86,11 @@ export default function Home() {
         <header style={{ height: 52, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', borderBottom: '1px solid rgba(56,139,221,0.1)', background: '#080e1c', flexShrink: 0 }}>
           <div>
             <h1 style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 17, fontWeight: 700, color: '#e2e8f0', margin: 0, lineHeight: 1 }}>
-              Procesar Kardex
+              Procesar Kardex Universal
             </h1>
-            <p style={{ fontSize: 11, color: '#1e3a5a', marginTop: 2 }}>
-              Importa tus archivos Excel para calcular inventario con CPP
+            <p style={{ fontSize: 11, color: '#1e3a5a', marginTop: 2, margin: 0 }}>
+              Importación automática — los productos nuevos nacerán en el limbo contable 'SIN ASIGNAR'
             </p>
-          </div>
-
-          {/* Selector de empresa */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase', color: '#2a4a6a', fontFamily: "'IBM Plex Mono', monospace" }}>
-              Empresa
-            </span>
-            {empresas.length === 0 ? (
-              <span style={{ fontSize: 11, color: '#f87171', fontFamily: "'IBM Plex Mono', monospace" }}>
-                Sin empresas — <a href="/empresas" style={{ color: '#60a5fa' }}>registra una</a>
-              </span>
-            ) : (
-              <select
-                value={empresaId ?? ''}
-                onChange={e => setEmpresaId(Number(e.target.value))}
-                style={selectStyle}
-              >
-                <option value="">Seleccionar empresa...</option>
-                {empresas.map(e => (
-                  <option key={e.id} value={e.id}>{e.nombre} — {e.ruc}</option>
-                ))}
-              </select>
-            )}
           </div>
         </header>
 
@@ -207,7 +161,7 @@ export default function Home() {
             </button>
             {!listo && !uploading && (
               <span style={{ fontSize: 12, color: '#1e3a5a' }}>
-                {!empresaId ? 'Selecciona una empresa' : 'Agrega al menos un archivo de movimientos'}
+                Agrega al menos un archivo de movimientos para activar el motor
               </span>
             )}
           </div>

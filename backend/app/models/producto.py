@@ -20,5 +20,10 @@ class Producto(Base):
 
     # ── Relaciones ─────────────────────────────────────────────────────────────
     empresa:        Mapped["Empresa"]            = relationship("Empresa", back_populates="productos")
-    saldo_inicial:  Mapped[list["SaldoInicial"]] = relationship("SaldoInicial", back_populates="producto")
+     # FIX CRÍTICO: Cascada completa para saldos_iniciales
+    saldos_iniciales: Mapped[list["SaldoInicial"]] = relationship(
+        "SaldoInicial", 
+        back_populates="producto",
+        cascade="all, delete-orphan"
+    )
     movimientos:    Mapped[list["Movimiento"]]   = relationship("Movimiento",   back_populates="producto")

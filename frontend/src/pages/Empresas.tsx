@@ -21,6 +21,7 @@ export default function Empresas() {
       {/* ✅ CORREGIDO: saldoEditar={null} y onGuardado cierra el modal */}
       <ModalSaldoInicial
         open={modalSaldoOpen}
+        empresaId={1} // 👈 ¡AÑADE ESTA LÍNEA AQUÍ!
         onClose={() => setModalSaldoOpen(false)}
         saldoEditar={null}
         onGuardado={() => {

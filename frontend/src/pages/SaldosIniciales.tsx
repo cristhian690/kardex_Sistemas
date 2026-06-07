@@ -4,6 +4,7 @@ import ModalSaldoInicial from '../components/ModalSaldoInicial'
 
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
+/* ── Tipos ─────────────────────────────────────────── */
 interface Saldo {
   id: number
   codigo: string
@@ -14,6 +15,7 @@ interface Saldo {
   costo_total: number
 }
 
+/* ═══ Icons (solo los de esta página) ═══ */
 const IconSpinner = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ animation: 'kspin 1s linear infinite' }}>
     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2"/>
@@ -44,6 +46,7 @@ const IconSearch = () => (
   </svg>
 )
 
+/* ═══ Checkbox ═══ */
 const Checkbox = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
   <span
     onClick={e => { e.stopPropagation(); onChange() }}
@@ -52,7 +55,8 @@ const Checkbox = ({ checked, onChange }: { checked: boolean; onChange: () => voi
       border: `1.5px solid ${checked ? '#3b82f6' : 'rgba(56,139,221,0.35)'}`,
       background: checked ? '#3b82f6' : 'transparent',
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-      cursor: 'pointer', flexShrink: 0, transition: 'all .12s',
+      cursor: 'pointer', flexShrink: 0,
+      transition: 'all .12s',
     }}
   >
     {checked && (
@@ -63,6 +67,7 @@ const Checkbox = ({ checked, onChange }: { checked: boolean; onChange: () => voi
   </span>
 )
 
+/* ── Helpers ────────────────────────────────────────── */
 const fmt2 = (n: number) =>
   n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -70,16 +75,19 @@ const fmtFecha = (f: string) => {
   try { return new Date(f + 'T00:00:00').toLocaleDateString('es-PE') } catch { return f }
 }
 
+/* ── Página ─────────────────────────────────────────── */
 export default function SaldosIniciales() {
   const [saldos,        setSaldos]        = useState<Saldo[]>([])
-  const [busqueda,      setBusqueda]      = useState('')
+  const [busqueda,      setBusqueda]      = useState('') // Nuevo estado para la búsqueda
   const [loading,       setLoading]       = useState(true)
   const [error,         setError]         = useState<string | null>(null)
   const [modalOpen,     setModalOpen]     = useState(false)
   const [saldoEditando, setSaldoEditando] = useState<Saldo | null>(null)
   const [mensaje,       setMensaje]       = useState<string | null>(null)
-  const [selectedIds,   setSelectedIds]   = useState<Set<number>>(new Set())
-  const [eliminando,    setEliminando]    = useState(false)
+
+  //estados para selección múltiple
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [eliminando,  setEliminando]  = useState(false)
 
   const fetchSaldos = async () => {
     setLoading(true)
@@ -97,14 +105,7 @@ export default function SaldosIniciales() {
 
   useEffect(() => { fetchSaldos() }, [])
 
-  const saldosFiltrados = saldos.filter(s => {
-    const t = busqueda.toLowerCase()
-    return (
-      s.codigo.toLowerCase().includes(t) ||
-      (s.descripcion && s.descripcion.toLowerCase().includes(t))
-    )
-  })
-
+    /* ── Selección múltiple ─────────────────────────────── */
   const toggleSelect = (id: number) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
@@ -115,22 +116,24 @@ export default function SaldosIniciales() {
   }
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === saldosFiltrados.length) {
+    if (selectedIds.size === saldos.length) {
       setSelectedIds(new Set())
     } else {
-      setSelectedIds(new Set(saldosFiltrados.map(s => s.id)))
+      setSelectedIds(new Set(saldos.map(s => s.id)))
     }
   }
 
-  const allSelected  = saldosFiltrados.length > 0 && selectedIds.size === saldosFiltrados.length
+  const allSelected  = saldos.length > 0 && selectedIds.size === saldos.length
   const hasSelection = selectedIds.size > 0
 
+  /* ── Eliminar múltiple ──────────────────────────────── */
   const handleEliminarMultiple = async () => {
     if (selectedIds.size === 0) return
     const cantidad = selectedIds.size
     const msg = cantidad === 1
       ? '¿Eliminar este saldo? Esta acción no se puede deshacer.'
       : `¿Eliminar ${cantidad} saldos? Esta acción no se puede deshacer.`
+
     if (!confirm(msg)) return
 
     setEliminando(true)
@@ -142,6 +145,7 @@ export default function SaldosIniciales() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.detail || 'Error al eliminar')
+
       let texto = data?.mensaje || `${data?.eliminados || 0} eliminado(s)`
       if (data?.advertencia) texto += ' — ' + data.advertencia
       setMensaje(texto)
@@ -153,6 +157,7 @@ export default function SaldosIniciales() {
     }
   }
 
+  /* ── Eliminar uno ───────────────────────────────────── */
   const handleEliminar = async (id: number) => {
     if (!confirm('¿Seguro que deseas eliminar este saldo?')) return
     try {
@@ -167,20 +172,39 @@ export default function SaldosIniciales() {
     }
   }
 
+  /* ── Guardado ───────────────────────────────────────── */
   const handleGuardado = () => {
     setModalOpen(false)
     setSaldoEditando(null)
     fetchSaldos()
   }
 
+  /* ── Filtrado ───────────────────────────────────────── */
+  const saldosFiltrados = saldos.filter((s) => {
+    const termino = busqueda.toLowerCase()
+    return (
+      s.codigo.toLowerCase().includes(termino) ||
+      (s.descripcion && s.descripcion.toLowerCase().includes(termino))
+    )
+  })
+
+  /* ── Tabla header style ─────────────────────────────── */
   const th: React.CSSProperties = {
-    padding: '8px 12px', textAlign: 'left', fontSize: 9, fontWeight: 700,
-    letterSpacing: '.12em', textTransform: 'uppercase', color: '#4a7a9a',
-    background: '#0a1929', borderBottom: '1px solid rgba(56,139,221,0.14)',
+    padding: '8px 12px',
+    textAlign: 'left',
+    fontSize: 9,
+    fontWeight: 700,
+    letterSpacing: '.12em',
+    textTransform: 'uppercase',
+    color: '#4a7a9a',
+    background: '#0a1929',
+    borderBottom: '1px solid rgba(56,139,221,0.14)',
     fontFamily: "'IBM Plex Mono', monospace",
   }
   const td: React.CSSProperties = {
-    padding: '10px 12px', fontSize: 12, color: '#6a8ab0',
+    padding: '10px 12px',
+    fontSize: 12,
+    color: '#6a8ab0',
     borderBottom: '1px solid rgba(55,138,221,0.05)',
     fontFamily: "'IBM Plex Mono', monospace",
   }
@@ -188,12 +212,11 @@ export default function SaldosIniciales() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: '#07101e', fontFamily: "'Inter', sans-serif", color: '#c8ddef' }}>
 
-      <Sidebar
-        onAgregarSaldo={() => { setSaldoEditando(null); setModalOpen(true) }}
-      />
+      <Sidebar onAgregarSaldo={() => { setSaldoEditando(null); setModalOpen(true) }} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
+        {/* Topbar */}
         <header style={{
           height: 52, flexShrink: 0,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -210,8 +233,8 @@ export default function SaldosIniciales() {
               Stock base para cálculo CPP
             </p>
           </div>
-
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* ✅ NUEVO: botón eliminar (aparece solo con selección) */}
             {hasSelection && (
               <button
                 type="button"
@@ -255,8 +278,10 @@ export default function SaldosIniciales() {
           </div>
         </header>
 
+        {/* Content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
+          {/* Toast mensaje */}
           {mensaje && (
             <div style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -274,6 +299,7 @@ export default function SaldosIniciales() {
             </div>
           )}
 
+          {/* Error */}
           {error && (
             <div style={{
               display: 'flex', alignItems: 'flex-start', gap: 8,
@@ -287,17 +313,19 @@ export default function SaldosIniciales() {
             </div>
           )}
 
+          {/* Tabla */}
           <div style={{
             background: '#0d1525',
             border: '1px solid rgba(56,139,221,0.1)',
             borderRadius: 10, overflow: 'hidden',
           }}>
+            {/* Toolbar */}
             <div style={{
               padding: '10px 14px',
               borderBottom: '1px solid rgba(56,139,221,0.08)',
               background: 'rgba(56,139,221,0.03)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              flexWrap: 'wrap', gap: 10,
+              flexWrap: 'wrap', gap: 10
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ width: 2, height: 12, background: '#f59e0b', borderRadius: 2 }} />
@@ -315,30 +343,32 @@ export default function SaldosIniciales() {
                 </span>
               </div>
 
+              {/* Buscador Integrado */}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 background: '#07101e',
                 border: '1px solid rgba(56,139,221,0.2)',
                 borderRadius: 6,
                 padding: '5px 10px',
-                width: '100%', maxWidth: 250,
+                width: '100%',
+                maxWidth: 250,
               }}>
                 <span style={{ color: '#4a7a9a', display: 'flex' }}><IconSearch /></span>
                 <input
                   type="text"
                   placeholder="Buscar por código o desc..."
                   value={busqueda}
-                  onChange={e => setBusqueda(e.target.value)}
+                  onChange={(e) => setBusqueda(e.target.value)}
                   style={{
                     background: 'transparent', border: 'none', outline: 'none',
-                    color: '#c8ddef', fontSize: 11,
-                    fontFamily: "'IBM Plex Mono', monospace",
+                    color: '#c8ddef', fontSize: 11, fontFamily: "'IBM Plex Mono', monospace",
                     width: '100%',
                   }}
                 />
               </div>
             </div>
 
+            {/* Loading */}
             {loading && (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '56px 0', gap: 10, color: '#1e3a5a' }}>
                 <IconSpinner />
@@ -346,19 +376,20 @@ export default function SaldosIniciales() {
               </div>
             )}
 
+            {/* Empty */}
             {!loading && saldosFiltrados.length === 0 && (
               <div style={{ padding: '48px 0', textAlign: 'center', color: '#1e3a5a', fontSize: 12, fontFamily: "'IBM Plex Mono', monospace" }}>
-                {saldos.length > 0
-                  ? 'No se encontraron resultados para tu búsqueda'
-                  : 'Sin saldos iniciales registrados'}
+                {saldos.length > 0 ? 'No se encontraron resultados para tu búsqueda' : 'Sin saldos iniciales registrados'}
               </div>
             )}
 
+            {/* Table */}
             {!loading && saldosFiltrados.length > 0 && (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ borderCollapse: 'separate', borderSpacing: 0, width: '100%', fontSize: 12 }}>
                   <thead>
                     <tr>
+                      {/* NUEVO: columna checkbox */}
                       <th style={{ ...th, width: 40, textAlign: 'center' }}>
                         <Checkbox checked={allSelected} onChange={toggleSelectAll} />
                       </th>
@@ -373,60 +404,77 @@ export default function SaldosIniciales() {
                   </thead>
                   <tbody>
                     {saldosFiltrados.map((s, i) => {
-                      const isSelected = selectedIds.has(s.id)
-                      return (
-                        <tr
-                          key={s.id}
-                          onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = 'rgba(56,139,221,0.07)' }}
-                          onMouseLeave={e => { e.currentTarget.style.background = isSelected ? 'rgba(59,130,246,0.06)' : (i % 2 === 0 ? 'transparent' : 'rgba(55,138,221,0.03)') }}
-                          style={{ background: isSelected ? 'rgba(59,130,246,0.06)' : (i % 2 === 0 ? 'transparent' : 'rgba(55,138,221,0.03)'), transition: 'background .1s' }}
-                        >
-                          <td style={{ ...td, textAlign: 'center' }}>
-                            <Checkbox checked={isSelected} onChange={() => toggleSelect(s.id)} />
-                          </td>
-                          <td style={{ ...td, color: '#60a5fa', fontWeight: 600 }}>{s.codigo}</td>
-                          <td style={{ ...td, color: '#8aabcc' }}>{s.descripcion || '—'}</td>
-                          <td style={td}>{fmtFecha(s.fecha)}</td>
-                          <td style={{ ...td, textAlign: 'right' }}>{fmt2(s.cantidad)}</td>
-                          <td style={{ ...td, textAlign: 'right' }}>{fmt2(s.costo_unitario)}</td>
-                          <td style={{ ...td, textAlign: 'right', color: '#c8ddef', fontWeight: 600 }}>{fmt2(s.costo_total)}</td>
-                          <td style={{ ...td, textAlign: 'center' }}>
-                            <div style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
-                              <button
-                                onClick={() => { setSaldoEditando(s); setModalOpen(true) }}
-                                style={{
-                                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                                  padding: '4px 10px', borderRadius: 6, border: 'none',
-                                  background: 'rgba(56,139,221,0.12)',
-                                  color: '#60a5fa',
-                                  fontSize: 11, fontWeight: 600,
-                                  cursor: 'pointer', fontFamily: 'inherit',
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,139,221,0.24)' }}
-                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,139,221,0.12)' }}
-                              >
-                                <IconEdit /> Editar
-                              </button>
-                              <button
-                                onClick={() => handleEliminar(s.id)}
-                                style={{
-                                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                                  padding: '4px 10px', borderRadius: 6, border: 'none',
-                                  background: 'rgba(239,68,68,0.1)',
-                                  color: '#f87171',
-                                  fontSize: 11, fontWeight: 600,
-                                  cursor: 'pointer', fontFamily: 'inherit',
-                                }}
-                                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.22)' }}
-                                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
-                              >
-                                <IconTrash /> Eliminar
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
+  const isSelected = selectedIds.has(s.id)
+
+  return (
+    <tr
+      key={s.id}
+      onMouseEnter={e => {
+        if (!isSelected)
+          e.currentTarget.style.background = 'rgba(56,139,221,0.07)'
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.background = isSelected
+          ? 'rgba(59,130,246,0.06)'
+          : (i % 2 === 0 ? 'transparent' : 'rgba(55,138,221,0.03)')
+      }}
+      style={{
+        background: isSelected
+          ? 'rgba(59,130,246,0.06)'
+          : (i % 2 === 0 ? 'transparent' : 'rgba(55,138,221,0.03)'),
+        transition: 'background .1s'
+      }}
+    >
+                        <td style={{ ...td, textAlign: 'center' }}>
+                          <Checkbox
+                            checked={isSelected}
+                            onChange={() => toggleSelect(s.id)}
+                            />
+                        </td>
+                        <td style={{ ...td, color: '#60a5fa', fontWeight: 600 }}>{s.codigo}</td>
+                        <td style={{ ...td, color: '#8aabcc' }}>{s.descripcion || '—'}</td>
+                        <td style={td}>{fmtFecha(s.fecha)}</td>
+                        <td style={{ ...td, textAlign: 'right' }}>{fmt2(s.cantidad)}</td>
+                        <td style={{ ...td, textAlign: 'right' }}>{fmt2(s.costo_unitario)}</td>
+                        <td style={{ ...td, textAlign: 'right', color: '#c8ddef', fontWeight: 600 }}>{fmt2(s.costo_total)}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>
+                          <div style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
+                            <button
+                              onClick={() => { setSaldoEditando(s); setModalOpen(true) }}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 4,
+                                padding: '4px 10px', borderRadius: 6, border: 'none',
+                                background: 'rgba(56,139,221,0.12)',
+                                color: '#60a5fa',
+                                fontSize: 11, fontWeight: 600,
+                                cursor: 'pointer', fontFamily: 'inherit',
+                              }}
+                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(56,139,221,0.24)' }}
+                              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(56,139,221,0.12)' }}
+                            >
+                              <IconEdit /> Editar
+                            </button>
+                            <button
+                              onClick={() => handleEliminar(s.id)}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 4,
+                                padding: '4px 10px', borderRadius: 6, border: 'none',
+                                background: 'rgba(239,68,68,0.1)',
+                                color: '#f87171',
+                                fontSize: 11, fontWeight: 600,
+                                cursor: 'pointer', fontFamily: 'inherit',
+                              }}
+                              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.22)' }}
+                              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)' }}
+                            >
+                              <IconTrash /> Eliminar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                    })
+                    }
                   </tbody>
                 </table>
               </div>
@@ -435,9 +483,11 @@ export default function SaldosIniciales() {
 
         </div>
       </div>
-
+            
+      {/* Modal */}
       <ModalSaldoInicial
         open={modalOpen}
+        empresaId={1}
         onClose={() => { setModalOpen(false); setSaldoEditando(null) }}
         onGuardado={handleGuardado}
         saldoEditar={saldoEditando}
