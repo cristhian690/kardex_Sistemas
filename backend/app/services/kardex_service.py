@@ -87,6 +87,7 @@ class KardexService:
         self,
         saldo_bytes:  bytes | None,
         archivos_mov: list[tuple[str, bytes]],
+        empresa_id:   int | None = None,
     ) -> UploadResponse:
         inicio_total = time.time()
 
@@ -96,7 +97,7 @@ class KardexService:
 
         if saldo_bytes:
             saldos_iniciales = parsear_saldos_iniciales(saldo_bytes)
-            await self._persistir_saldos_iniciales(saldos_iniciales)
+            await self._persistir_saldos_iniciales(saldos_iniciales, empresa_id=empresa_id)
         else:
             saldos_iniciales = await self._cargar_saldos_desde_bd()
         print(f"⏱️  [1] Saldos iniciales: {time.time() - t0:.2f}s")
@@ -166,7 +167,7 @@ class KardexService:
         print(f"⏱️  [7a] Crear procesamiento: {time.time() - t0:.2f}s")
 
         t0 = time.time()
-        await self._persistir_movimientos(df_all, procesamiento.id)
+        await self._persistir_movimientos(df_all, procesamiento.id, empresa_id=empresa_id)
         print(f"⏱️  [7b] Persistir movimientos: {time.time() - t0:.2f}s")
 
         print(f"✅ TOTAL: {time.time() - inicio_total:.2f}s para {len(df_all)} registros")
@@ -327,12 +328,11 @@ class KardexService:
                 }
         return saldos
 
-    async def _persistir_saldos_iniciales(self, saldos: dict) -> None:
+    async def _persistir_saldos_iniciales(self, saldos: dict, empresa_id: int | None = None) -> None:
         from datetime import date as date_type
 
         codigos       = list(saldos.keys())
-        # Empresa id=1 (SIN ASIGNAR) como fallback
-        productos_map = await self.producto_repo.get_or_create_bulk(codigos, empresa_id=1)
+        productos_map = await self.producto_repo.get_or_create_bulk(codigos, empresa_id=empresa_id)
 
         for codigo, datos in saldos.items():
             producto = productos_map[codigo]
@@ -349,10 +349,10 @@ class KardexService:
         self,
         df:               pd.DataFrame,
         procesamiento_id: int,
+        empresa_id:       int | None = None,
     ) -> None:
         codigos_unicos = df["Codigo"].astype(str).str.strip().unique().tolist()
-        # Productos nuevos van a empresa id=1 (SIN ASIGNAR)
-        productos_map  = await self.producto_repo.get_or_create_bulk(codigos_unicos, empresa_id=1)
+        productos_map  = await self.producto_repo.get_or_create_bulk(codigos_unicos, empresa_id=empresa_id)
 
         registros = []
 

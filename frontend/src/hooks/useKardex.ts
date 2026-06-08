@@ -35,18 +35,17 @@ export const useKardex = () => {
   const [uploading, setUploading] = useState(false)
   const [exporting, setExporting] = useState(false)
 
-  // ── Subir y procesar archivos (MODO UNIVERSAL) ─────────────────────────────
+  // ── Subir y procesar archivos ──────────────────────────────────────────────
   const subirArchivos = useCallback(async (
     archivosMovimientos: File[],
     archivoSaldos:       File | null,
-    // 🧠 ¡Quitamos empresaId de aquí!
+    empresaId?:          number,       // ← nuevo parámetro opcional
   ) => {
     setUploading(true)
     setState(prev => ({ ...prev, error: null }))
 
     try {
-      // 🧠 Invocación limpia en cascada directa al backend universal
-      const upload = await procesarArchivos(archivosMovimientos, archivoSaldos)
+      const upload = await procesarArchivos(archivosMovimientos, archivoSaldos, empresaId)
       const data   = await getKardex(upload.procesamiento_id)
 
       setState({
@@ -74,7 +73,7 @@ export const useKardex = () => {
     }
   }, [])
 
-  // ── Consultar kardex con filtros (Se mantiene igual) ───────────────────────
+  // ── Consultar kardex con filtros ───────────────────────────────────────────
   const cargarKardex = useCallback(async (
     procesamientoId: number,
     filtro?: FiltroFecha & { codigo?: string },
@@ -105,7 +104,7 @@ export const useKardex = () => {
     }
   }, [])
 
-  // ── Exportar a Excel (Se mantiene igual) ───────────────────────────────────
+  // ── Exportar a Excel ───────────────────────────────────────────────────────
   const descargarExcel = useCallback(async (
     codigo?:     string,
     anio?:       number,

@@ -9,8 +9,7 @@ class ProductoRepository:
 
     def __init__(self, db: AsyncSession):
         self.db = db
-        
-    #Crear un producto manualmente validando la instancia
+
     async def crear(
         self,
         codigo: str,
@@ -118,7 +117,7 @@ class ProductoRepository:
         producto = await self.get_by_id(producto_id)
         if not producto:
             return None
-        
+
         if empresa_id        is not None: producto.empresa_id        = empresa_id
         if descripcion       is not None: producto.descripcion       = descripcion
         if codigo_existencia is not None: producto.codigo_existencia = codigo_existencia
@@ -133,30 +132,37 @@ class ProductoRepository:
         )
         return result.scalar() or 0
 
-    async def get_or_create_bulk(self, codigos: list[str]) -> dict[str, Producto]:
+    async def get_or_create_bulk(
+        self,
+        codigos:    list[str],
+        empresa_id: int | None = None,
+    ) -> dict[str, Producto]:
         if not codigos:
             return {}
 
         from app.core.constants import EMPRESA_SIN_ASIGNAR_ID
 
-        # 1. Búsqueda global en toda la BD por código (ya no importa la empresa)
+        # Empresa destino: la seleccionada o SIN ASIGNAR como fallback
+        empresa_destino = empresa_id if empresa_id else EMPRESA_SIN_ASIGNAR_ID
+
+        # 1. Búsqueda global en toda la BD por código
         result = await self.db.execute(
             select(Producto).where(Producto.codigo.in_(codigos))
         )
         existentes = {p.codigo: p for p in result.scalars().all()}
 
-        # 2. Identificar cuáles no existen en absoluto
+        # 2. Identificar cuáles no existen
         faltantes = [c for c in codigos if c not in existentes]
 
-        # 3. Crear los nuevos directamente en "SIN ASIGNAR" (ID: 1)
+        # 3. Crear los nuevos en la empresa destino
         if faltantes:
             nuevos = [
-                Producto(codigo=c, empresa_id=EMPRESA_SIN_ASIGNAR_ID) 
+                Producto(codigo=c, empresa_id=empresa_destino)
                 for c in faltantes
             ]
             self.db.add_all(nuevos)
-            await self.db.flush() # Para obtener los IDs generados por la BD
-            
+            await self.db.flush()
+
             for p in nuevos:
                 existentes[p.codigo] = p
 

@@ -5,7 +5,7 @@ import type { KardexResponse, UploadResponse, FiltroFecha, ProcesamientoResumen 
 export const procesarArchivos = async (
   archivosMovimientos: File[],
   archivoSaldos:       File | null,
-  // 🧠 ¡Removido empresaId de los argumentos de entrada!
+  empresaId?:          number,         // ← nuevo parámetro opcional
 ): Promise<UploadResponse> => {
   const formData = new FormData()
 
@@ -17,15 +17,18 @@ export const procesarArchivos = async (
     formData.append('saldos', archivoSaldos)
   }
 
-  // 🧠 Envío universal puro: Se elimina por completo el objeto config 'params'
+  // Si se seleccionó empresa, se pasa como query param
+  const params = empresaId ? { empresa_id: empresaId } : {}
+
   const response = await api.post('/api/v1/kardex/procesar', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    params,
   })
 
   return response.data
 }
 
-// ── Consultar kardex con filtros (Se mantiene igual) ──────────────────────────────
+// ── Consultar kardex con filtros ──────────────────────────────────────────────
 export const getKardex = async (
   procesamientoId: number,
   filtro?: FiltroFecha & { codigo?: string },
@@ -50,7 +53,7 @@ export const getKardex = async (
   return response.data
 }
 
-// ── Exportar a Excel (Se mantiene igual) ──────────────────────────────────────────
+// ── Exportar a Excel ──────────────────────────────────────────────────────────
 export const exportarKardex = async (
   procesamientoId: number,
   codigo?:     string,
@@ -62,10 +65,10 @@ export const exportarKardex = async (
   const params: Record<string, string | number> = {}
 
   if (codigo)      params.codigo      = codigo
-  if (anio)       params.anio        = anio
-  if (mes)        params.mes         = mes
-  if (fechaDesde) params.fecha_desde = fechaDesde
-  if (fechaHasta) params.fecha_hasta = fechaHasta
+  if (anio)        params.anio        = anio
+  if (mes)         params.mes         = mes
+  if (fechaDesde)  params.fecha_desde = fechaDesde
+  if (fechaHasta)  params.fecha_hasta = fechaHasta
 
   const response = await api.get(`/api/v1/kardex/exportar/${procesamientoId}`, {
     params,
@@ -88,7 +91,7 @@ export const exportarKardex = async (
   window.URL.revokeObjectURL(url)
 }
 
-// ── Historial de procesamientos (Se mantiene igual) ───────────────────────────────
+// ── Historial de procesamientos ───────────────────────────────────────────────
 export const getHistorial = async (
   limit  = 20,
   offset = 0,

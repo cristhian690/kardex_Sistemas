@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import Sidebar from '../components/Sidebar'
@@ -28,6 +28,17 @@ const IconPlus = () => (
     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
   </svg>
 )
+const IconBuilding = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 21h18M3 7v14M21 7v14M6 3h12l3 4H3L6 3zM9 21V11h6v10"/>
+  </svg>
+)
+
+interface Empresa {
+  id:     number
+  nombre: string
+  ruc:    string
+}
 
 export default function Home() {
   const navigate = useNavigate()
@@ -35,17 +46,28 @@ export default function Home() {
 
   const [archivosMovimientos, setArchivosMovimientos] = useState<File[]>([])
   const [archivoSaldos,       setArchivoSaldos]       = useState<File[]>([])
-  const [modalSaldoOpen,      setModalSaldoOpen]      = useState(false)
+  const [modalSaldoOpen,      setModalSaldoOpen]       = useState(false)
+  const [empresas,            setEmpresas]             = useState<Empresa[]>([])
+  const [empresaId,           setEmpresaId]            = useState<number | null>(null)
+
+  useEffect(() => {
+    const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+    fetch(`${API}/api/v1/empresa/selector`)
+      .then(r => r.json())
+      .then((lista: Empresa[]) => {
+        setEmpresas(lista)
+      })
+      .catch(() => {})
+  }, [])
 
   const handleProcesar = async () => {
     if (archivosMovimientos.length === 0) return
-
     const toastId = toast.loading('Procesando Catálogo Universal…')
     try {
-      // 🧠 Enfoque Universal: Enviamos solo los binarios, el backend se encarga de la distribución
       const resultado = await subirArchivos(
         archivosMovimientos,
-        archivoSaldos[0] ?? null
+        archivoSaldos[0] ?? null,
+        empresaId ?? undefined,
       )
       if (resultado) {
         toast.success(`Kardex procesado: ${resultado.total_registros ?? 'OK'} registros`, { id: toastId })
@@ -58,8 +80,8 @@ export default function Home() {
     }
   }
 
-  // ✅ CORREGIDO: "listo" ahora solo depende de que se haya cargado el Excel de movimientos
   const listo = archivosMovimientos.length > 0
+  const empresaSeleccionada = empresas.find(e => e.id === empresaId)
 
   const card = (topColor: string): React.CSSProperties => ({
     background: '#0d1525',
@@ -76,7 +98,7 @@ export default function Home() {
 
       <ModalSaldoInicial
         open={modalSaldoOpen}
-        empresaId={1} // Fallback seguro a SIN ASIGNAR para inserciones directas
+        empresaId={empresaId ?? 1}
         onClose={() => setModalSaldoOpen(false)}
         saldoEditar={null}
         onGuardado={() => toast.success('Saldo inicial guardado correctamente')}
@@ -89,8 +111,58 @@ export default function Home() {
               Procesar Kardex Universal
             </h1>
             <p style={{ fontSize: 11, color: '#1e3a5a', marginTop: 2, margin: 0 }}>
-              Importación automática — los productos nuevos nacerán en el limbo contable 'SIN ASIGNAR'
+              {empresaSeleccionada
+                ? `Empresa destino: ${empresaSeleccionada.nombre}`
+                : "Importación automática — productos nuevos irán a SIN ASIGNAR"
+              }
             </p>
+          </div>
+
+          {/* ── Selector de empresa ── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ color: '#2a5a8a', flexShrink: 0 }}><IconBuilding /></span>
+            <div style={{ position: 'relative' as const }}>
+              <select
+                value={empresaId ?? ''}
+                onChange={e => setEmpresaId(e.target.value ? Number(e.target.value) : null)}
+                style={{
+                  background: empresaId ? 'rgba(59,130,246,0.12)' : 'rgba(56,139,221,0.06)',
+                  border: empresaId ? '1px solid rgba(59,130,246,0.35)' : '1px solid rgba(56,139,221,0.18)',
+                  borderRadius: 7,
+                  color: empresaId ? '#60a5fa' : '#4a6a8a',
+                  fontSize: 11,
+                  fontWeight: empresaId ? 600 : 400,
+                  fontFamily: 'inherit',
+                  padding: '5px 28px 5px 10px',
+                  outline: 'none',
+                  cursor: 'pointer',
+                  appearance: 'none' as const,
+                  minWidth: 180,
+                }}
+              >
+                <option value="">Sin empresa (SIN ASIGNAR)</option>
+                {empresas.map(e => (
+                  <option key={e.id} value={e.id}>
+                    {e.nombre} — {e.ruc}
+                  </option>
+                ))}
+              </select>
+              <svg
+                width="10" height="10" viewBox="0 0 24 24" fill="none"
+                stroke={empresaId ? '#60a5fa' : '#4a6a8a'} strokeWidth="2"
+                style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
+              >
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </div>
+            {empresaId && (
+              <button
+                type="button"
+                onClick={() => setEmpresaId(null)}
+                title="Quitar selección"
+                style={{ background: 'none', border: 'none', color: '#4a6a8a', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 2px' }}
+              >×</button>
+            )}
           </div>
         </header>
 
@@ -162,6 +234,11 @@ export default function Home() {
             {!listo && !uploading && (
               <span style={{ fontSize: 12, color: '#1e3a5a' }}>
                 Agrega al menos un archivo de movimientos para activar el motor
+              </span>
+            )}
+            {listo && empresaId && (
+              <span style={{ fontSize: 12, color: '#60a5fa' }}>
+                → Los productos se asignarán a <strong>{empresaSeleccionada?.nombre}</strong>
               </span>
             )}
           </div>

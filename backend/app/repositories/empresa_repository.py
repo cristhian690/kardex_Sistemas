@@ -1,6 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.empresa import Empresa
+from app.models.producto import Producto
+from app.models.movimiento import Movimiento
 
 
 class EmpresaRepository:
@@ -10,7 +12,7 @@ class EmpresaRepository:
 
     async def get_all(self) -> list[Empresa]:
         result = await self.db.execute(
-            select(Empresa).order_by(Empresa.nombre)
+            select(Empresa).order_by(Empresa.id)
         )
         return list(result.scalars().all())
 
@@ -24,6 +26,25 @@ class EmpresaRepository:
         result = await self.db.execute(
             select(Empresa).where(Empresa.ruc == ruc)
         )
+        return result.scalar_one_or_none()
+
+    async def get_by_codigo_producto(
+        self,
+        procesamiento_id: int,
+        codigo:           str | None = None,
+    ) -> Empresa | None:
+        stmt = (
+            select(Empresa)
+            .join(Producto, Producto.empresa_id == Empresa.id)
+            .join(Movimiento, Movimiento.producto_id == Producto.id)
+            .where(Movimiento.procesamiento_id == procesamiento_id)
+            .where(Empresa.id != 1)
+        )
+        if codigo:
+            stmt = stmt.where(Producto.codigo == codigo)
+
+        stmt = stmt.limit(1)
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def crear(self, nombre: str, ruc: str, direccion: str | None) -> Empresa:

@@ -20,7 +20,7 @@ class Producto(Base):
 
     # ── Relaciones con cascadas ────────────────────────────────────────────────
     empresa:          Mapped["Empresa"]            = relationship("Empresa", back_populates="productos")
-    saldo_inicial:    Mapped[list["SaldoInicial"]] = relationship(
+    saldos_iniciales: Mapped[list["SaldoInicial"]] = relationship(
                           "SaldoInicial", back_populates="producto",
                           cascade="all, delete-orphan",
                       )

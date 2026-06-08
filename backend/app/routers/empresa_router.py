@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.services.empresa_service import EmpresaService
@@ -10,6 +10,25 @@ router = APIRouter(prefix="/empresa", tags=["Empresa"])
 @router.get("/", response_model=list[EmpresaResponse])
 async def listar_empresas(db: AsyncSession = Depends(get_db)):
     return await EmpresaService(db).listar()
+
+
+@router.get("/selector", response_model=list[EmpresaResponse])
+async def listar_empresas_selector(db: AsyncSession = Depends(get_db)):
+    """Solo empresas reales, excluye SIN ASIGNAR (id=1)."""
+    empresas = await EmpresaService(db).listar()
+    return [e for e in empresas if e.id != 1]
+
+
+@router.get("/por-procesamiento/{procesamiento_id}", response_model=EmpresaResponse | None)
+async def obtener_empresa_por_procesamiento(
+    procesamiento_id: int,
+    codigo:           str | None = Query(None, description="Código del producto (opcional)"),
+    db:               AsyncSession = Depends(get_db),
+):
+    return await EmpresaService(db).obtener_por_procesamiento(
+        procesamiento_id = procesamiento_id,
+        codigo           = codigo,
+    )
 
 
 @router.get("/{empresa_id}", response_model=EmpresaResponse)
