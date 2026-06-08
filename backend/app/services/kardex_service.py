@@ -203,7 +203,6 @@ class KardexService:
             fecha_hasta      = fecha_hasta,
         )
 
-        # ── Saldo inicial del periodo ─────────────────────────────────────────
         fila_saldo_inicial = None
         codigos_distintos  = list({m.producto.codigo for m in movimientos if m.producto})
         codigo_saldo       = filtros.codigo or (codigos_distintos[0] if len(codigos_distintos) == 1 else None)
@@ -309,7 +308,8 @@ class KardexService:
     # ── Helpers privados ──────────────────────────────────────────────────────
     async def _cargar_saldos_desde_bd(self) -> dict:
         """
-        Carga el saldo inicial vigente de TODOS los productos en el sistema de forma global.
+        Carga todos los saldos vigentes del sistema sin filtrar por empresa.
+        Para cada producto toma el saldo más reciente.
         """
         result = await self.db.execute(
             select(SaldoInicial, Producto)
@@ -318,7 +318,6 @@ class KardexService:
         )
         saldos = {}
         for saldo, producto in result.all():
-            # El ORDER BY asegura quedarnos con el saldo más reciente por código de producto
             if producto.codigo not in saldos:
                 saldos[producto.codigo] = {
                     "fecha":          saldo.fecha,
@@ -328,50 +327,35 @@ class KardexService:
                 }
         return saldos
 
-    async def _persistir_saldos_iniciales(
-        self,
-        saldos:     dict,
-    ) -> None:
+    async def _persistir_saldos_iniciales(self, saldos: dict) -> None:
         from datetime import date as date_type
 
         codigos       = list(saldos.keys())
-        productos_map = await self.producto_repo.get_or_create_bulk(codigos)
+        # Empresa id=1 (SIN ASIGNAR) como fallback
+        productos_map = await self.producto_repo.get_or_create_bulk(codigos, empresa_id=1)
 
-        for codigo, lista_datos in saldos.items():
+        for codigo, datos in saldos.items():
             producto = productos_map[codigo]
-            
-            for datos in lista_datos:
-                fecha = datos.get("fecha") or date_type.today()
-                
-                # Obtenemos los valores en crudo
-                cantidad_raw = Decimal(str(datos["cantidad"]))
-                costo_uni_raw = Decimal(str(datos["costo_unitario"]))
-                costo_tot_raw = Decimal(str(datos["costo_total"]))
+            fecha    = datos.get("fecha") or date_type.today()
+            await self.saldo_repo.upsert(
+                producto_id    = producto.id,
+                fecha          = fecha,
+                cantidad       = Decimal(str(datos["cantidad"])),
+                costo_unitario = Decimal(str(datos["costo_unitario"])),
+                costo_total    = Decimal(str(datos["costo_total"])),
+            )
 
-                # Saneamiento: Si el valor es negativo por un error de precisión, lo forzamos a 0.0
-                cantidad_limpia = max(Decimal("0.0"), cantidad_raw)
-                costo_uni_limpio = max(Decimal("0.0"), costo_uni_raw)
-                costo_tot_limpio = max(Decimal("0.0"), costo_tot_raw)
-
-                await self.saldo_repo.upsert(
-                    producto_id    = producto.id,
-                    fecha          = fecha,
-                    cantidad       = cantidad_limpia,
-                    costo_unitario = costo_uni_limpio,
-                    costo_total    = costo_tot_limpio,
-                )
-                
     async def _persistir_movimientos(
         self,
         df:               pd.DataFrame,
         procesamiento_id: int,
-    ) -> None: 
+    ) -> None:
         codigos_unicos = df["Codigo"].astype(str).str.strip().unique().tolist()
-        
-        # Obtiene o crea globalmente (Nuevos van a ID 1, conocidos mantienen su ID de empresa)
-        productos_map = await self.producto_repo.get_or_create_bulk(codigos_unicos)
+        # Productos nuevos van a empresa id=1 (SIN ASIGNAR)
+        productos_map  = await self.producto_repo.get_or_create_bulk(codigos_unicos, empresa_id=1)
 
         registros = []
+
         for row in df.itertuples(index=False):
             codigo   = str(row.Codigo).strip()
             producto = productos_map[codigo]

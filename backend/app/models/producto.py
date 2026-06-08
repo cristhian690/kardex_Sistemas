@@ -18,12 +18,13 @@ class Producto(Base):
     unidad_medida:     Mapped[str]      = mapped_column(String(20),  nullable=True)
     creado_en:         Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    # ── Relaciones ─────────────────────────────────────────────────────────────
-    empresa:        Mapped["Empresa"]            = relationship("Empresa", back_populates="productos")
-     # FIX CRÍTICO: Cascada completa para saldos_iniciales
-    saldos_iniciales: Mapped[list["SaldoInicial"]] = relationship(
-        "SaldoInicial", 
-        back_populates="producto",
-        cascade="all, delete-orphan"
-    )
-    movimientos:    Mapped[list["Movimiento"]]   = relationship("Movimiento",   back_populates="producto")
+    # ── Relaciones con cascadas ────────────────────────────────────────────────
+    empresa:          Mapped["Empresa"]            = relationship("Empresa", back_populates="productos")
+    saldo_inicial:    Mapped[list["SaldoInicial"]] = relationship(
+                          "SaldoInicial", back_populates="producto",
+                          cascade="all, delete-orphan",
+                      )
+    movimientos:      Mapped[list["Movimiento"]]   = relationship(
+                          "Movimiento", back_populates="producto",
+                          cascade="all, delete-orphan",
+                      )

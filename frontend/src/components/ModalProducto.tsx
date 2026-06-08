@@ -1,37 +1,43 @@
 import { useState, useEffect, useRef } from 'react'
 
-interface ProductoPayload {
-  empresa_id: number
-  codigo: string
-  descripcion: string | null
+interface ProductoCreate {
+  empresa_id:        number
+  codigo:            string
+  descripcion:       string | null
   codigo_existencia: string | null
-  unidad_medida: string | null
+  unidad_medida:     string | null
+}
+
+interface ProductoUpdate {
+  empresa_id?:        number
+  descripcion?:       string | null
+  codigo_existencia?: string | null
+  unidad_medida?:     string | null
 }
 
 interface ProductoExistente {
-  id: number
-  empresa_id: number
-  codigo: string
-  descripcion?: string | null
+  id:                number
+  empresa_id:        number
+  codigo:            string
+  descripcion?:      string | null
   codigo_existencia?: string | null
-  unidad_medida?: string | null
+  unidad_medida?:    string | null
 }
 
 interface Empresa {
-  id: number
+  id:     number
   nombre: string
 }
 
 interface Props {
-  open: boolean
-  onClose: () => void
-  onGuardado?: () => void
+  open:            boolean
+  onClose:         () => void
+  onGuardado?:     () => void
   productoEditar?: ProductoExistente | null
 }
 
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
-// Desempaquetador de errores nativo de FastAPI con tratamiento de arrays
 function parseFastApiError(data: any, status: number): string {
   if (!data?.detail) return `Error ${status}`
   if (typeof data.detail === 'string') return data.detail
@@ -44,59 +50,58 @@ function parseFastApiError(data: any, status: number): string {
   return JSON.stringify(data.detail)
 }
 
-async function crearProducto(payload: ProductoPayload) {
+async function crearProducto(payload: ProductoCreate) {
   const res = await fetch(`${API}/api/v1/productos/`, {
-    method: 'POST',
+    method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body:    JSON.stringify(payload),
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(parseFastApiError(data, res.status))
   return data
 }
 
-async function editarProducto(id: number, payload: ProductoPayload) {
+// ✅ CORREGIDO: PATCH solo envía ProductoUpdate (sin codigo)
+async function editarProducto(id: number, payload: ProductoUpdate) {
   const res = await fetch(`${API}/api/v1/productos/${id}`, {
-    method: 'PATCH', // Usamos PATCH según las especificaciones de tu router
+    method:  'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    body:    JSON.stringify(payload),
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(parseFastApiError(data, res.status))
   return data
 }
 
-/* ── Icons ───────────────────────────────────────────────────────────────── */
 const IconX = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
   </svg>
 )
 const IconCheck = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-    <polyline points="20 6 9 17 4 12" />
+    <polyline points="20 6 9 17 4 12"/>
   </svg>
 )
 const IconSpinner = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ animation: 'mspin 1s linear infinite' }}>
-    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-    <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2"/>
+    <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
     <style>{`@keyframes mspin{to{transform:rotate(360deg)}}`}</style>
   </svg>
 )
 const IconBox = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
   </svg>
 )
 
-/* ── Helpers visuales herederos ─────────────────────────────────────────── */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
       <div style={{
         fontSize: 10, fontWeight: 700, letterSpacing: '.1em',
-        textTransform: 'uppercase', color: '#1e3a5a',
+        textTransform: 'uppercase' as const, color: '#1e3a5a',
         marginBottom: 5, fontFamily: "'IBM Plex Mono', monospace",
       }}>
         {label}
@@ -114,37 +119,34 @@ function Msg({ children, color }: { children: React.ReactNode; color: string }) 
   )
 }
 
-/* ── Componente Principal ─────────────────────────────────────────────────── */
 export default function ModalProducto({ open, onClose, onGuardado, productoEditar }: Props) {
   const modoEditar = !!productoEditar
 
-  const [empresas, setEmpresas] = useState<Empresa[]>([])
+  const [empresas,        setEmpresas]        = useState<Empresa[]>([])
   const [empresaIdSelect, setEmpresaIdSelect] = useState<string>('')
-  const [codigo, setCodigo] = useState('')
-  const [descripcion, setDescripcion] = useState('')
-  const [codExistencia, setCodExistencia] = useState('01') // Mercadería por defecto
-  const [unidadMedida, setUnidadMedida] = useState('NIU')   // Unidades por defecto
+  const [codigo,          setCodigo]          = useState('')
+  const [descripcion,     setDescripcion]     = useState('')
+  const [codExistencia,   setCodExistencia]   = useState('01')
+  const [unidadMedida,    setUnidadMedida]    = useState('NIU')
 
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error,   setError]   = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Cargar catálogo de empresas para asociar el producto
   const cargarEmpresas = async () => {
     try {
       const res = await fetch(`${API}/api/v1/empresa/`)
       if (res.ok) {
         const list: Empresa[] = await res.json()
         setEmpresas(list)
-        // Por defecto seleccionamos la primera o la empresa semilla (ID: 1)
         if (list.length > 0 && !productoEditar) {
           setEmpresaIdSelect(String(list[0].id))
         }
       }
     } catch (e) {
-      console.error("Error obteniendo pool corporativo", e)
+      console.error('Error cargando empresas', e)
     }
   }
 
@@ -152,7 +154,6 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
     if (open) cargarEmpresas()
   }, [open])
 
-  // Cargar estados en base a la acción abierta
   useEffect(() => {
     if (!open) return
 
@@ -175,7 +176,6 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
     setTimeout(() => inputRef.current?.focus(), 80)
   }, [open, productoEditar])
 
-  // Cierre con escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', handler)
@@ -186,22 +186,28 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
 
   const handleGuardar = async () => {
     if (!valido || loading) return
-
     setLoading(true)
     setError(null)
 
-    const payload: ProductoPayload = {
-      empresa_id: Number(empresaIdSelect),
-      codigo: codigo.trim().toUpperCase(),
-      descripcion: descripcion.trim() || null,
-      codigo_existencia: codExistencia.trim() || '01',
-      unidad_medida: unidadMedida.trim() || 'NIU',
-    }
-
     try {
       if (modoEditar && productoEditar) {
+        // ✅ CORREGIDO: PATCH solo envía ProductoUpdate (sin codigo)
+        const payload: ProductoUpdate = {
+          empresa_id:        Number(empresaIdSelect),
+          descripcion:       descripcion.trim() || null,
+          codigo_existencia: codExistencia.trim() || '01',
+          unidad_medida:     unidadMedida.trim() || 'NIU',
+        }
         await editarProducto(productoEditar.id, payload)
       } else {
+        // ✅ POST envía ProductoCreate completo (con codigo)
+        const payload: ProductoCreate = {
+          empresa_id:        Number(empresaIdSelect),
+          codigo:            codigo.trim().toUpperCase(),
+          descripcion:       descripcion.trim() || null,
+          codigo_existencia: codExistencia.trim() || '01',
+          unidad_medida:     unidadMedida.trim() || 'NIU',
+        }
         await crearProducto(payload)
       }
 
@@ -270,7 +276,7 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
                 {modoEditar ? 'Reasignar / Editar Producto' : 'Registrar Nuevo Producto'}
               </div>
               <div style={{ fontSize: 11, color: '#1e3a5a' }}>
-                {modoEditar ? `ID Correlativo: #${productoEditar?.id}` : 'Inserción manual en el maestro corporativo'}
+                {modoEditar ? `Código: ${productoEditar?.codigo}` : 'Inserción manual en el catálogo'}
               </div>
             </div>
           </div>
@@ -279,12 +285,11 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
           </button>
         </div>
 
-        {/* Divider */}
         <div style={{ height: 1, background: 'rgba(56,139,221,0.1)' }} />
 
         {/* Formulario */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          
+
           <Field label="Empresa de Asignación *">
             <select
               className="mprod-input"
@@ -299,18 +304,18 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
             </select>
           </Field>
 
-          <Field label="Código de Existencia *">
+          <Field label="Código *">
             <input
               ref={inputRef}
               className="mprod-input"
               value={codigo}
               onChange={e => setCodigo(e.target.value)}
-              disabled={modoEditar} // Protegemos el código en el catálogo si ya está guardado
+              disabled={modoEditar}
               placeholder="Ej: 011004"
             />
           </Field>
 
-          <Field label="Descripción de Producto">
+          <Field label="Descripción">
             <input
               className="mprod-input"
               value={descripcion}
@@ -320,7 +325,7 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
           </Field>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <Field label="Unidad Medida">
+            <Field label="Unidad de Medida">
               <input
                 className="mprod-input"
                 value={unidadMedida}
@@ -328,7 +333,7 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
                 placeholder="Ej: NIU o KGM"
               />
             </Field>
-            <Field label="Tipo Existencia Sunat">
+            <Field label="Tipo Existencia SUNAT">
               <input
                 className="mprod-input"
                 value={codExistencia}
@@ -339,11 +344,9 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
           </div>
         </div>
 
-        {/* Notificadores */}
-        {error && <Msg color="#fca5a5">✕ {error}</Msg>}
-        {success && <Msg color="#4ade80"><IconCheck /> {modoEditar ? 'Registro reclasificado con éxito' : 'Producto insertado en catálogo'}</Msg>}
+        {error   && <Msg color="#fca5a5">✕ {error}</Msg>}
+        {success && <Msg color="#4ade80"><IconCheck /> {modoEditar ? 'Producto reclasificado' : 'Producto registrado'}</Msg>}
 
-        {/* Botones de acción */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <button
             onClick={onClose}
@@ -359,7 +362,8 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
             onClick={handleGuardar}
             disabled={!valido || loading}
             style={{
-              padding: '7px 18px', borderRadius: 7, cursor: !valido || loading ? 'not-allowed' : 'pointer',
+              padding: '7px 18px', borderRadius: 7,
+              cursor: !valido || loading ? 'not-allowed' : 'pointer',
               background: !valido || loading
                 ? 'rgba(29,78,216,0.3)'
                 : modoEditar
@@ -369,7 +373,7 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
               display: 'inline-flex', alignItems: 'center', gap: 6,
             }}
           >
-            {loading ? <><IconSpinner /> Guardando...</> : modoEditar ? 'Reclasificar ítem' : 'Guardar Producto'}
+            {loading ? <><IconSpinner /> Guardando...</> : modoEditar ? 'Reclasificar' : 'Guardar Producto'}
           </button>
         </div>
 

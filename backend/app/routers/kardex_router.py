@@ -16,12 +16,10 @@ import io
 router = APIRouter(prefix="/kardex", tags=["Kardex"])
 
 
-# ── Subir y procesar archivos ─────────────────────────────────────────────────
 @router.post("/procesar", response_model=UploadResponse, status_code=201)
 async def procesar_kardex(
     movimientos: Annotated[List[UploadFile], File(description="Archivos de movimientos (uno o varios)")],
     saldos:      Annotated[UploadFile | None, File(description="Archivo de saldos iniciales (opcional)")] = None,
-    empresa_id:  int = Query(..., description="ID de la empresa a la que pertenecen los archivos"),
     db:          AsyncSession = Depends(get_db),
 ):
     if not movimientos:
@@ -45,11 +43,9 @@ async def procesar_kardex(
     return await service.procesar_archivos(
         saldo_bytes  = saldo_bytes,
         archivos_mov = archivos_mov,
-        empresa_id   = empresa_id,
     )
 
 
-# ── Consultar kardex con filtros ──────────────────────────────────────────────
 @router.get("/consultar/{procesamiento_id}", response_model=KardexResponse)
 async def consultar_kardex(
     procesamiento_id: int,
@@ -63,8 +59,8 @@ async def consultar_kardex(
 ):
     if fecha_desde and not fecha_hasta and not anio and not mes and not fecha_exacta:
         try:
-            d          = date.fromisoformat(fecha_desde)
-            ultimo_dia = monthrange(d.year, d.month)[1]
+            d           = date.fromisoformat(fecha_desde)
+            ultimo_dia  = monthrange(d.year, d.month)[1]
             fecha_hasta = date(d.year, d.month, ultimo_dia).isoformat()
             print(f"⚠️  fecha_hasta auto-completada: {fecha_hasta}")
         except Exception:
@@ -88,7 +84,6 @@ async def consultar_kardex(
     )
 
 
-# ── Historial de procesamientos ───────────────────────────────────────────────
 @router.get("/historial", response_model=list[ProcesamientoResumen])
 async def get_historial(
     limit:  int = Query(20, ge=1, le=100),
@@ -99,7 +94,6 @@ async def get_historial(
     return await service.get_historial(limit=limit, offset=offset)
 
 
-# ── Exportar a Excel ──────────────────────────────────────────────────────────
 @router.get("/exportar/{procesamiento_id}")
 async def exportar_excel(
     procesamiento_id: int,

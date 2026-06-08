@@ -122,7 +122,6 @@ export default function SaldosIniciales() {
       setSelectedIds(new Set(saldos.map(s => s.id)))
     }
   }
-
   const allSelected  = saldos.length > 0 && selectedIds.size === saldos.length
   const hasSelection = selectedIds.size > 0
 
