@@ -82,7 +82,6 @@ class KardexService:
         self.procesamiento_repo = ProcesamientoRepository(db)
         self.movimiento_repo    = MovimientoRepository(db)
 
-    # ── Carga y procesamiento de archivos ─────────────────────────────────────
     async def procesar_archivos(
         self,
         saldo_bytes:  bytes | None,
@@ -91,10 +90,8 @@ class KardexService:
     ) -> UploadResponse:
         inicio_total = time.time()
 
-        # ── 1. Parsear saldos iniciales ───────────────────────────────────────
         t0 = time.time()
         saldos_iniciales = {}
-
         if saldo_bytes:
             saldos_iniciales = parsear_saldos_iniciales(saldo_bytes)
             await self._persistir_saldos_iniciales(saldos_iniciales, empresa_id=empresa_id)
@@ -102,7 +99,6 @@ class KardexService:
             saldos_iniciales = await self._cargar_saldos_desde_bd()
         print(f"⏱️  [1] Saldos iniciales: {time.time() - t0:.2f}s")
 
-        # ── 2. Parsear movimientos ────────────────────────────────────────────
         t0 = time.time()
         frames = {}
         for filename, file_bytes in archivos_mov:
@@ -112,7 +108,6 @@ class KardexService:
             frames[filename] = df
         print(f"⏱️  [2] Parseo Excel: {time.time() - t0:.2f}s")
 
-        # ── 3. Detectar duplicados ────────────────────────────────────────────
         duplicados = detectar_duplicados(frames)
         if duplicados:
             codigos = list(duplicados.keys())
@@ -120,18 +115,15 @@ class KardexService:
                 f"Códigos duplicados en múltiples archivos: {', '.join(codigos)}"
             )
 
-        # ── 4. Unir y calcular ────────────────────────────────────────────────
         t0 = time.time()
         df_all = pd.concat(frames.values(), ignore_index=True)
         df_all, alertas = calcular_saldo_final(df_all, saldos_iniciales)
         print(f"⏱️  [4] Cálculo saldo: {time.time() - t0:.2f}s")
 
-        # ── 5. Verificar integridad ───────────────────────────────────────────
         t0 = time.time()
         df_all = verificar_integridad(df_all)
         print(f"⏱️  [5] Verificación: {time.time() - t0:.2f}s")
 
-        # ── 6. Determinar estado ──────────────────────────────────────────────
         tiene_saldo_negativo = len(alertas.saldo_negativo) > 0
         tiene_alertas_leves  = (
             len(alertas.sin_saldo_inicial) > 0 or
@@ -145,9 +137,7 @@ class KardexService:
         else:
             estado = "procesado"
 
-        # ── 7. Persistir en BD ────────────────────────────────────────────────
         t0 = time.time()
-
         archivos   = [f for f, _ in archivos_mov]
         total_arch = len(archivos)
         if total_arch == 1:
@@ -180,7 +170,6 @@ class KardexService:
             alertas              = alertas,
         )
 
-    # ── Consulta del kardex con filtros ───────────────────────────────────────
     async def get_kardex(
         self,
         procesamiento_id: int,
@@ -301,17 +290,11 @@ class KardexService:
             movimientos        = movimientos_response,
         )
 
-    # ── Historial de procesamientos ───────────────────────────────────────────
     async def get_historial(self, limit: int = 20, offset: int = 0) -> list[ProcesamientoResumen]:
         procesamientos = await self.procesamiento_repo.get_historial(limit=limit, offset=offset)
         return [ProcesamientoResumen.model_validate(p) for p in procesamientos]
 
-    # ── Helpers privados ──────────────────────────────────────────────────────
     async def _cargar_saldos_desde_bd(self) -> dict:
-        """
-        Carga todos los saldos vigentes del sistema sin filtrar por empresa.
-        Para cada producto toma el saldo más reciente.
-        """
         result = await self.db.execute(
             select(SaldoInicial, Producto)
             .join(Producto, SaldoInicial.producto_id == Producto.id)
@@ -334,16 +317,25 @@ class KardexService:
         codigos       = list(saldos.keys())
         productos_map = await self.producto_repo.get_or_create_bulk(codigos, empresa_id=empresa_id)
 
-        for codigo, datos in saldos.items():
+        for codigo, valor in saldos.items():
             producto = productos_map[codigo]
-            fecha    = datos.get("fecha") or date_type.today()
-            await self.saldo_repo.upsert(
-                producto_id    = producto.id,
-                fecha          = fecha,
-                cantidad       = Decimal(str(datos["cantidad"])),
-                costo_unitario = Decimal(str(datos["costo_unitario"])),
-                costo_total    = Decimal(str(datos["costo_total"])),
-            )
+
+            # parsear_saldos_iniciales devuelve lista; _cargar_saldos_desde_bd devuelve dict
+            registros = valor if isinstance(valor, list) else [valor]
+
+            for datos in registros:
+                fecha          = datos.get("fecha") or date_type.today()
+                # ── Clamp negativos a 0 (precisión flotante del Excel) ──
+                cantidad       = max(Decimal("0"), Decimal(str(datos["cantidad"])))
+                costo_unitario = max(Decimal("0"), Decimal(str(datos["costo_unitario"])))
+                costo_total    = max(Decimal("0"), Decimal(str(datos["costo_total"])))
+                await self.saldo_repo.upsert(
+                    producto_id    = producto.id,
+                    fecha          = fecha,
+                    cantidad       = cantidad,
+                    costo_unitario = costo_unitario,
+                    costo_total    = costo_total,
+                )
 
     async def _persistir_movimientos(
         self,

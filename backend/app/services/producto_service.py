@@ -12,17 +12,14 @@ class ProductoService:
         self.db            = db
         self.producto_repo = ProductoRepository(db)
 
-    
-    # ── Método para crear productos manualmente ────────────────────────
+    # ── Crear ─────────────────────────────────────────────────────────────────
     async def crear(self, data: ProductoCreate) -> ProductoResponse:
-        # Forzamos formato estándar limpio
         codigo_limpio = data.codigo.strip().upper()
 
-        # Validamos restricción UniqueConstraint(empresa_id, codigo)
         existente = await self.producto_repo.get_by_codigo_y_empresa(codigo_limpio, data.empresa_id)
         if existente:
             raise KardexException(
-                f"El código de producto '{codigo_limpio}' ya está registrado en esa empresa.",
+                f"El codigo de producto '{codigo_limpio}' ya esta registrado en esa empresa.",
                 status_code=400
             )
 
@@ -34,9 +31,6 @@ class ProductoService:
             unidad_medida=data.unidad_medida.strip() if data.unidad_medida else None,
         )
 
-        # FIX ABSOLUTO: Clonamos los campos planos del producto en un diccionario 
-        # y le inyectamos manualmente la lista vacía de saldos.
-        # Al pasarle un diccionario puro a Pydantic, SQLAlchemy queda fuera del juego.
         producto_dict = {
             "id": producto.id,
             "empresa_id": producto.empresa_id,
@@ -45,19 +39,18 @@ class ProductoService:
             "codigo_existencia": producto.codigo_existencia,
             "unidad_medida": producto.unidad_medida,
             "creado_en": producto.creado_en,
-            "saldos_iniciales": [] # Sabes con certeza que está vacío
+            "saldos_iniciales": []
         }
 
         return ProductoResponse.model_validate(producto_dict)
-    
-    
+
     # ── Listar ────────────────────────────────────────────────────────────────
     async def listar(
         self,
         limit:      int        = 100,
         offset:     int        = 0,
         search:     str | None = None,
-        empresa_id: int | None = None,   # ✅ NUEVO: filtrar por empresa
+        empresa_id: int | None = None,
     ) -> dict:
         productos = await self.producto_repo.get_all(
             limit=limit,
@@ -75,7 +68,7 @@ class ProductoService:
             "productos": [ProductoResponse.model_validate(p) for p in productos],
         }
 
-    # ── Obtener uno con estadísticas ──────────────────────────────────────────
+    # ── Obtener uno con estadisticas ──────────────────────────────────────────
     async def obtener(self, producto_id: int) -> ProductoConEstadisticas:
         producto = await self.producto_repo.get_by_id(producto_id)
         if not producto:
@@ -101,26 +94,22 @@ class ProductoService:
         producto_id: int,
         data:        ProductoUpdate,
     ) -> ProductoResponse:
-        
-        # 1. Obtener el estado actual del producto para saber su código y empresa actuales
         producto_actual = await self.producto_repo.get_by_id(producto_id)
         if not producto_actual:
             raise KardexException(f"Producto #{producto_id} no encontrado.", status_code=404)
 
-        # 2. NUEVO: Validar colisión de códigos si se está cambiando de empresa
         if data.empresa_id is not None and data.empresa_id != producto_actual.empresa_id:
             existente_destino = await self.producto_repo.get_by_codigo_y_empresa(
-                producto_actual.codigo, 
+                producto_actual.codigo,
                 data.empresa_id
             )
             if existente_destino:
                 raise KardexException(
-                    f"No se puede reasignar el producto. El código '{producto_actual.codigo}' "
+                    f"No se puede reasignar el producto. El codigo '{producto_actual.codigo}' "
                     f"ya existe en la empresa destino.",
                     status_code=400
                 )
 
-        # 3. Proceder con la actualización en el repositorio si todo está limpio
         producto = await self.producto_repo.update(
             producto_id       = producto_id,
             empresa_id        = data.empresa_id,
@@ -133,11 +122,6 @@ class ProductoService:
 
     # ── Eliminar ──────────────────────────────────────────────────────────────
     async def eliminar(self, producto_id: int) -> dict:
-        """
-        Solo permite eliminar si el producto no tiene movimientos.
-        Un producto con movimientos no puede borrarse — implicaría
-        borrar historial contable.
-        """
         total_mov = await self.producto_repo.count_movimientos(producto_id)
         if total_mov > 0:
             raise KardexException(
