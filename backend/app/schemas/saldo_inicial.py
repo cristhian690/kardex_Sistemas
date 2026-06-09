@@ -40,6 +40,7 @@ class SaldoInicialUpdate(BaseModel):
 
 class SaldoInicialResponse(BaseModel):
     id:             int
+    empresa_id:     int
     producto_id:    int
     codigo:         str
     descripcion:    Optional[str]
