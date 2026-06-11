@@ -65,6 +65,15 @@ const IconSaldos = () => (
     <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
   </svg>
 )
+const IconEmpresa = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="4" y="2" width="16" height="20" rx="1"/>
+    <line x1="9" y1="6" x2="9.01" y2="6"/><line x1="15" y1="6" x2="15.01" y2="6"/>
+    <line x1="9" y1="10" x2="9.01" y2="10"/><line x1="15" y1="10" x2="15.01" y2="10"/>
+    <line x1="9" y1="14" x2="9.01" y2="14"/><line x1="15" y1="14" x2="15.01" y2="14"/>
+    <path d="M9 22v-4h6v4"/>
+  </svg>
+)
 const IconSpinner = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ animation: 'kspin 1s linear infinite' }}>
     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2"/>
@@ -82,6 +91,7 @@ interface SidebarProps {
   currentPath: string
 }
 
+// ✅ Sidebar interno del Kardex — sin Verificación ni Exportar
 const Sidebar = ({ id, onNavigate, currentPath }: SidebarProps) => {
   const navItem = (
     label: string,
@@ -145,12 +155,11 @@ const Sidebar = ({ id, onNavigate, currentPath }: SidebarProps) => {
 
       <div style={{ height: 1, background: 'rgba(56,139,221,0.08)', margin: '10px 0' }} />
 
+      {/* ✅ Sección Análisis — solo Movimientos, sin Verificación ni Exportar */}
       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>
         Análisis
       </div>
-      {navItem('Movimientos',   <IconList />,     `/kardex/${id}`,   true)}
-      {navItem('Verificación',  <IconShield />,   `/kardex/${id}`,   false)}
-      {navItem('Exportar',      <IconDownload />, `/kardex/${id}`,   false)}
+      {navItem('Movimientos', <IconList />, `/kardex/${id}`, true)}
 
       <div style={{ height: 1, background: 'rgba(56,139,221,0.08)', margin: '10px 0' }} />
 
@@ -158,7 +167,8 @@ const Sidebar = ({ id, onNavigate, currentPath }: SidebarProps) => {
         Sistema
       </div>
       {navItem('Saldos',    <IconSaldos />,   '/saldos',    currentPath === '/saldos')}
-      {navItem('Empresas',  <IconProducts />, '/empresas',  currentPath === '/empresas')}
+      {navItem('Productos', <IconProducts />, '/productos', currentPath === '/productos')}
+      {navItem('Empresas',  <IconEmpresa />,  '/empresas',  currentPath === '/empresas')}
     </aside>
   )
 }
@@ -249,7 +259,6 @@ export default function Kardex() {
   const [codigo,          setCodigo]          = useState('')
   const [filtroFecha,     setFiltroFecha]     = useState<IFiltroFecha>({ modo: 'anio_mes' })
 
-  // ═══ Datos de empresa para el encabezado de impresión SUNAT ═══
   const [empresaImpresion, setEmpresaImpresion] = useState<{
     razon_social: string
     ruc: string
@@ -309,16 +318,15 @@ export default function Kardex() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-const handleExportar = () =>
-  descargarExcel(
-    codigo || undefined,
-    filtroFecha.anio,
-    filtroFecha.mes,
-    filtroFecha.fecha_desde,
-    filtroFecha.fecha_hasta,
-  )
+  const handleExportar = () =>
+    descargarExcel(
+      codigo || undefined,
+      filtroFecha.anio,
+      filtroFecha.mes,
+      filtroFecha.fecha_desde,
+      filtroFecha.fecha_hasta,
+    )
 
-  // ═══ Imprimir (con preparación de todas las filas) ═══
   const handleImprimir = () => {
     ;(window as any).__kardexPrepararImpresion?.()
     setTimeout(() => {
@@ -329,7 +337,6 @@ const handleExportar = () =>
     }, 300)
   }
 
-  // ═══ Descripción de filtros aplicados para impresión ═══
   const filtrosAplicadosTexto = useMemo(() => {
     const partes: string[] = []
     if (codigo) partes.push(`Código: ${codigo}`)
@@ -355,16 +362,12 @@ const handleExportar = () =>
     return Array.from(set) as string[]
   }, [movimientos])
 
-// ✅ ENFOQUE UNIVERSAL: Sincroniza la metadata de impresión desde los datos reales del backend
   useEffect(() => {
-    // Si no hay movimientos cargados, no hay nada que mapear
     if (movimientos.length === 0) {
       setEmpresaImpresion(null)
       return
     }
 
-    // Buscamos el primer movimiento válido que contenga la información de la empresa
-    // Priorizamos el código filtrado, si no, tomamos el primer registro de la tabla
     const movimientoMeta = movimientos.find(m => m.codigo === codigo) || movimientos[0]
 
     if (movimientoMeta?.producto?.empresa) {
@@ -379,7 +382,6 @@ const handleExportar = () =>
         metodo_valuacion: 'COSTO PROMEDIO (CPP)',
       })
     } else {
-      // Fallback si el producto aún está en 'SIN ASIGNAR'
       setEmpresaImpresion({
         razon_social: '⚠️ PENDIENTE DE ASIGNAR',
         ruc: '00000000000',
@@ -436,8 +438,6 @@ const handleExportar = () =>
             size: A4 landscape;
             margin: 8mm 6mm;
           }
-
-          /* ── Ocultar todo lo que no debe imprimirse ── */
           .kardex-no-print,
           .kardex-metrics-web,
           .kardex-print-metrics,
@@ -451,12 +451,10 @@ const handleExportar = () =>
             margin: 0 !important;
             border: none !important;
           }
-          /* Forzar ocultado incluso con style inline */
           [class*="kardex-no-print"],
           [class*="kardex-metrics-web"] {
             display: none !important;
           }
-
           body, html {
             background: white !important;
             color: black !important;
@@ -477,20 +475,16 @@ const handleExportar = () =>
             border-color: #ccc !important;
             box-shadow: none !important;
           }
-
           .kardex-print-header {
             display: block !important;
             padding: 0 !important;
             margin-bottom: 5px !important;
           }
-
-          /* ═══ ENCABEZADO AUDITORÍA V3 ═══ */
           .hdr-wrap {
             width: 100% !important;
             font-family: Arial, sans-serif !important;
             margin-bottom: 8px !important;
           }
-          /* Casilla periodo — pequeña, esquina derecha */
           .hdr-periodo-box {
             border-collapse: collapse !important;
             font-size: 7px !important;
@@ -538,13 +532,11 @@ const handleExportar = () =>
             font-weight: 700 !important;
             letter-spacing: .04em !important;
           }
-          /* Línea separadora doble */
           .hdr-divider {
             border: none !important;
             border-top: 3px double #333 !important;
             margin: 4px 0 6px 0 !important;
           }
-          /* Campos en 2 columnas */
           .hdr-campos {
             width: 100% !important;
             border-collapse: collapse !important;
@@ -575,7 +567,6 @@ const handleExportar = () =>
             font-weight: 700 !important;
             padding-bottom: 1px !important;
           }
-
           .kardex-print-area table.kardex-mov-table,
           .kardex-print-area table:not(.sunat-header-table) {
             width: 100% !important;
@@ -609,10 +600,8 @@ const handleExportar = () =>
             color: black !important;
             font-size: 8px !important;
           }
-
           .kardex-print-area svg { display: none !important; }
           .kardex-print-area .pag-controls { display: none !important; }
-
           .kardex-print-metrics {
             display: grid !important;
             grid-template-columns: repeat(4, 1fr) !important;
@@ -657,7 +646,7 @@ const handleExportar = () =>
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
 
-          {/* ── TOPBAR (oculto en impresión) ── */}
+          {/* ── TOPBAR ── */}
           <header className="kardex-no-print" style={{
             height: 52, flexShrink: 0,
             display: 'flex', alignItems: 'center',
@@ -768,14 +757,11 @@ const handleExportar = () =>
             {/* ═══ ENCABEZADO AUDITORÍA — SOLO IMPRESIÓN ═══ */}
             <div className="kardex-print-only kardex-print-header">
               <div className="hdr-wrap">
-
-                {/* Fila superior: título izquierda + casilla periodo derecha */}
                 <div className="hdr-top">
                   <div className="hdr-titulo">
                     REGISTRO DE INVENTARIO
                     <span>PERMANENTE VALORIZADO</span>
                   </div>
-
                   <table className="hdr-periodo-box">
                     <thead>
                       <tr><th colSpan={3}>PERIODO DE REPORTE</th></tr>
@@ -794,11 +780,7 @@ const handleExportar = () =>
                     </tbody>
                   </table>
                 </div>
-
-                {/* Línea doble separadora */}
                 <hr className="hdr-divider" />
-
-                {/* Campos en 2 columnas */}
                 <table className="hdr-campos">
                   <tbody>
                     <tr>
@@ -832,11 +814,10 @@ const handleExportar = () =>
                     </tr>
                   </tbody>
                 </table>
-
               </div>
             </div>
 
-            {/* Alertas (ocultas en impresión) */}
+            {/* Alertas */}
             <div className="kardex-no-print">
               {alertas && <AlertaBanner alertas={alertas} erroresIntegridad={erroresIntegridad} />}
             </div>
@@ -905,7 +886,7 @@ const handleExportar = () =>
               </div>
             )}
 
-            {/* ── Filtros (ocultos en impresión) ── */}
+            {/* ── Filtros ── */}
             {filtrosAbiertos && (
               <div className="kardex-no-print" style={{
                 background: '#0d1525',
@@ -979,7 +960,6 @@ const handleExportar = () =>
                         <option key={a} value={a}>{a}</option>
                       ))}
                     </select>
-
                     <select
                       value={draftFiltroFecha.mes ?? ''}
                       onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, mes: e.target.value ? Number(e.target.value) : undefined })}
@@ -1040,7 +1020,7 @@ const handleExportar = () =>
               </div>
             )}
 
-            {/* ── Badges (ocultos en impresión) ── */}
+            {/* ── Badges ── */}
             <div className="kardex-no-print">
               {codigosVisibles.length > 0 && (
                 <BadgeProducto codigos={codigosVisibles} />
@@ -1066,7 +1046,6 @@ const handleExportar = () =>
               border: '1px solid rgba(56,139,221,0.1)',
               borderRadius: 10, overflow: 'hidden',
             }}>
-              {/* Toolbar (oculto en impresión) */}
               <div className="kardex-no-print" style={{
                 padding: '10px 14px',
                 borderBottom: '1px solid rgba(56,139,221,0.08)',
