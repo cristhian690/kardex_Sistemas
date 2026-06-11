@@ -4,6 +4,27 @@ from decimal import Decimal
 from typing import Literal, Optional
 
 
+#Esquema perezoso de Empresa para la relación anidada
+class EmpresaKardexOut(BaseModel):
+    id: int
+    nombre: str
+    ruc: str
+
+    model_config = {"from_attributes": True}
+
+
+#Esquema perezoso de Producto para la relación anidada
+class ProductoKardexOut(BaseModel):
+    id: int
+    codigo: str
+    descripcion: Optional[str] = None
+    codigo_existencia: Optional[str] = None
+    unidad_medida: Optional[str] = None
+    empresa: Optional[EmpresaKardexOut] = None  #INYECTA LA EMPRESA
+
+    model_config = {"from_attributes": True}
+
+
 class MovimientoBase(BaseModel):
     fecha:            date
     tipo_comprobante: int
@@ -46,17 +67,20 @@ class MovimientoResponse(MovimientoBase):
     error_a:        bool   # calculado vs original
     error_b:        bool   # consistencia interna
 
-    costo_reconstruido: bool = False
-
+    costo_reconstruido: bool = False  # Nuevo flag para indicar reconstrucción de costo
     # Semáforo calculado en runtime (no viene de BD)
     semaforo: Literal["🟢", "🟡", "🔴", "⚫"] = "🟢"
 
     # Número de fila calculado en runtime (NO persistido)
     fila: int = 0
-
+    
     creado_en: datetime
 
-    # identifica la fila sintética de saldo inicial
+    # NUEVO: identifica la fila sintética de saldo inicial
     es_saldo_inicial: bool = False
+
+    # EL FIX MAESTRO PARA FASTAPI:
+    # Registramos la propiedad para que Pydantic permita serializar el join
+    producto: Optional[ProductoKardexOut] = None 
 
     model_config = {"from_attributes": True}

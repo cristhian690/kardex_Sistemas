@@ -1,12 +1,18 @@
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
 from app.core.database import get_db
 from app.services.producto_service import ProductoService
 from app.schemas.producto import ProductoResponse, ProductoConEstadisticas, ProductoUpdate, ProductoCreate
 
 router = APIRouter(prefix="/productos", tags=["Productos"])
 
-# EndPoint para crear un producto de manera manual
+
+class BulkDeleteRequest(BaseModel):
+    ids: list[int]
+
+
+# ── Crear ─────────────────────────────────────────────────────────────────────
 @router.post("/", response_model=ProductoResponse, status_code=status.HTTP_201_CREATED)
 async def crear_producto(
     data: ProductoCreate,
@@ -18,6 +24,7 @@ async def crear_producto(
     """
     service = ProductoService(db)
     return await service.crear(data)
+
 
 # ── Listar ────────────────────────────────────────────────────────────────────
 @router.get("/")
@@ -66,13 +73,28 @@ async def actualizar_producto(
     """
     Actualiza los campos editables de un producto:
     descripcion, codigo_existencia, unidad_medida.
-    - Permite cambiar la `empresa_id` para reclasificar productos (ej: de 'SIN ASIGNAR' a otra empresa real).
+    - Permite cambiar la `empresa_id` para reclasificar productos.
     """
     service = ProductoService(db)
     return await service.actualizar(producto_id, data)
 
 
-# ── Eliminar ──────────────────────────────────────────────────────────────────
+# ── Eliminar en masa ──────────────────────────────────────────────────────────
+@router.delete("/bulk")
+async def eliminar_productos_bulk(
+    data: BulkDeleteRequest,
+    db:   AsyncSession = Depends(get_db),
+):
+    """
+    Elimina múltiples productos por ID.
+    - Solo elimina los que no tienen movimientos registrados.
+    - Devuelve lista de eliminados y lista de errores.
+    """
+    service = ProductoService(db)
+    return await service.eliminar_bulk(data.ids)
+
+
+# ── Eliminar individual ───────────────────────────────────────────────────────
 @router.delete("/{producto_id}")
 async def eliminar_producto(
     producto_id: int,

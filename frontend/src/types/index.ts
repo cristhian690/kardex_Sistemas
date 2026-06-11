@@ -5,7 +5,13 @@ export interface Empresa {
   ruc:       string
   direccion: string | null
   creado_en: string
-}
+
+  // Metadata opcional para el reporte SUNAT impreso
+  establecimiento?:   string
+  tipo?:              string
+  metodo_valuacion?:  string
+  codigo_existencia?: string
+} 
 
 export interface EmpresaCreate {
   nombre:    string
@@ -65,6 +71,7 @@ export interface Producto {
   codigo_existencia: string | null
   unidad_medida:     string | null
   creado_en:         string
+  empresa?:          Empresa
 }
 
 // ── Saldo Inicial ─────────────────────────────────────────────────────────────
@@ -101,6 +108,7 @@ export interface Movimiento {
   orig_ent_costo_total: number
   orig_sal_costo_unit:  number
   orig_sal_costo_total: number
+  producto?:            Producto
 }
 
 // ── Fila del Kardex ───────────────────────────────────────────────────────────

@@ -136,3 +136,29 @@ class ProductoService:
             raise KardexException(f"Producto #{producto_id} no encontrado.", status_code=404)
 
         return {"mensaje": f"Producto #{producto_id} eliminado correctamente."}
+
+    # ── Eliminar en masa ──────────────────────────────────────────────────────
+    async def eliminar_bulk(self, ids: list[int]) -> dict:
+        eliminados = []
+        errores    = []
+
+        for producto_id in ids:
+            total_mov = await self.producto_repo.count_movimientos(producto_id)
+            if total_mov > 0:
+                errores.append({
+                    "id":     producto_id,
+                    "motivo": f"Tiene {total_mov} movimiento(s) registrado(s)."
+                })
+                continue
+
+            eliminado = await self.producto_repo.delete(producto_id)
+            if not eliminado:
+                errores.append({"id": producto_id, "motivo": "No encontrado."})
+            else:
+                eliminados.append(producto_id)
+
+        return {
+            "eliminados":       eliminados,
+            "total_eliminados": len(eliminados),
+            "errores":          errores,
+        }

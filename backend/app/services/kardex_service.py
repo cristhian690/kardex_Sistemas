@@ -82,23 +82,26 @@ class KardexService:
         self.procesamiento_repo = ProcesamientoRepository(db)
         self.movimiento_repo    = MovimientoRepository(db)
 
+    # ── Carga y procesamiento de archivos ─────────────────────────────────────
     async def procesar_archivos(
         self,
         saldo_bytes:  bytes | None,
         archivos_mov: list[tuple[str, bytes]],
-        empresa_id:   int | None = None,
     ) -> UploadResponse:
         inicio_total = time.time()
 
+        # ── 1. Parsear saldos iniciales ───────────────────────────────────────
         t0 = time.time()
         saldos_iniciales = {}
+
         if saldo_bytes:
             saldos_iniciales = parsear_saldos_iniciales(saldo_bytes)
-            await self._persistir_saldos_iniciales(saldos_iniciales, empresa_id=empresa_id)
+            await self._persistir_saldos_iniciales(saldos_iniciales)
         else:
             saldos_iniciales = await self._cargar_saldos_desde_bd()
         print(f"⏱️  [1] Saldos iniciales: {time.time() - t0:.2f}s")
 
+        # ── 2. Parsear movimientos ────────────────────────────────────────────
         t0 = time.time()
         frames = {}
         for filename, file_bytes in archivos_mov:
@@ -108,6 +111,7 @@ class KardexService:
             frames[filename] = df
         print(f"⏱️  [2] Parseo Excel: {time.time() - t0:.2f}s")
 
+        # ── 3. Detectar duplicados ────────────────────────────────────────────
         duplicados = detectar_duplicados(frames)
         if duplicados:
             codigos = list(duplicados.keys())
@@ -115,15 +119,18 @@ class KardexService:
                 f"Códigos duplicados en múltiples archivos: {', '.join(codigos)}"
             )
 
+        # ── 4. Unir y calcular ────────────────────────────────────────────────
         t0 = time.time()
         df_all = pd.concat(frames.values(), ignore_index=True)
         df_all, alertas = calcular_saldo_final(df_all, saldos_iniciales)
         print(f"⏱️  [4] Cálculo saldo: {time.time() - t0:.2f}s")
 
+        # ── 5. Verificar integridad ───────────────────────────────────────────
         t0 = time.time()
         df_all = verificar_integridad(df_all)
         print(f"⏱️  [5] Verificación: {time.time() - t0:.2f}s")
 
+        # ── 6. Determinar estado ──────────────────────────────────────────────
         tiene_saldo_negativo = len(alertas.saldo_negativo) > 0
         tiene_alertas_leves  = (
             len(alertas.sin_saldo_inicial) > 0 or
@@ -137,7 +144,9 @@ class KardexService:
         else:
             estado = "procesado"
 
+        # ── 7. Persistir en BD ────────────────────────────────────────────────
         t0 = time.time()
+
         archivos   = [f for f, _ in archivos_mov]
         total_arch = len(archivos)
         if total_arch == 1:
@@ -157,7 +166,7 @@ class KardexService:
         print(f"⏱️  [7a] Crear procesamiento: {time.time() - t0:.2f}s")
 
         t0 = time.time()
-        await self._persistir_movimientos(df_all, procesamiento.id, empresa_id=empresa_id)
+        await self._persistir_movimientos(df_all, procesamiento.id)
         print(f"⏱️  [7b] Persistir movimientos: {time.time() - t0:.2f}s")
 
         print(f"✅ TOTAL: {time.time() - inicio_total:.2f}s para {len(df_all)} registros")
@@ -170,6 +179,7 @@ class KardexService:
             alertas              = alertas,
         )
 
+    # ── Consulta del kardex con filtros ───────────────────────────────────────
     async def get_kardex(
         self,
         procesamiento_id: int,
@@ -193,6 +203,7 @@ class KardexService:
             fecha_hasta      = fecha_hasta,
         )
 
+        # ── Saldo inicial del periodo ─────────────────────────────────────────
         fila_saldo_inicial = None
         codigos_distintos  = list({m.producto.codigo for m in movimientos if m.producto})
         codigo_saldo       = filtros.codigo or (codigos_distintos[0] if len(codigos_distintos) == 1 else None)
@@ -210,6 +221,10 @@ class KardexService:
                 procesamiento_id, codigo_saldo, antes_de, saldo_cant, saldo_total
             )
 
+            # Inyectamos el producto al saldo inicial sintético si existe en el primer movimiento
+            if fila_saldo_inicial and movimientos:
+                fila_saldo_inicial.producto = movimientos[0].producto
+
         elif fecha_desde and codigo_saldo:
             mov_anterior = await self.movimiento_repo.get_saldo_anterior(
                 procesamiento_id = procesamiento_id,
@@ -221,6 +236,9 @@ class KardexService:
             fila_saldo_inicial = _build_fila_saldo_inicial(
                 procesamiento_id, codigo_saldo, fecha_desde, saldo_cant, saldo_total
             )
+
+            if fila_saldo_inicial and movimientos:
+                fila_saldo_inicial.producto = movimientos[0].producto
 
         if not movimientos and fila_saldo_inicial is None:
             raise KardexException("No se encontraron movimientos con los filtros aplicados.")
@@ -264,10 +282,12 @@ class KardexService:
                 and float(m.sal_costo_unit) > 0
             )
 
+        # CONSTRUCCIÓN CORREGIDA CON INYECCIÓN DE LA RELACIÓN 'PRODUCTO'
         movimientos_response = [
             MovimientoResponse(
                 **{c.key: getattr(m, c.key) for c in m.__table__.columns},
                 codigo             = m.producto.codigo if m.producto else None,
+                producto           = m.producto if m.producto else None, # 🟢 El fix del objeto anidado
                 semaforo           = calcular_semaforo(m),
                 fila               = idx + 1,
                 costo_reconstruido = es_costo_reconstruido(m),
@@ -290,11 +310,16 @@ class KardexService:
             movimientos        = movimientos_response,
         )
 
+    # ── Historial de procesamientos ───────────────────────────────────────────
     async def get_historial(self, limit: int = 20, offset: int = 0) -> list[ProcesamientoResumen]:
         procesamientos = await self.procesamiento_repo.get_historial(limit=limit, offset=offset)
         return [ProcesamientoResumen.model_validate(p) for p in procesamientos]
 
+    # ── Helpers privados ──────────────────────────────────────────────────────
     async def _cargar_saldos_desde_bd(self) -> dict:
+        """
+        Carga el saldo inicial vigente de TODOS los productos en el sistema de forma global.
+        """
         result = await self.db.execute(
             select(SaldoInicial, Producto)
             .join(Producto, SaldoInicial.producto_id == Producto.id)
@@ -302,6 +327,7 @@ class KardexService:
         )
         saldos = {}
         for saldo, producto in result.all():
+            # El ORDER BY asegura quedarnos con el saldo más reciente por código de producto
             if producto.codigo not in saldos:
                 saldos[producto.codigo] = {
                     "fecha":          saldo.fecha,
@@ -311,43 +337,50 @@ class KardexService:
                 }
         return saldos
 
-    async def _persistir_saldos_iniciales(self, saldos: dict, empresa_id: int | None = None) -> None:
+    async def _persistir_saldos_iniciales(
+        self,
+        saldos:     dict,
+    ) -> None:
         from datetime import date as date_type
 
         codigos       = list(saldos.keys())
-        productos_map = await self.producto_repo.get_or_create_bulk(codigos, empresa_id=empresa_id)
+        productos_map = await self.producto_repo.get_or_create_bulk(codigos)
 
-        for codigo, valor in saldos.items():
+        for codigo, lista_datos in saldos.items():
             producto = productos_map[codigo]
+            
+            for datos in lista_datos:
+                fecha = datos.get("fecha") or date_type.today()
+                
+                # Obtenemos los valores en crudo
+                cantidad_raw = Decimal(str(datos["cantidad"]))
+                costo_uni_raw = Decimal(str(datos["costo_unitario"]))
+                costo_tot_raw = Decimal(str(datos["costo_total"]))
 
-            # parsear_saldos_iniciales devuelve lista; _cargar_saldos_desde_bd devuelve dict
-            registros = valor if isinstance(valor, list) else [valor]
+                # Saneamiento: Si el valor es negativo por un error de precisión, lo forzamos a 0.0
+                cantidad_limpia = max(Decimal("0.0"), cantidad_raw)
+                costo_uni_limpio = max(Decimal("0.0"), costo_uni_raw)
+                costo_tot_limpio = max(Decimal("0.0"), costo_tot_raw)
 
-            for datos in registros:
-                fecha          = datos.get("fecha") or date_type.today()
-                # ── Clamp negativos a 0 (precisión flotante del Excel) ──
-                cantidad       = max(Decimal("0"), Decimal(str(datos["cantidad"])))
-                costo_unitario = max(Decimal("0"), Decimal(str(datos["costo_unitario"])))
-                costo_total    = max(Decimal("0"), Decimal(str(datos["costo_total"])))
                 await self.saldo_repo.upsert(
                     producto_id    = producto.id,
                     fecha          = fecha,
-                    cantidad       = cantidad,
-                    costo_unitario = costo_unitario,
-                    costo_total    = costo_total,
+                    cantidad       = cantidad_limpia,
+                    costo_unitario = costo_uni_limpio,
+                    costo_total    = costo_tot_limpio,
                 )
-
+                
     async def _persistir_movimientos(
         self,
         df:               pd.DataFrame,
         procesamiento_id: int,
-        empresa_id:       int | None = None,
-    ) -> None:
+    ) -> None: 
         codigos_unicos = df["Codigo"].astype(str).str.strip().unique().tolist()
-        productos_map  = await self.producto_repo.get_or_create_bulk(codigos_unicos, empresa_id=empresa_id)
+        
+        # Obtiene o crea globalmente (Nuevos van a ID 1, conocidos mantienen su ID de empresa)
+        productos_map = await self.producto_repo.get_or_create_bulk(codigos_unicos)
 
         registros = []
-
         for row in df.itertuples(index=False):
             codigo   = str(row.Codigo).strip()
             producto = productos_map[codigo]

@@ -69,16 +69,17 @@ const Checkbox = ({ checked, onChange }: { checked: boolean; onChange: () => voi
 )
 
 export default function Productos() {
-  const [productos,       setProductos]       = useState<Producto[]>([])
-  const [empresas,        setEmpresas]        = useState<Empresa[]>([])
-  const [busqueda,        setBusqueda]        = useState('')
-  const [empresaFiltro,   setEmpresaFiltro]   = useState<string>('todas')
-  const [loading,         setLoading]         = useState(true)
-  const [error,           setError]           = useState<string | null>(null)
-  const [mensaje,         setMensaje]         = useState<string | null>(null)
-  const [selectedIds,     setSelectedIds]     = useState<Set<number>>(new Set())
-  const [modalOpen,       setModalOpen]       = useState(false)
+  const [productos,        setProductos]        = useState<Producto[]>([])
+  const [empresas,         setEmpresas]         = useState<Empresa[]>([])
+  const [busqueda,         setBusqueda]         = useState('')
+  const [empresaFiltro,    setEmpresaFiltro]    = useState<string>('todas')
+  const [loading,          setLoading]          = useState(true)
+  const [error,            setError]            = useState<string | null>(null)
+  const [mensaje,          setMensaje]          = useState<string | null>(null)
+  const [selectedIds,      setSelectedIds]      = useState<Set<number>>(new Set())
+  const [modalOpen,        setModalOpen]        = useState(false)
   const [productoEditando, setProductoEditando] = useState<Producto | null>(null)
+  const [eliminando,       setEliminando]       = useState(false)
 
   const fetchEmpresas = async () => {
     try {
@@ -93,7 +94,7 @@ export default function Productos() {
     setLoading(true)
     try {
       let url = `${API}/api/v1/productos/?limit=200&offset=0`
-      if (busqueda.trim())      url += `&search=${encodeURIComponent(busqueda.trim())}`
+      if (busqueda.trim())           url += `&search=${encodeURIComponent(busqueda.trim())}`
       if (empresaFiltro !== 'todas') url += `&empresa_id=${empresaFiltro}`
 
       const res = await fetch(url)
@@ -144,13 +145,42 @@ export default function Productos() {
     }
   }
 
+  const handleEliminarSeleccionados = async () => {
+    if (selectedIds.size === 0) return
+    if (!confirm(`¿Eliminar ${selectedIds.size} producto(s) seleccionado(s)? Solo procederá en los que no tengan movimientos.`)) return
+
+    setEliminando(true)
+    setError(null)
+    setMensaje(null)
+
+    try {
+      const res  = await fetch(`${API}/api/v1/productos/bulk`, {
+        method:  'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ ids: Array.from(selectedIds) }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.detail || 'Error al eliminar')
+
+      let msg = `${data.total_eliminados} producto(s) eliminado(s) correctamente.`
+      if (data.errores.length > 0)
+        msg += ` ${data.errores.length} no pudieron eliminarse (tienen movimientos registrados).`
+
+      setMensaje(msg)
+      fetchProductos()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setEliminando(false)
+    }
+  }
+
   const handleGuardado = () => {
     setModalOpen(false)
     setProductoEditando(null)
     fetchProductos()
   }
 
-  // ✅ CORREGIDO: busca el nombre de la empresa en el array
   const getNombreEmpresa = (empresa_id: number): string => {
     const empresa = empresas.find(e => e.id === empresa_id)
     return empresa?.nombre ?? `Empresa #${empresa_id}`
@@ -195,6 +225,28 @@ export default function Productos() {
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+
+            {hasSelection && (
+              <button
+                type="button"
+                onClick={handleEliminarSeleccionados}
+                disabled={eliminando}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '7px 14px', borderRadius: 7,
+                  border: '1px solid rgba(239,68,68,0.28)', background: eliminando ? 'rgba(239,68,68,0.06)' : 'rgba(239,68,68,0.12)',
+                  color: '#f87171', fontSize: 12, fontWeight: 600,
+                  cursor: eliminando ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                  opacity: eliminando ? 0.7 : 1,
+                }}
+                onMouseEnter={e => { if (!eliminando) e.currentTarget.style.background = 'rgba(239,68,68,0.22)' }}
+                onMouseLeave={e => { if (!eliminando) e.currentTarget.style.background = 'rgba(239,68,68,0.12)' }}
+              >
+                {eliminando ? <IconSpinner /> : <IconTrash />}
+                {eliminando ? 'Eliminando...' : `Eliminar seleccionados (${selectedIds.size})`}
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => { setProductoEditando(null); setModalOpen(true) }}
@@ -306,7 +358,7 @@ export default function Productos() {
                   </thead>
                   <tbody>
                     {productos.map((p, i) => {
-                      const isSelected = selectedIds.has(p.id)
+                      const isSelected   = selectedIds.has(p.id)
                       const esSinAsignar = p.empresa_id === 1
 
                       return (
@@ -322,7 +374,6 @@ export default function Productos() {
                           <td style={{ ...td, color: '#60a5fa', fontWeight: 600 }}>{p.codigo}</td>
                           <td style={{ ...td, color: '#8aabcc' }}>{p.descripcion || '—'}</td>
                           <td style={td}>
-                            {/* ✅ CORREGIDO: muestra nombre real de la empresa */}
                             {esSinAsignar ? (
                               <span style={{ color: '#f59e0b', background: 'rgba(245,158,11,0.08)', padding: '2px 7px', borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
                                 ⚠️ SIN ASIGNAR
