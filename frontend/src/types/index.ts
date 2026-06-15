@@ -68,6 +68,7 @@ export interface Producto {
   empresa_id:        number
   codigo:            string
   descripcion:       string | null
+  total_saldos:      number
   codigo_existencia: string | null
   unidad_medida:     string | null
   creado_en:         string

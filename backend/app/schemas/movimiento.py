@@ -9,7 +9,7 @@ class EmpresaKardexOut(BaseModel):
     id: int
     nombre: str
     ruc: str
-
+    direccion: Optional[str] = None
     model_config = {"from_attributes": True}
 
 

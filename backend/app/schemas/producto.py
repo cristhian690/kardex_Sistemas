@@ -1,3 +1,4 @@
+from pydantic import BaseModel, Field, computed_field
 from pydantic import BaseModel
 from datetime import date, datetime
 from decimal import Decimal
@@ -36,6 +37,12 @@ class ProductoResponse(BaseModel):
     unidad_medida:     Optional[str]
     creado_en:         datetime
     saldos_iniciales:     Optional[list[SaldoInicialResumen]] = None
+
+    @computed_field
+    def total_saldos(self) -> int:
+        if self.saldos_iniciales:
+            return len(self.saldos_iniciales)
+        return 0
 
     model_config = {"from_attributes": True}
 
