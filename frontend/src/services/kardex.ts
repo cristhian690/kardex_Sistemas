@@ -1,11 +1,11 @@
 import api from './api'
-import type { KardexResponse, UploadResponse, FiltroFecha, ProcesamientoResumen } from '../types'
+import type { KardexResponse, UploadResponse, FiltroFecha, ProcesamientoResumen, Empresa } from '../types'
 
 // ── Procesar archivos (MODO UNIVERSAL) ─────────────────────────────────────────
 export const procesarArchivos = async (
   archivosMovimientos: File[],
   archivoSaldos:       File | null,
-  empresaId?:          number,         // ← nuevo parámetro opcional
+  empresaId?:          number,
 ): Promise<UploadResponse> => {
   const formData = new FormData()
 
@@ -17,7 +17,6 @@ export const procesarArchivos = async (
     formData.append('saldos', archivoSaldos)
   }
 
-  // Si se seleccionó empresa, se pasa como query param
   const params = empresaId ? { empresa_id: empresaId } : {}
 
   const response = await api.post('/api/v1/kardex/procesar', formData, {
@@ -109,4 +108,17 @@ export const eliminarProcesamiento = async (procesamientoId: number): Promise<vo
 export const eliminarProcesamientosMultiple = async (ids: number[]): Promise<{ eliminados: number; fallidos: number[] }> => {
   const response = await api.post('/api/v1/historial/eliminar-multiple', { ids })
   return response.data
+}
+
+// ── Obtener empresa de un procesamiento ──────────────────────────────────────
+export const getEmpresaDeProcesamiento = async (procesamientoId: number): Promise<Empresa | null> => {
+  try {
+    const resProcesamiento = await api.get(`/api/v1/historial/${procesamientoId}`)
+    const empresaId: number | null = resProcesamiento.data?.empresa_id ?? null
+    if (!empresaId) return null
+    const resEmpresa = await api.get(`/api/v1/empresa/${empresaId}`)
+    return resEmpresa.data as Empresa
+  } catch {
+    return null
+  }
 }

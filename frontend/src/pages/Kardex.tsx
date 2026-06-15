@@ -91,7 +91,6 @@ interface SidebarProps {
   currentPath: string
 }
 
-// ✅ Sidebar interno del Kardex — sin Verificación ni Exportar
 const Sidebar = ({ id, onNavigate, currentPath }: SidebarProps) => {
   const navItem = (
     label: string,
@@ -155,7 +154,6 @@ const Sidebar = ({ id, onNavigate, currentPath }: SidebarProps) => {
 
       <div style={{ height: 1, background: 'rgba(56,139,221,0.08)', margin: '10px 0' }} />
 
-      {/* ✅ Sección Análisis — solo Movimientos, sin Verificación ni Exportar */}
       <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.15em', color: '#1e3a5a', textTransform: 'uppercase' as const, padding: '6px 10px 4px' }}>
         Análisis
       </div>
@@ -173,7 +171,7 @@ const Sidebar = ({ id, onNavigate, currentPath }: SidebarProps) => {
   )
 }
 
-/* ═══════════════════════════ Mini sparkline SVG ═══════════════════════════ */
+/* ═══════════════════════════ Sparkline ═══════════════════════════ */
 const Sparkline = ({ color }: { color: string }) => {
   const pts = [20, 35, 28, 50, 42, 60, 55, 70, 65, 80, 72, 88]
   const w = 90, h = 36
@@ -190,49 +188,21 @@ const Sparkline = ({ color }: { color: string }) => {
 
 /* ═══════════════════════════ MetricCard ═══════════════════════════ */
 interface MetricCardProps {
-  label: string
-  value: string
-  sub: string
-  color: string
-  sparkColor: string
-  borderColor: string
+  label: string; value: string; sub: string
+  color: string; sparkColor: string; borderColor: string
 }
 
 const MetricCard = ({ label, value, sub, color, sparkColor, borderColor }: MetricCardProps) => (
   <div style={{
-    flex: 1,
-    background: '#0d1525',
-    border: `1px solid ${borderColor}`,
-    borderRadius: 10,
-    padding: '14px 16px',
+    flex: 1, background: '#0d1525', border: `1px solid ${borderColor}`,
+    borderRadius: 10, padding: '14px 16px',
     display: 'flex', flexDirection: 'column', gap: 2,
-    position: 'relative' as const, overflow: 'hidden',
-    minWidth: 0,
+    position: 'relative' as const, overflow: 'hidden', minWidth: 0,
   }}>
-    <p style={{
-      fontSize: 9, fontWeight: 700, letterSpacing: '.16em',
-      textTransform: 'uppercase' as const, color: '#2a4a6a',
-      fontFamily: "'IBM Plex Mono', monospace",
-    }}>
-      {label}
-    </p>
-    <p style={{
-      fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: 26, fontWeight: 800,
-      color, lineHeight: 1, marginTop: 2,
-      letterSpacing: '-.01em',
-    }}>
-      {value}
-    </p>
-    <p style={{
-      fontFamily: "'IBM Plex Mono', monospace",
-      fontSize: 10, color: '#1e3a5a', marginTop: 2,
-    }}>
-      {sub}
-    </p>
-    <div style={{ position: 'absolute', right: 8, bottom: 8 }}>
-      <Sparkline color={sparkColor} />
-    </div>
+    <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: '#2a4a6a', fontFamily: "'IBM Plex Mono', monospace" }}>{label}</p>
+    <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 26, fontWeight: 800, color, lineHeight: 1, marginTop: 2, letterSpacing: '-.01em' }}>{value}</p>
+    <p style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: '#1e3a5a', marginTop: 2 }}>{sub}</p>
+    <div style={{ position: 'absolute', right: 8, bottom: 8 }}><Sparkline color={sparkColor} /></div>
   </div>
 )
 
@@ -258,141 +228,100 @@ export default function Kardex() {
 
   const [codigo,          setCodigo]          = useState('')
   const [filtroFecha,     setFiltroFecha]     = useState<IFiltroFecha>({ modo: 'anio_mes' })
-
   const [empresaImpresion, setEmpresaImpresion] = useState<{
-    razon_social: string
-    ruc: string
-    establecimiento: string
-    tipo: string
-    codigo_existencia: string
-    unidad_medida: string
+    razon_social:     string
+    ruc:              string
+    establecimiento:  string
+    tipo:             string
     metodo_valuacion: string
   } | null>(null)
-
-  const [mostrarSemaforo, setMostrarSemaforo] = useState(false)
-  const [filtrosAbiertos, setFiltrosAbiertos] = useState(true)
-  const [draftCodigo, setDraftCodigo] = useState('')
-  const [draftFiltroFecha, setDraftFiltroFecha] = useState<IFiltroFecha>({
-    modo: 'anio_mes',
-  })
+  const [mostrarSemaforo,  setMostrarSemaforo]  = useState(false)
+  const [filtrosAbiertos,  setFiltrosAbiertos]  = useState(true)
+  const [draftCodigo,      setDraftCodigo]      = useState('')
+  const [draftFiltroFecha, setDraftFiltroFecha] = useState<IFiltroFecha>({ modo: 'anio_mes' })
 
   const id = Number(procesamiento_id)
 
-  useEffect(() => {
-    setDraftFiltroFecha(filtroFecha)
-  }, [filtroFecha])
+  useEffect(() => { setDraftFiltroFecha(filtroFecha) }, [filtroFecha])
 
   useEffect(() => {
     const t = setTimeout(() => {
       if (draftCodigo === codigo) return
       setCodigo(draftCodigo)
-      cargarKardex(id, {
-        ...draftFiltroFecha,
-        codigo: draftCodigo || undefined,
-      })
+      cargarKardex(id, { ...draftFiltroFecha, codigo: draftCodigo || undefined })
     }, 400)
-
     return () => clearTimeout(t)
   }, [draftCodigo])
 
   const aplicarFiltros = () => {
     setFiltroFecha(draftFiltroFecha)
-    cargarKardex(id, {
-      ...draftFiltroFecha,
-      codigo: draftCodigo || undefined,
-    })
+    cargarKardex(id, { ...draftFiltroFecha, codigo: draftCodigo || undefined })
   }
 
   const limpiarFiltros = () => {
     const clean: IFiltroFecha = { modo: 'anio_mes' }
-    setCodigo('')
-    setDraftCodigo('')
-    setFiltroFecha(clean)
-    setDraftFiltroFecha(clean)
+    setCodigo(''); setDraftCodigo('')
+    setFiltroFecha(clean); setDraftFiltroFecha(clean)
     cargarKardex(id)
   }
 
   useEffect(() => {
     if (!id) return
     cargarKardex(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  const handleExportar = () =>
-    descargarExcel(
-      codigo || undefined,
-      filtroFecha.anio,
-      filtroFecha.mes,
-      filtroFecha.fecha_desde,
-      filtroFecha.fecha_hasta,
-    )
-
-  const handleImprimir = () => {
-    ;(window as any).__kardexPrepararImpresion?.()
-    setTimeout(() => {
-      window.print()
-      setTimeout(() => {
-        ;(window as any).__kardexTerminarImpresion?.()
-      }, 500)
-    }, 300)
-  }
-
-  const filtrosAplicadosTexto = useMemo(() => {
-    const partes: string[] = []
-    if (codigo) partes.push(`Código: ${codigo}`)
-    if (filtroFecha.modo === 'anio_mes') {
-      if (filtroFecha.anio && filtroFecha.mes) {
-        const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Set','Oct','Nov','Dic']
-        partes.push(`Periodo: ${meses[filtroFecha.mes - 1]} ${filtroFecha.anio}`)
-      } else if (filtroFecha.anio) {
-        partes.push(`Año: ${filtroFecha.anio}`)
-      }
-    } else if (filtroFecha.modo === 'exacta' && filtroFecha.fecha_exacta) {
-      partes.push(`Fecha: ${filtroFecha.fecha_exacta}`)
-    } else if (filtroFecha.modo === 'rango') {
-      if (filtroFecha.fecha_desde || filtroFecha.fecha_hasta) {
-        partes.push(`Rango: ${filtroFecha.fecha_desde ?? '...'} a ${filtroFecha.fecha_hasta ?? '...'}`)
-      }
-    }
-    return partes.length > 0 ? partes.join(' · ') : 'Sin filtros'
-  }, [codigo, filtroFecha])
-
-  const codigosVisibles = useMemo(() => {
-    const set = new Set(movimientos.map(m => m.codigo).filter(Boolean))
-    return Array.from(set) as string[]
-  }, [movimientos])
-
+  // ── Empresa desde los movimientos cargados ────────────────────────────────
   useEffect(() => {
     if (movimientos.length === 0) {
       setEmpresaImpresion(null)
       return
     }
 
-    const movimientoMeta = movimientos.find(m => m.codigo === codigo) || movimientos[0]
+    // Busca el primer movimiento con empresa asignada (id !== 1 = SIN ASIGNAR)
+    const movConEmpresa = movimientos.find(
+      m => m.producto?.empresa && m.producto.empresa.id !== 1
+    ) || movimientos[0]
 
-    if (movimientoMeta?.producto?.empresa) {
-      const emp = movimientoMeta.producto.empresa
+    const emp = movConEmpresa?.producto?.empresa
+
+    if (emp && emp.id !== 1) {
       setEmpresaImpresion({
-        razon_social: emp.nombre,
-        ruc: emp.ruc,
-        establecimiento: emp.establecimiento || 'Almacén Principal',
-        tipo: movimientoMeta.producto.codigo_existencia || '01',
-        codigo_existencia: movimientoMeta.producto.codigo || '—',
-        unidad_medida: movimientoMeta.producto.unidad_medida || 'NIU',
-        metodo_valuacion: 'COSTO PROMEDIO (CPP)',
+        razon_social:     emp.nombre,
+        ruc:              emp.ruc,
+        establecimiento:  emp.direccion || '',
+        tipo:             'Mercadería',
+        metodo_valuacion: 'Prom. Ponderado',
       })
     } else {
       setEmpresaImpresion({
-        razon_social: '⚠️ PENDIENTE DE ASIGNAR',
-        ruc: '00000000000',
-        establecimiento: 'Almacén de Tránsito',
-        tipo: movimientoMeta?.producto?.codigo_existencia || '01',
-        codigo_existencia: movimientoMeta?.codigo || '—',
-        unidad_medida: movimientoMeta?.producto?.unidad_medida || 'NIU',
-        metodo_valuacion: 'COSTO PROMEDIO (CPP)',
+        razon_social:     '',
+        ruc:              '',
+        establecimiento:  '',
+        tipo:             'Mercadería',
+        metodo_valuacion: 'Prom. Ponderado',
       })
     }
-  }, [codigo, movimientos])
+  }, [movimientos, codigo])
+
+  const handleExportar = () =>
+    descargarExcel(
+      codigo || undefined,
+      filtroFecha.anio, filtroFecha.mes,
+      filtroFecha.fecha_desde, filtroFecha.fecha_hasta,
+    )
+
+  const handleImprimir = () => {
+    ;(window as any).__kardexPrepararImpresion?.()
+    setTimeout(() => {
+      window.print()
+      setTimeout(() => { ;(window as any).__kardexTerminarImpresion?.() }, 500)
+    }, 300)
+  }
+
+  const codigosVisibles = useMemo(() => {
+    const set = new Set(movimientos.map(m => m.codigo).filter(Boolean))
+    return Array.from(set) as string[]
+  }, [movimientos])
 
   if (!id) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#07101e', color: '#2a4a6a', fontFamily: "'IBM Plex Mono', monospace", fontSize: 13 }}>
@@ -401,238 +330,45 @@ export default function Kardex() {
   )
 
   const filterInputStyle: React.CSSProperties = {
-    background: 'rgba(56,139,221,0.06)',
-    border: '1px solid rgba(56,139,221,0.18)',
-    borderRadius: 5, padding: '3px 8px',
-    fontSize: 11, color: '#c8ddef',
-    fontFamily: "'IBM Plex Mono', monospace",
-    outline: 'none', height: 26,
+    background: 'rgba(56,139,221,0.06)', border: '1px solid rgba(56,139,221,0.18)',
+    borderRadius: 5, padding: '3px 8px', fontSize: 11, color: '#c8ddef',
+    fontFamily: "'IBM Plex Mono', monospace", outline: 'none', height: 26,
   }
   const filterSelectStyle: React.CSSProperties = {
-    padding: '4px 8px',
-    borderRadius: 4,
-    border: '1px solid rgba(56,139,221,0.2)',
-    background: '#0d1525',
-    color: '#ffffff',
-    fontSize: 10,
-    fontFamily: "'IBM Plex Mono', monospace",
-    outline: 'none',
-    appearance: 'none',
-    cursor: 'pointer',
+    padding: '4px 8px', borderRadius: 4, border: '1px solid rgba(56,139,221,0.2)',
+    background: '#0d1525', color: '#ffffff', fontSize: 10,
+    fontFamily: "'IBM Plex Mono', monospace", outline: 'none',
+    appearance: 'none', cursor: 'pointer',
   }
-
   const btnBase: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center', gap: 6,
-    padding: '6px 12px', borderRadius: 7,
-    fontSize: 11, fontWeight: 600,
-    fontFamily: "'Inter', sans-serif", cursor: 'pointer',
-    transition: 'opacity .12s',
+    padding: '6px 12px', borderRadius: 7, fontSize: 11, fontWeight: 600,
+    fontFamily: "'Inter', sans-serif", cursor: 'pointer', transition: 'opacity .12s',
   }
 
   return (
     <>
-      {/* ═══ CSS ESPECIAL PARA IMPRESIÓN ═══ */}
       <style>{`
         @media print {
-          @page {
-            size: A4 landscape;
-            margin: 8mm 6mm;
-          }
+          @page { size: A4 landscape; margin: 8mm 6mm; }
           .kardex-no-print,
           .kardex-metrics-web,
-          .kardex-print-metrics,
           .col-hide-print {
             display: none !important;
             visibility: hidden !important;
-            width: 0 !important;
-            height: 0 !important;
+            width: 0 !important; height: 0 !important;
             overflow: hidden !important;
-            padding: 0 !important;
-            margin: 0 !important;
+            padding: 0 !important; margin: 0 !important;
             border: none !important;
           }
-          [class*="kardex-no-print"],
-          [class*="kardex-metrics-web"] {
-            display: none !important;
-          }
-          body, html {
-            background: white !important;
-            color: black !important;
-          }
-          .kardex-page-wrapper {
-            background: white !important;
-            min-height: auto !important;
-          }
+          body, html { background: white !important; color: black !important; }
+          .kardex-page-wrapper { background: white !important; min-height: auto !important; }
           .kardex-print-area {
-            display: block !important;
-            padding: 0 !important;
-            overflow: visible !important;
-            gap: 4px !important;
-          }
-          .kardex-print-area *:not(.hdr-wrap):not(.hdr-top):not(.hdr-titulo):not(.hdr-periodo-box):not(.hdr-periodo-box *):not(.hdr-campos):not(.hdr-campos *):not(.hdr-divider) {
-            color: black !important;
-            background: white !important;
-            border-color: #ccc !important;
-            box-shadow: none !important;
-          }
-          .kardex-print-header {
-            display: block !important;
-            padding: 0 !important;
-            margin-bottom: 5px !important;
-          }
-          .hdr-wrap {
-            width: 100% !important;
-            font-family: Arial, sans-serif !important;
-            margin-bottom: 8px !important;
-          }
-          .hdr-periodo-box {
-            border-collapse: collapse !important;
-            font-size: 7px !important;
-            text-align: center !important;
-            width: auto !important;
-            max-width: 160px !important;
-            flex-shrink: 0 !important;
-          }
-          .hdr-periodo-box th {
-            background: #e8e8e8 !important;
-            border: 1px solid #333 !important;
-            padding: 1px 8px !important;
-            font-size: 7px !important;
-            font-weight: 900 !important;
-            letter-spacing: .06em !important;
-            color: black !important;
-            white-space: nowrap !important;
-          }
-          .hdr-periodo-box td {
-            border: 1px solid #333 !important;
-            padding: 2px 8px !important;
-            font-size: 9px !important;
-            font-weight: 700 !important;
-            color: black !important;
-            white-space: nowrap !important;
-          }
-          .hdr-top {
-            display: flex !important;
-            justify-content: space-between !important;
-            align-items: flex-start !important;
-            margin-bottom: 4px !important;
-            width: 100% !important;
-          }
-          .hdr-titulo {
-            font-size: 13px !important;
-            font-weight: 900 !important;
-            color: black !important;
-            line-height: 1.15 !important;
-            text-transform: uppercase !important;
-            flex: 1 !important;
-          }
-          .hdr-titulo span {
-            display: block !important;
-            font-size: 9px !important;
-            font-weight: 700 !important;
-            letter-spacing: .04em !important;
-          }
-          .hdr-divider {
-            border: none !important;
-            border-top: 3px double #333 !important;
-            margin: 4px 0 6px 0 !important;
-          }
-          .hdr-campos {
-            width: 100% !important;
-            border-collapse: collapse !important;
-            font-size: 9px !important;
-          }
-          .hdr-campos td {
-            padding: 2px 6px 3px 0 !important;
-            vertical-align: bottom !important;
-            color: black !important;
-            border: none !important;
-            white-space: nowrap !important;
-          }
-          .hdr-lbl {
-            font-weight: 700 !important;
-            text-align: right !important;
-            width: 100px !important;
-            padding-right: 5px !important;
-          }
-          .hdr-val {
-            border-bottom: 1px solid #9ca3af !important;
-            min-width: 180px !important;
-            width: 220px !important;
-            padding-bottom: 1px !important;
-          }
-          .hdr-val-desc {
-            border-bottom: 1px solid #9ca3af !important;
-            min-width: 280px !important;
-            font-weight: 700 !important;
-            padding-bottom: 1px !important;
-          }
-          .kardex-print-area table.kardex-mov-table,
-          .kardex-print-area table:not(.sunat-header-table) {
-            width: 100% !important;
-            border-collapse: collapse !important;
-            font-size: 8px !important;
-            font-family: Arial, sans-serif !important;
-            page-break-inside: auto !important;
-          }
-          .kardex-print-area thead {
-            display: table-header-group !important;
-          }
-          .kardex-print-area thead tr {
-            page-break-inside: avoid !important;
-          }
-          .kardex-print-area tbody tr {
-            page-break-inside: avoid !important;
-            page-break-after: auto !important;
-          }
-          .kardex-print-area th {
-            background: #e8e8e8 !important;
-            border: 1px solid #999 !important;
-            padding: 4px 5px !important;
-            color: black !important;
-            font-weight: 700 !important;
-            font-size: 8px !important;
-            text-transform: uppercase !important;
-          }
-          .kardex-print-area td {
-            border: 1px solid #ccc !important;
-            padding: 3px 5px !important;
-            color: black !important;
-            font-size: 8px !important;
-          }
-          .kardex-print-area svg { display: none !important; }
-          .kardex-print-area .pag-controls { display: none !important; }
-          .kardex-print-metrics {
-            display: grid !important;
-            grid-template-columns: repeat(4, 1fr) !important;
-            gap: 4px !important;
-            margin-bottom: 5px !important;
-          }
-          .kardex-print-metrics > div {
-            border: 1px solid #999 !important;
-            padding: 4px 6px !important;
-          }
-          .kardex-print-metrics .lbl {
-            font-size: 7px !important;
-            text-transform: uppercase !important;
-            color: #555 !important;
-            font-weight: 700 !important;
-          }
-          .kardex-print-metrics .val {
-            font-size: 12px !important;
-            font-weight: 700 !important;
-            color: black !important;
-            font-family: Arial, sans-serif !important;
-          }
-          .kardex-print-metrics .sub {
-            font-size: 7px !important;
-            color: #666 !important;
+            display: block !important; padding: 0 !important;
+            overflow: visible !important; gap: 4px !important;
           }
         }
-
-        @media screen {
-          .kardex-print-only { display: none !important; }
-        }
+        @media screen { .kardex-print-only { display: none !important; } }
       `}</style>
 
       <div className="kardex-page-wrapper" style={{
@@ -641,7 +377,6 @@ export default function Kardex() {
         fontFamily: "'Inter', -apple-system, sans-serif",
         color: '#c8ddef',
       }}>
-
         <Sidebar id={id} onNavigate={navigate} currentPath={location.pathname} />
 
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
@@ -649,23 +384,14 @@ export default function Kardex() {
           {/* ── TOPBAR ── */}
           <header className="kardex-no-print" style={{
             height: 52, flexShrink: 0,
-            display: 'flex', alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0 20px',
-            borderBottom: '1px solid rgba(56,139,221,0.1)',
-            background: '#080e1c',
-            gap: 12,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '0 20px', borderBottom: '1px solid rgba(56,139,221,0.1)',
+            background: '#080e1c', gap: 12,
             position: 'sticky' as const, top: 0, zIndex: 30,
           }}>
             <div>
-              <h1 style={{
-                fontFamily: "'IBM Plex Mono', monospace",
-                fontSize: 18, fontWeight: 700,
-                color: '#e2e8f0', margin: 0, lineHeight: 1,
-                letterSpacing: '-.01em',
-              }}>
-                Kardex{' '}
-                <span style={{ color: '#2563eb' }}>#{id}</span>
+              <h1 style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 18, fontWeight: 700, color: '#e2e8f0', margin: 0, lineHeight: 1, letterSpacing: '-.01em' }}>
+                Kardex <span style={{ color: '#2563eb' }}>#{id}</span>
               </h1>
               <p style={{ fontSize: 11, color: '#1e3a5a', marginTop: 3 }}>
                 {totalRegistros.toLocaleString('es-PE')} registros cargados
@@ -674,253 +400,68 @@ export default function Kardex() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {erroresIntegridad > 0 && (
-                <button
-                  type="button"
-                  title="Ir a la primera anomalía en la tabla"
+                <button type="button" title="Ir a la primera anomalía"
                   onClick={() => kardexTableRef.current?.scrollToFirstAnomaly()}
-                  style={{
-                    ...btnBase,
-                    background: 'rgba(245,158,11,0.12)',
-                    border: '1px solid rgba(245,158,11,0.25)',
-                    color: '#fbbf24',
-                    cursor: 'pointer',
-                  }}
+                  style={{ ...btnBase, background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.25)', color: '#fbbf24', cursor: 'pointer' }}
                 >
                   ⚠ {erroresIntegridad} anomalía{erroresIntegridad > 1 ? 's' : ''}
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => setFiltrosAbiertos(v => !v)}
-                style={{
-                  ...btnBase,
-                  background: filtrosAbiertos ? 'rgba(56,139,221,0.15)' : 'rgba(56,139,221,0.06)',
-                  border: filtrosAbiertos ? '1px solid rgba(56,139,221,0.35)' : '1px solid rgba(56,139,221,0.14)',
-                  color: filtrosAbiertos ? '#60a5fa' : '#2a5a8a',
-                }}
+              <button type="button" onClick={() => setFiltrosAbiertos(v => !v)}
+                style={{ ...btnBase, background: filtrosAbiertos ? 'rgba(56,139,221,0.15)' : 'rgba(56,139,221,0.06)', border: filtrosAbiertos ? '1px solid rgba(56,139,221,0.35)' : '1px solid rgba(56,139,221,0.14)', color: filtrosAbiertos ? '#60a5fa' : '#2a5a8a' }}
               >
                 <IconFilter /> Filtros
               </button>
-              <button
-                type="button"
-                onClick={() => setMostrarSemaforo(v => !v)}
-                style={{
-                  ...btnBase,
-                  background: mostrarSemaforo ? 'rgba(245,158,11,0.12)' : 'rgba(56,139,221,0.06)',
-                  border: mostrarSemaforo ? '1px solid rgba(245,158,11,0.28)' : '1px solid rgba(56,139,221,0.14)',
-                  color: mostrarSemaforo ? '#fbbf24' : '#2a5a8a',
-                }}
+              <button type="button" onClick={() => setMostrarSemaforo(v => !v)}
+                style={{ ...btnBase, background: mostrarSemaforo ? 'rgba(245,158,11,0.12)' : 'rgba(56,139,221,0.06)', border: mostrarSemaforo ? '1px solid rgba(245,158,11,0.28)' : '1px solid rgba(56,139,221,0.14)', color: mostrarSemaforo ? '#fbbf24' : '#2a5a8a' }}
               >
                 <IconShield /> Verificación
               </button>
-
-              <button
-                type="button"
-                onClick={handleImprimir}
-                disabled={movimientos.length === 0}
-                title="Imprimir el contenido visible"
-                style={{
-                  ...btnBase,
-                  background: 'rgba(34,197,94,0.12)',
-                  border: '1px solid rgba(34,197,94,0.28)',
-                  color: '#4ade80',
-                  opacity: movimientos.length === 0 ? 0.4 : 1,
-                  cursor: movimientos.length === 0 ? 'not-allowed' : 'pointer',
-                }}
+              <button type="button" onClick={handleImprimir} disabled={movimientos.length === 0}
+                style={{ ...btnBase, background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.28)', color: '#4ade80', opacity: movimientos.length === 0 ? 0.4 : 1, cursor: movimientos.length === 0 ? 'not-allowed' : 'pointer' }}
               >
                 <IconPrinter /> Imprimir
               </button>
-
-              <button
-                type="button"
-                onClick={handleExportar}
-                disabled={exporting || movimientos.length === 0}
-                style={{
-                  ...btnBase,
-                  background: 'linear-gradient(135deg,#1d4ed8,#1e3a8a)',
-                  border: 'none',
-                  color: '#e2e8f0',
-                  boxShadow: '0 2px 10px rgba(29,78,216,0.4)',
-                  opacity: (exporting || movimientos.length === 0) ? 0.4 : 1,
-                  cursor: (exporting || movimientos.length === 0) ? 'not-allowed' : 'pointer',
-                }}
+              <button type="button" onClick={handleExportar} disabled={exporting || movimientos.length === 0}
+                style={{ ...btnBase, background: 'linear-gradient(135deg,#1d4ed8,#1e3a8a)', border: 'none', color: '#e2e8f0', boxShadow: '0 2px 10px rgba(29,78,216,0.4)', opacity: (exporting || movimientos.length === 0) ? 0.4 : 1, cursor: (exporting || movimientos.length === 0) ? 'not-allowed' : 'pointer' }}
               >
-                {exporting ? <IconSpinner /> : <IconDownload />}
-                Exportar Excel
+                {exporting ? <IconSpinner /> : <IconDownload />} Exportar Excel
               </button>
             </div>
           </header>
 
-          {/* ── SCROLLABLE CONTENT ── */}
+          {/* ── CONTENT ── */}
           <div className="kardex-print-area" style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* ═══ ENCABEZADO AUDITORÍA — SOLO IMPRESIÓN ═══ */}
-            <div className="kardex-print-only kardex-print-header">
-              <div className="hdr-wrap">
-                <div className="hdr-top">
-                  <div className="hdr-titulo">
-                    REGISTRO DE INVENTARIO
-                    <span>PERMANENTE VALORIZADO</span>
-                  </div>
-                  <table className="hdr-periodo-box">
-                    <thead>
-                      <tr><th colSpan={3}>PERIODO DE REPORTE</th></tr>
-                      <tr>
-                        <th>DÍA</th>
-                        <th>MES</th>
-                        <th>AÑO</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>{new Date().getDate().toString().padStart(2,'0')}</td>
-                        <td>{filtroFecha.mes?.toString().padStart(2,'0') ?? new Date().getMonth()+1}</td>
-                        <td>{filtroFecha.anio ?? new Date().getFullYear()}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <hr className="hdr-divider" />
-                <table className="hdr-campos">
-                  <tbody>
-                    <tr>
-                      <td className="hdr-lbl">Razón Social:</td>
-                      <td className="hdr-val">{empresaImpresion?.razon_social ?? ''}</td>
-                      <td style={{ width: 30 }}></td>
-                      <td className="hdr-lbl">R.U.C.:</td>
-                      <td className="hdr-val">{empresaImpresion?.ruc ?? ''}</td>
-                    </tr>
-                    <tr>
-                      <td className="hdr-lbl">Establecimiento:</td>
-                      <td className="hdr-val">{empresaImpresion?.establecimiento ?? 'Almacén'}</td>
-                      <td></td>
-                      <td className="hdr-lbl">Tipo:</td>
-                      <td className="hdr-val">{empresaImpresion?.tipo ?? 'Mercadería'}</td>
-                    </tr>
-                    <tr>
-                      <td className="hdr-lbl">Descripción:</td>
-                      <td className="hdr-val-desc" colSpan={4}>
-                        {codigosVisibles.length > 1
-                          ? codigosVisibles.join(' | ')
-                          : (codigo || codigosVisibles[0] || '')}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="hdr-lbl">M. de Valuación:</td>
-                      <td className="hdr-val">{empresaImpresion?.metodo_valuacion ?? 'Costo Promedio'}</td>
-                      <td></td>
-                      <td className="hdr-lbl">Cód. Existencia:</td>
-                      <td className="hdr-val">{empresaImpresion?.codigo_existencia || (codigo || codigosVisibles[0] || '')}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Alertas */}
             <div className="kardex-no-print">
               {alertas && <AlertaBanner alertas={alertas} erroresIntegridad={erroresIntegridad} />}
             </div>
 
-            {/* ── Métricas (versión web) ── */}
             {metricas && (
               <div className="kardex-no-print kardex-metrics-web" style={{ display: 'flex', gap: 12 }}>
-                <MetricCard
-                  label="Total registros"
-                  value={totalRegistros.toLocaleString('es-PE')}
-                  sub="movimientos"
-                  color="#c8ddef"
-                  sparkColor="#3b82f6"
-                  borderColor="rgba(56,139,221,0.15)"
-                />
-                <MetricCard
-                  label="Total entradas"
-                  value={fmtS(metricas.total_ent_costo)}
-                  sub={`${fmt(metricas.total_ent_cantidad)} uds`}
-                  color="#3b82f6"
-                  sparkColor="#3b82f6"
-                  borderColor="rgba(59,130,246,0.25)"
-                />
-                <MetricCard
-                  label="Total salidas"
-                  value={fmtS(metricas.total_sal_costo)}
-                  sub={`${fmt(metricas.total_sal_cantidad)} uds`}
-                  color="#f87171"
-                  sparkColor="#ef4444"
-                  borderColor="rgba(239,68,68,0.25)"
-                />
-                <MetricCard
-                  label="Saldo final"
-                  value={fmtS(metricas.saldo_final_costo)}
-                  sub={`${fmt(metricas.saldo_final_cantidad)} uds`}
-                  color="#fbbf24"
-                  sparkColor="#f59e0b"
-                  borderColor="rgba(245,158,11,0.25)"
-                />
+                <MetricCard label="Total registros" value={totalRegistros.toLocaleString('es-PE')} sub="movimientos" color="#c8ddef" sparkColor="#3b82f6" borderColor="rgba(56,139,221,0.15)" />
+                <MetricCard label="Total entradas"  value={fmtS(metricas.total_ent_costo)} sub={`${fmt(metricas.total_ent_cantidad)} uds`} color="#3b82f6" sparkColor="#3b82f6" borderColor="rgba(59,130,246,0.25)" />
+                <MetricCard label="Total salidas"   value={fmtS(metricas.total_sal_costo)} sub={`${fmt(metricas.total_sal_cantidad)} uds`} color="#f87171" sparkColor="#ef4444" borderColor="rgba(239,68,68,0.25)" />
+                <MetricCard label="Saldo final"     value={fmtS(metricas.saldo_final_costo)} sub={`${fmt(metricas.saldo_final_cantidad)} uds`} color="#fbbf24" sparkColor="#f59e0b" borderColor="rgba(245,158,11,0.25)" />
               </div>
             )}
 
-            {/* ═══ MÉTRICAS SOLO PARA IMPRESIÓN ═══ */}
-            {metricas && (
-              <div className="kardex-print-only kardex-print-metrics">
-                <div>
-                  <div className="lbl">Total registros</div>
-                  <div className="val">{totalRegistros.toLocaleString('es-PE')}</div>
-                  <div className="sub">movimientos</div>
-                </div>
-                <div>
-                  <div className="lbl">Total entradas</div>
-                  <div className="val">{fmtS(metricas.total_ent_costo)}</div>
-                  <div className="sub">{fmt(metricas.total_ent_cantidad)} uds</div>
-                </div>
-                <div>
-                  <div className="lbl">Total salidas</div>
-                  <div className="val">{fmtS(metricas.total_sal_costo)}</div>
-                  <div className="sub">{fmt(metricas.total_sal_cantidad)} uds</div>
-                </div>
-                <div>
-                  <div className="lbl">Saldo final</div>
-                  <div className="val">{fmtS(metricas.saldo_final_costo)}</div>
-                  <div className="sub">{fmt(metricas.saldo_final_cantidad)} uds</div>
-                </div>
-              </div>
-            )}
-
-            {/* ── Filtros ── */}
             {filtrosAbiertos && (
               <div className="kardex-no-print" style={{
-                background: '#0d1525',
-                border: '1px solid rgba(56,139,221,0.12)',
-                borderRadius: 10,
-                padding: '0 14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                height: 56,
-                flexShrink: 0,
+                background: '#0d1525', border: '1px solid rgba(56,139,221,0.12)',
+                borderRadius: 10, padding: '0 14px',
+                display: 'flex', alignItems: 'center', gap: 10, height: 56, flexShrink: 0,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, paddingRight: 10, borderRight: '1px solid rgba(56,139,221,0.1)' }}>
                   <div style={{ width: 2, height: 12, background: '#3b82f6', borderRadius: 2 }} />
-                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: '#2a4a6a', fontFamily: "'IBM Plex Mono', monospace" }}>
-                    Filtros
-                  </span>
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: '#2a4a6a', fontFamily: "'IBM Plex Mono', monospace" }}>Filtros</span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                   <span style={{ fontSize: 10, color: '#2a5a7a', flexShrink: 0 }}>Código</span>
-                  <input
-                    value={draftCodigo}
-                    onChange={e => setDraftCodigo(e.target.value)}
-                    placeholder="Ej: 011039"
-                    style={{ ...filterInputStyle, width: 100 }}
-                  />
+                  <input value={draftCodigo} onChange={e => setDraftCodigo(e.target.value)} placeholder="Ej: 011039" style={{ ...filterInputStyle, width: 100 }} />
                   {draftCodigo && (
-                    <button
-                      onClick={() => {
-                        setCodigo('')
-                        setDraftCodigo('')
-                        cargarKardex(id, { ...draftFiltroFecha, codigo: undefined })
-                      }}
+                    <button onClick={() => { setCodigo(''); setDraftCodigo(''); cargarKardex(id, { ...draftFiltroFecha, codigo: undefined }) }}
                       style={{ background: 'none', border: 'none', color: '#2a5a7a', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 2px' }}
                     >×</button>
                   )}
@@ -930,16 +471,8 @@ export default function Kardex() {
 
                 <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                   {(['anio_mes', 'exacta', 'rango'] as const).map(m => (
-                    <button
-                      key={m}
-                      onClick={() => setDraftFiltroFecha({ ...draftFiltroFecha, modo: m })}
-                      style={{
-                        padding: '3px 8px', borderRadius: 4, border: 'none',
-                        background: draftFiltroFecha.modo === m ? 'rgba(59,130,246,0.2)' : 'rgba(56,139,221,0.06)',
-                        color: draftFiltroFecha.modo === m ? '#60a5fa' : '#2a5a7a',
-                        fontSize: 10, fontWeight: draftFiltroFecha.modo === m ? 600 : 400,
-                        cursor: 'pointer', fontFamily: 'inherit',
-                      }}
+                    <button key={m} onClick={() => setDraftFiltroFecha({ ...draftFiltroFecha, modo: m })}
+                      style={{ padding: '3px 8px', borderRadius: 4, border: 'none', background: draftFiltroFecha.modo === m ? 'rgba(59,130,246,0.2)' : 'rgba(56,139,221,0.06)', color: draftFiltroFecha.modo === m ? '#60a5fa' : '#2a5a7a', fontSize: 10, fontWeight: draftFiltroFecha.modo === m ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit' }}
                     >
                       {{ anio_mes: 'Año/Mes', exacta: 'Exacta', rango: 'Rango' }[m]}
                     </button>
@@ -950,132 +483,61 @@ export default function Kardex() {
 
                 {draftFiltroFecha.modo === 'anio_mes' && (
                   <>
-                    <select
-                      value={draftFiltroFecha.anio ?? ''}
-                      onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, anio: e.target.value ? Number(e.target.value) : undefined })}
-                      style={filterSelectStyle}
-                    >
+                    <select value={draftFiltroFecha.anio ?? ''} onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, anio: e.target.value ? Number(e.target.value) : undefined })} style={filterSelectStyle}>
                       <option value="">Año</option>
-                      {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(a => (
-                        <option key={a} value={a}>{a}</option>
-                      ))}
+                      {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
-                    <select
-                      value={draftFiltroFecha.mes ?? ''}
-                      onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, mes: e.target.value ? Number(e.target.value) : undefined })}
-                      disabled={!draftFiltroFecha.anio}
-                      style={filterSelectStyle}
-                    >
+                    <select value={draftFiltroFecha.mes ?? ''} onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, mes: e.target.value ? Number(e.target.value) : undefined })} disabled={!draftFiltroFecha.anio} style={filterSelectStyle}>
                       <option value="">Mes</option>
-                      {['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Set','Oct','Nov','Dic'].map((m, i) => (
-                        <option key={i + 1} value={i + 1}>{m}</option>
-                      ))}
+                      {['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Set','Oct','Nov','Dic'].map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
                     </select>
                   </>
                 )}
 
                 {draftFiltroFecha.modo === 'exacta' && (
-                  <input
-                    type="date"
-                    value={draftFiltroFecha.fecha_exacta ?? ''}
-                    onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, fecha_exacta: e.target.value || undefined })}
-                    style={filterInputStyle}
-                  />
+                  <input type="date" value={draftFiltroFecha.fecha_exacta ?? ''} onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, fecha_exacta: e.target.value || undefined })} style={filterInputStyle} />
                 )}
 
                 {draftFiltroFecha.modo === 'rango' && (
                   <>
-                    <input
-                      type="date"
-                      value={draftFiltroFecha.fecha_desde ?? ''}
-                      onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, fecha_desde: e.target.value || undefined })}
-                      style={filterInputStyle}
-                    />
+                    <input type="date" value={draftFiltroFecha.fecha_desde ?? ''} onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, fecha_desde: e.target.value || undefined })} style={filterInputStyle} />
                     <span style={{ fontSize: 11, color: '#2a5a7a' }}>–</span>
-                    <input
-                      type="date"
-                      value={draftFiltroFecha.fecha_hasta ?? ''}
-                      onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, fecha_hasta: e.target.value || undefined })}
-                      style={filterInputStyle}
-                    />
+                    <input type="date" value={draftFiltroFecha.fecha_hasta ?? ''} onChange={e => setDraftFiltroFecha({ ...draftFiltroFecha, fecha_hasta: e.target.value || undefined })} style={filterInputStyle} />
                   </>
                 )}
 
                 <div style={{ width: 40 }} />
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <button
-                    onClick={limpiarFiltros}
-                    style={{ padding: '5px 10px', borderRadius: 5, border: '1px solid rgba(56,139,221,0.12)', background: 'rgba(56,139,221,0.05)', color: '#4a6a8a', fontSize: 10, cursor: 'pointer' }}
-                  >
-                    Limpiar
-                  </button>
-                  <button
-                    onClick={aplicarFiltros}
-                    style={{ padding: '5px 10px', borderRadius: 5, border: 'none', background: 'rgba(59,130,246,0.2)', color: '#60a5fa', fontSize: 10, fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Aplicar
-                  </button>
+                  <button onClick={limpiarFiltros} style={{ padding: '5px 10px', borderRadius: 5, border: '1px solid rgba(56,139,221,0.12)', background: 'rgba(56,139,221,0.05)', color: '#4a6a8a', fontSize: 10, cursor: 'pointer' }}>Limpiar</button>
+                  <button onClick={aplicarFiltros} style={{ padding: '5px 10px', borderRadius: 5, border: 'none', background: 'rgba(59,130,246,0.2)', color: '#60a5fa', fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>Aplicar</button>
                 </div>
               </div>
             )}
 
-            {/* ── Badges ── */}
             <div className="kardex-no-print">
-              {codigosVisibles.length > 0 && (
-                <BadgeProducto codigos={codigosVisibles} />
-              )}
+              {codigosVisibles.length > 0 && <BadgeProducto codigos={codigosVisibles} />}
             </div>
 
             {error && (
-              <div className="kardex-no-print" style={{
-                display: 'flex', alignItems: 'flex-start', gap: 8,
-                background: 'rgba(239,68,68,0.08)',
-                border: '1px solid rgba(239,68,68,0.2)',
-                borderRadius: 8, padding: '10px 14px',
-                fontSize: 12, color: '#fca5a5',
-                fontFamily: "'IBM Plex Mono', monospace",
-              }}>
+              <div className="kardex-no-print" style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#fca5a5', fontFamily: "'IBM Plex Mono', monospace" }}>
                 ✕ {error}
               </div>
             )}
 
-            {/* ── Tabla ── */}
-            <div style={{
-              background: '#0d1525',
-              border: '1px solid rgba(56,139,221,0.1)',
-              borderRadius: 10, overflow: 'hidden',
-            }}>
-              <div className="kardex-no-print" style={{
-                padding: '10px 14px',
-                borderBottom: '1px solid rgba(56,139,221,0.08)',
-                background: 'rgba(56,139,221,0.03)',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              }}>
+            <div style={{ background: '#0d1525', border: '1px solid rgba(56,139,221,0.1)', borderRadius: 10, overflow: 'hidden' }}>
+              <div className="kardex-no-print" style={{ padding: '10px 14px', borderBottom: '1px solid rgba(56,139,221,0.08)', background: 'rgba(56,139,221,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ width: 2, height: 12, background: '#3b82f6', borderRadius: 2 }} />
-                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: '#1e3a5a', fontFamily: "'IBM Plex Mono', monospace" }}>
-                    Movimientos
-                  </span>
-                  <span style={{
-                    fontSize: 11, fontFamily: "'IBM Plex Mono', monospace",
-                    padding: '1px 8px', borderRadius: 20,
-                    background: 'rgba(59,130,246,0.15)',
-                    border: '1px solid rgba(59,130,246,0.25)',
-                    color: '#60a5fa',
-                  }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase' as const, color: '#1e3a5a', fontFamily: "'IBM Plex Mono', monospace" }}>Movimientos</span>
+                  <span style={{ fontSize: 11, fontFamily: "'IBM Plex Mono', monospace", padding: '1px 8px', borderRadius: 20, background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.25)', color: '#60a5fa' }}>
                     {movimientos.length.toLocaleString('es-PE')}
                   </span>
                 </div>
-
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   {mostrarSemaforo && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 10, color: '#1e3a5a' }}>
-                      {[
-                        { color: '#22c55e', label: 'OK' },
-                        { color: '#f59e0b', label: 'Error B' },
-                        { color: '#ef4444', label: 'Error A' },
-                      ].map(item => (
+                      {[{ color: '#22c55e', label: 'OK' }, { color: '#f59e0b', label: 'Error B' }, { color: '#ef4444', label: 'Error A' }].map(item => (
                         <span key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                           <span style={{ width: 6, height: 6, borderRadius: '50%', background: item.color, display: 'inline-block' }} />
                           {item.label}
@@ -1100,22 +562,18 @@ export default function Kardex() {
                   ref={kardexTableRef}
                   movimientos={movimientos}
                   mostrarSemaforo={mostrarSemaforo}
+                  empresaImpresion={empresaImpresion}
                 />
               )}
 
               {movimientos.length > 0 && (
-                <div className="kardex-no-print" style={{
-                  padding: '7px 14px',
-                  borderTop: '1px solid rgba(56,139,221,0.08)',
-                  background: 'rgba(56,139,221,0.02)',
-                }}>
+                <div className="kardex-no-print" style={{ padding: '7px 14px', borderTop: '1px solid rgba(56,139,221,0.08)', background: 'rgba(56,139,221,0.02)' }}>
                   <p style={{ fontSize: 10, fontFamily: "'IBM Plex Mono', monospace", color: '#1e3a5a' }}>
                     Mostrando {movimientos.length.toLocaleString('es-PE')} de {totalRegistros.toLocaleString('es-PE')} registros
                   </p>
                 </div>
               )}
             </div>
-
           </div>
         </div>
       </div>
