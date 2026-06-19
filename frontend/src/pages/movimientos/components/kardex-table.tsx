@@ -9,6 +9,7 @@ import {
   forwardRef,
   useImperativeHandle,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -486,6 +487,14 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
         </div>
 
         {/* ════ IMPRESIÓN FISCAL SUNAT ════ */}
+        {/* Renderizado vía Portal directo a document.body: así el bloque de
+            impresión queda completamente fuera del contenedor `flex flex-col`
+            de la página. Cuando vive anidado dentro de un layout flex, el
+            motor de paginación de Chrome/Edge calcula mal los saltos de
+            página tras los primeros 1-2 bloques marcados con
+            page-break-inside: avoid, dejando el resto de páginas vacías o
+            cortadas (justo el síntoma reportado: se detenía en Agosto). */}
+        {createPortal(
         <div className="kp-section">
           {bloquesPrint.map((producto) => (
             <div key={producto.codigo}>
@@ -574,10 +583,15 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
                         </tr>
                       ))}
                       {(() => {
-                        const totEntCant  = mes.filas.reduce((s, r) => s + (r.ent_cantidad || 0), 0);
-                        const totEntTotal = mes.filas.reduce((s, r) => s + (r.ent_costo_total || 0), 0);
-                        const totSalCant  = mes.filas.reduce((s, r) => s + (r.sal_cantidad || 0), 0);
-                        const totSalTotal = mes.filas.reduce((s, r) => s + (r.sal_costo_total || 0), 0);
+                        // OJO: el backend serializa los campos Decimal como STRING
+                        // en el JSON (ej. "3.750"), no como número. Sumar con "+"
+                        // directamente sobre esos valores hace concatenación de
+                        // texto en vez de suma aritmética y termina en NaN al
+                        // formatear. Por eso se fuerza Number(...) antes de sumar.
+                        const totEntCant  = mes.filas.reduce((s, r) => s + (Number(r.ent_cantidad) || 0), 0);
+                        const totEntTotal = mes.filas.reduce((s, r) => s + (Number(r.ent_costo_total) || 0), 0);
+                        const totSalCant  = mes.filas.reduce((s, r) => s + (Number(r.sal_cantidad) || 0), 0);
+                        const totSalTotal = mes.filas.reduce((s, r) => s + (Number(r.sal_costo_total) || 0), 0);
                         const ultima = mes.filas[mes.filas.length - 1];
                         return (
                           <tr className="tr-total">
@@ -600,7 +614,9 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
               ))}
             </div>
           ))}
-        </div>
+        </div>,
+        document.body,
+        )}
       </div>
     );
   },

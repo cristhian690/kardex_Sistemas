@@ -124,20 +124,30 @@ export default function Kardex() {
   const handleExportar = () =>
     descargarExcel(codigo || undefined, filtroFecha.anio, filtroFecha.mes, filtroFecha.fecha_desde, filtroFecha.fecha_hasta)
 
+  // Restaurar el filtro original SOLO cuando el navegador confirma que la
+  // vista previa/diálogo de impresión se cerró (evento real "afterprint").
+  // Antes esto se hacía con un setTimeout fijo, pero window.print() no bloquea
+  // la ejecución de JS en Edge/Chrome modernos: el timeout disparaba la
+  // restauración del filtro (ej. "solo Agosto") MIENTRAS la vista previa
+  // todavía estaba abierta, dejando vacías las páginas de los meses
+  // siguientes (Sep-Dic) que ya no existían en el DOM al momento de
+  // renderizarse esas páginas.
+  useEffect(() => {
+    const onAfterPrint = () => {
+      cargarKardex(id, { ...filtroFecha, codigo: codigo || undefined })
+    }
+    window.addEventListener('afterprint', onAfterPrint)
+    return () => window.removeEventListener('afterprint', onAfterPrint)
+  }, [id, filtroFecha, codigo])
+
   const handleImprimir = async () => {
     // Si hay filtro de fecha activo, cargar todos los movimientos primero
     const hayFiltro = filtroFecha.anio || filtroFecha.mes || filtroFecha.fecha_desde || filtroFecha.fecha_hasta || codigo
     if (hayFiltro) {
       await cargarKardex(id, { codigo: codigo || undefined })
     }
-    ;(window as any).__kardexPrepararImpresion?.()
     setTimeout(() => {
       window.print()
-      setTimeout(() => {
-        ;(window as any).__kardexTerminarImpresion?.()
-        // Restaurar filtro original después de imprimir
-        cargarKardex(id, { ...filtroFecha, codigo: codigo || undefined })
-      }, 500)
     }, 300)
   }
 
