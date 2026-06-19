@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import type { FormEvent, CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/AuthContex'
 
 interface Particle { x:number;y:number;vx:number;vy:number;r:number;c:[number,number,number];a:number }
 interface Triangle  { cx:number;cy:number;vx:number;vy:number;va:number;angle:number;sz:number;c:[number,number,number];a:number }

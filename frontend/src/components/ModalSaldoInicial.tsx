@@ -1,4 +1,19 @@
+"use client"
+
 import { useState, useEffect, useRef } from 'react'
+import { AlertCircle, CheckCircle2, Loader2, DollarSign } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 interface SaldoPayload {
   empresa_id:     number
@@ -21,7 +36,7 @@ interface SaldoExistente {
 
 interface Props {
   open:          boolean
-  empresaId?:    number
+  empresaId:     number
   onClose:       () => void
   onGuardado?:   (codigo: string) => void
   saldoEditar?:  SaldoExistente | null
@@ -61,53 +76,6 @@ async function editarSaldo(id: number, payload: Omit<SaldoPayload, 'codigo'> & {
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(parseFastApiError(data, res.status))
   return data
-}
-
-const IconX = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-  </svg>
-)
-const IconCheck = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-    <polyline points="20 6 9 17 4 12"/>
-  </svg>
-)
-const IconSpinner = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style={{ animation: 'mspin 1s linear infinite' }}>
-    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2"/>
-    <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-    <style>{`@keyframes mspin{to{transform:rotate(360deg)}}`}</style>
-  </svg>
-)
-const IconSaldo = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <line x1="12" y1="1" x2="12" y2="23"/>
-    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-  </svg>
-)
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <div style={{
-        fontSize: 10, fontWeight: 700, letterSpacing: '.1em',
-        textTransform: 'uppercase' as const, color: '#1e3a5a',
-        marginBottom: 5, fontFamily: "'IBM Plex Mono', monospace",
-      }}>
-        {label}
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function Msg({ children, color }: { children: React.ReactNode; color: string }) {
-  return (
-    <div style={{ borderRadius: 7, padding: '8px 12px', fontSize: 12, color, display: 'flex', gap: 6, alignItems: 'center' }}>
-      {children}
-    </div>
-  )
 }
 
 const toNum = (v: number | string | null | undefined): number => {
@@ -159,7 +127,7 @@ export default function ModalSaldoInicial({ open, empresaId, onClose, onGuardado
     setError(null)
     setSuccess(false)
     setAdvertencia(null)
-    setTimeout(() => inputRef.current?.focus(), 80)
+    setTimeout(() => inputRef.current?.focus(), 120)
   }, [open, saldoEditar])
 
   useEffect(() => {
@@ -187,7 +155,8 @@ export default function ModalSaldoInicial({ open, empresaId, onClose, onGuardado
     setCamposModificados(true)
   }
 
-  const handleGuardar = async () => {
+  const handleGuardar = async (e: React.FormEvent) => {
+    e.preventDefault()
     if (!valido || loading) return
 
     setLoading(true)
@@ -198,7 +167,7 @@ export default function ModalSaldoInicial({ open, empresaId, onClose, onGuardado
 
       if (modoEditar && saldoEditar) {
         res = await editarSaldo(saldoEditar.id, {
-          empresa_id:     empresaId ?? 0,
+          empresa_id:     empresaId,
           descripcion:    descripcion.trim(),
           fecha,
           cantidad:       toNum(cantidad),
@@ -207,7 +176,7 @@ export default function ModalSaldoInicial({ open, empresaId, onClose, onGuardado
         })
       } else {
         res = await crearSaldo({
-          empresa_id:     empresaId ?? 0,
+          empresa_id:     empresaId,
           codigo:         codigo.trim().toUpperCase(),
           descripcion:    descripcion.trim(),
           fecha,
@@ -228,192 +197,146 @@ export default function ModalSaldoInicial({ open, empresaId, onClose, onGuardado
     }
   }
 
-  if (!open) return null
-
   return (
-    <div
-      onClick={e => e.target === e.currentTarget && onClose()}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 9999,
-        background: 'rgba(4,10,24,0.82)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        backdropFilter: 'blur(3px)',
-      }}
-    >
-      <style>{`
-        .msaldo-input {
-          width: 100%;
-          background: rgba(13,21,37,0.9);
-          border: 1px solid rgba(56,139,221,0.18);
-          border-radius: 7px;
-          padding: 8px 11px;
-          font-size: 12px;
-          font-family: 'IBM Plex Mono', monospace;
-          color: #c8ddef;
-          outline: none;
-          transition: border-color .15s;
-          box-sizing: border-box;
-        }
-        .msaldo-input:focus { border-color: rgba(59,130,246,0.55); }
-        .msaldo-input:disabled { opacity: 0.5; cursor: not-allowed; }
-      `}</style>
-
-      <div style={{
-        width: 420,
-        background: '#0d1525',
-        border: '1px solid rgba(56,139,221,0.18)',
-        borderTop: `2px solid ${modoEditar ? '#f59e0b' : '#3b82f6'}`,
-        borderRadius: 12,
-        padding: '20px 22px',
-        display: 'flex', flexDirection: 'column', gap: 16,
-        fontFamily: "'Inter', sans-serif", color: '#c8ddef',
-      }}>
-
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: 8,
-              background: modoEditar ? 'rgba(245,158,11,0.12)' : 'rgba(59,130,246,0.12)',
-              border: `1px solid ${modoEditar ? 'rgba(245,158,11,0.2)' : 'rgba(59,130,246,0.2)'}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: modoEditar ? '#f59e0b' : '#60a5fa',
-            }}>
-              <IconSaldo />
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
+      <DialogContent className="sm:max-w-[440px] text-left border-t-2 data-[edit=true]:border-t-amber-500 data-[edit=false]:border-t-blue-500" data-edit={modoEditar}>
+        
+        {/* Cabecera Premium */}
+        <DialogHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+          <div className="flex gap-3">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary data-[edit=true]:bg-amber-500/10 data-[edit=true]:border-amber-500/20 data-[edit=true]:text-amber-500" data-edit={modoEditar}>
+              <DollarSign className="size-4 text-current" />
             </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#e2e8f0' }}>
+            <div className="flex flex-col gap-0.5">
+              <DialogTitle className="text-base font-bold text-foreground">
                 {modoEditar ? 'Editar saldo inicial' : 'Agregar saldo inicial'}
-              </div>
-              <div style={{ fontSize: 11, color: '#1e3a5a' }}>
+              </DialogTitle>
+              <span className="text-xs text-muted-foreground font-medium">
                 {modoEditar ? `Código: ${saldoEditar?.codigo}` : 'Stock base para cálculo CPP'}
-              </div>
+              </span>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            style={{ background: 'none', border: 'none', color: '#2a5a8a', cursor: 'pointer', padding: 2 }}
-          >
-            <IconX />
-          </button>
-        </div>
+        </DialogHeader>
 
-        <div style={{ height: 1, background: 'rgba(56,139,221,0.1)' }} />
-
-        {/* Formulario */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-          <Field label="Código">
-            <input
+        {/* Formulario adaptado visualmente */}
+        <form onSubmit={handleGuardar} className="space-y-4 pt-1">
+          
+          <div className="space-y-1.5">
+            <Label htmlFor="g-codigo" className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground/80">Código</Label>
+            <Input
+              id="g-codigo"
               ref={inputRef}
-              className="msaldo-input"
               value={codigo}
               onChange={e => setCodigo(e.target.value.toUpperCase())}
               disabled={modoEditar}
               placeholder="Ej: 011039"
+              className="font-mono text-xs h-9 bg-card"
             />
-          </Field>
+          </div>
 
-          <Field label="Descripción">
-            <input
-              className="msaldo-input"
+          <div className="space-y-1.5">
+            <Label htmlFor="g-descripcion" className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground/80">Descripción</Label>
+            <Input
+              id="g-descripcion"
               value={descripcion}
               onChange={e => setDescripcion(e.target.value)}
               placeholder="Nombre del producto (opcional)"
+              className="text-xs h-9 bg-card"
             />
-          </Field>
+          </div>
 
-          <Field label="Fecha">
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="g-fecha" className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground/80">Fecha</Label>
+            <Input
+              id="g-fecha"
               type="date"
-              className="msaldo-input"
               value={fecha}
               onChange={e => setFecha(e.target.value)}
+              className="font-mono text-xs h-9 bg-card"
             />
-          </Field>
+          </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <Field label="Cantidad">
-              <input
-                className="msaldo-input"
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="g-cantidad" className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground/80">Cantidad</Label>
+              <Input
+                id="g-cantidad"
                 type="number"
+                step="any"
                 value={cantidad}
                 onChange={e => handleCantidadChange(e.target.value)}
                 placeholder="0.000"
+                className="font-mono text-xs h-9 bg-card"
               />
-            </Field>
-            <Field label="Costo unitario">
-              <input
-                className="msaldo-input"
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="g-costo" className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground/80">Costo unitario</Label>
+              <Input
+                id="g-costo"
                 type="number"
+                step="any"
                 value={costoUnit}
                 onChange={e => handleCostoUnitChange(e.target.value)}
                 placeholder="0.000000"
+                className="font-mono text-xs h-9 bg-card"
               />
-            </Field>
+            </div>
           </div>
 
-          {/* Costo total */}
-          <div style={{
-            background: 'rgba(56,139,221,0.05)',
-            border: '1px solid rgba(56,139,221,0.12)',
-            borderRadius: 8, padding: '9px 12px',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontSize: 11, color: '#1e3a5a' }}>Costo total calculado</span>
+          <div className="flex items-center justify-between bg-muted/30 border border-border/50 rounded-xl p-3 shadow-3xs">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] font-medium text-muted-foreground">Costo total calculado</span>
               {modoEditar && (
-                <span style={{ fontSize: 9, color: camposModificados ? '#f59e0b' : '#2a5a6a', fontFamily: "'IBM Plex Mono', monospace" }}>
+                <span className="text-[9px] font-mono font-bold uppercase tracking-wider transition-colors duration-150 data-[mod=true]:text-amber-500 data-[mod=false]:text-emerald-500" data-mod={camposModificados}>
                   {camposModificados ? '⚠ recalculado' : '✓ valor original BD'}
                 </span>
               )}
             </div>
-            <span style={{ fontWeight: 700, color: '#60a5fa', fontFamily: "'IBM Plex Mono', monospace" }}>
-              S/ {costoTotal.toFixed(6)}
+            <span className="font-mono text-sm font-bold text-blue-500 dark:text-blue-400">
+              S/. {costoTotal.toFixed(6)}
             </span>
           </div>
 
-        </div>
+          {/* Mensajes del sistema */}
+          {error && (
+            <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 text-destructive text-xs font-mono px-4 py-2.5 rounded-xl">
+              <AlertCircle className="size-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
-        {/* Mensajes */}
-        {error       && <Msg color="#fca5a5">✕ {error}</Msg>}
-        {advertencia && <Msg color="#facc15">⚠ {advertencia}</Msg>}
-        {success     && <Msg color="#4ade80"><IconCheck /> {modoEditar ? 'Actualizado' : 'Guardado'}</Msg>}
+          {advertencia && (
+            <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-mono px-4 py-2.5 rounded-xl">
+              <AlertCircle className="size-4 shrink-0" />
+              <span>{advertencia}</span>
+            </div>
+          )}
 
-        {/* Botones */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: '7px 16px', borderRadius: 7, cursor: 'pointer',
-              background: 'rgba(56,139,221,0.06)',
-              border: '1px solid rgba(56,139,221,0.14)',
-              color: '#2a5a8a', fontSize: 12, fontFamily: 'inherit',
-            }}
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleGuardar}
-            disabled={!valido || loading}
-            style={{
-              padding: '7px 18px', borderRadius: 7,
-              cursor: !valido || loading ? 'not-allowed' : 'pointer',
-              background: !valido || loading
-                ? 'rgba(29,78,216,0.3)'
-                : modoEditar
-                  ? 'linear-gradient(135deg,#d97706,#b45309)'
-                  : 'linear-gradient(135deg,#1d4ed8,#1e3a8a)',
-              border: 'none', color: '#e2e8f0',
-              fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-            }}
-          >
-            {loading ? <><IconSpinner /> Guardando...</> : modoEditar ? 'Actualizar saldo' : 'Guardar saldo'}
-          </button>
-        </div>
+          {success && (
+            <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-mono px-4 py-2.5 rounded-xl">
+              <CheckCircle2 className="size-4 shrink-0" />
+              <span>{modoEditar ? 'Actualizado correctamente' : 'Guardado correctamente'}</span>
+            </div>
+          )}
 
-      </div>
-    </div>
+          {/* Footer del Formulario */}
+          <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-border/40">
+            <Button type="button" variant="outline" onClick={onClose} className="cursor-pointer rounded-xl h-9 text-xs">
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={!valido || loading} className="cursor-pointer rounded-xl h-9 text-xs gap-2 font-semibold">
+              {loading ? (
+                <>
+                  <Loader2 className="size-3.5 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                modoEditar ? 'Actualizar saldo' : 'Guardar saldo'
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

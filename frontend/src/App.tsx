@@ -1,60 +1,52 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Outlet } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
-import { AuthProvider } from './context/AuthContext'
-import { ProtectedRoute } from './components/ProtectedRoute'
-import Login from './pages/Login'
-import Home from './pages/Home'
-import Kardex from './pages/Kardex'
-import Historial from './pages/Historial'
-import SaldosIniciales from './pages/SaldosIniciales'
-import Empresas from './pages/Empresas' 
-import Productos from './pages/Productos'
+import { AuthProvider } from '@/context/AuthContex'
+import { ThemeProvider } from '@/components/theme-provider'
+import { SidebarConfigProvider } from '@/context/sidebar-context' // 👈 ¡Importamos el proveedor real!
+import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { BaseLayout } from '@/components/layouts/base-layout'
 
-function App() {
+// Tus páginas
+import Login from '@/pages/login/index'
+import Home from '@/pages/Home'
+import Kardex from '@/pages/movimientos/index'
+import Historial from '@/pages/historial/index'
+import SaldosIniciales from '@/pages/saldos-iniciales/index'
+import Empresas from '@/pages/empresas/index' 
+import Productos from '@/pages/productos/index'
+
+export default function App() {
   return (
     <AuthProvider>
-      {/* Toaster global — aparece en todas las páginas */}
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#0d1525',
-            color: '#e2e8f0',
-            border: '1px solid rgba(56,139,221,0.2)',
-            borderRadius: '8px',
-            fontSize: '13px',
-            fontFamily: "'Inter', sans-serif",
-            padding: '12px 16px',
-          },
-          success: {
-            iconTheme: { primary: '#22c55e', secondary: '#0d1525' },
-            style: { border: '1px solid rgba(34,197,94,0.3)' },
-          },
-          error: {
-            iconTheme: { primary: '#ef4444', secondary: '#0d1525' },
-            style: { border: '1px solid rgba(239,68,68,0.3)' },
-            duration: 6000,
-          },
-        }}
-      />
+      <ThemeProvider defaultTheme="dark" storageKey="kardex-ui-theme">
+      <Toaster position="top-right" />
 
       <Routes>
-        {/* Pública */}
+        {/* Ruta Pública (Fuera de la barra lateral) */}
         <Route path="/login" element={<Login />} />
 
-        {/* Protegidas */}
-        <Route path="/"                         element={<ProtectedRoute><Home />            </ProtectedRoute>} />
-        <Route path="/kardex/:procesamiento_id" element={<ProtectedRoute><Kardex />          </ProtectedRoute>} />
-        <Route path="/historial"                element={<ProtectedRoute><Historial />       </ProtectedRoute>} />
-        <Route path="/saldos"                   element={<ProtectedRoute><SaldosIniciales /> </ProtectedRoute>} />
-        <Route path="/empresas"                 element={<ProtectedRoute><Empresas />        </
-        ProtectedRoute>} />
-        <Route path="/productos"                 element={<ProtectedRoute><Productos />        </
-        ProtectedRoute>} />
+        {/* ── Rutas del Dashboard Enueltas en la Configuración del Sidebar ── */}
+        <Route
+          element={
+            <ProtectedRoute>
+              {/* El ConfigProvider le inyecta al BaseLayout los estados de la plantilla */}
+              <SidebarConfigProvider>
+                <BaseLayout>
+                  <Outlet />
+                </BaseLayout>
+              </SidebarConfigProvider>
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/"                          element={<Home />} />
+          <Route path="/kardex/:procesamiento_id" element={<Kardex />} />
+          <Route path="/historial/"                element={<Historial />} />
+          <Route path="/saldos"                   element={<SaldosIniciales />} />
+          <Route path="/empresas"                 element={<Empresas />} />
+          <Route path="/productos"                element={<Productos />} />
+        </Route>
       </Routes>
+      </ThemeProvider>
     </AuthProvider>
   )
 }
-
-export default App

@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import FileUploader       from '../components/FileUploader'
 import ModalSaldoInicial  from '../components/ModalSaldoInicial'
 import { useKardex }      from '../hooks/useKardex'
-import { useAuth }        from '../context/AuthContext'
+import { useAuth }        from '../context/AuthContex'
 import type { Usuario }   from '../types'
 
 /* ═══════════════════════════ Icons ═══════════════════════════ */

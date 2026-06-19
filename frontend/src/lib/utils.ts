@@ -1,30 +1,27 @@
-// ── Formateo de números ────────────────────────────────────────────────────────
-export const fmtCantidad = (n: number) =>
-  new Intl.NumberFormat('es-PE', {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  }).format(n)
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
 
-export const fmtCosto = (n: number) =>
-  new Intl.NumberFormat('es-PE', {
-    style:                 'currency',
-    currency:              'PEN',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n)
-
-export const fmtFecha = (fecha: string) => {
-  try {
-    return new Date(fecha + 'T00:00:00').toLocaleDateString('es-PE', {
-      day:   '2-digit',
-      month: '2-digit',
-      year:  'numeric',
-    })
-  } catch {
-    return fecha
-  }
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
 }
 
-// ── Clases CSS condicionales (sin clsx) ───────────────────────────────────────
-export const cn = (...classes: (string | undefined | false | null)[]) =>
-  classes.filter(Boolean).join(' ')
+/**
+ * Get the correct URL for public assets
+ * Handles both development and production asset paths
+ */
+export function assetUrl(path: string): string {
+  const baseUrl = import.meta.env.BASE_URL || '/'
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path
+  return baseUrl + cleanPath
+}
+
+/**
+ * Get the correct URL path with basename prefix for internal navigation
+ * @param path - The internal path (e.g., "/dashboard", "/auth/sign-in")
+ * @returns The full path with basename prefix
+ */
+export function getAppUrl(path: string): string {
+  const basename = import.meta.env.VITE_BASENAME || ''
+  const cleanPath = path.startsWith('/') ? path : `/${path}`
+  return basename + cleanPath
+}
