@@ -248,7 +248,7 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
           @media print {
             @page {
               size: A4 landscape;
-              margin: 0;
+              margin: 12mm 10mm;
             }
 
             /* Ocultar sidebar, header, footer y navegación */
@@ -265,15 +265,14 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
               width: 0 !important;
             }
 
-            /* Quitar margen izquierdo del sidebar */
-            [data-slot="sidebar-inset"],
-            main,
-            body > div,
+            /* Ocultar TODO el árbol de la app (incluye el wrapper de
+               SidebarProvider, que tiene min-h-svh y por eso dejaba una
+               página entera en blanco aunque sus hijos ya estuvieran
+               ocultos). El contenido a imprimir vive en el Portal,
+               como hermano de #root directo en <body>, así que #root
+               ya no necesita renderizarse para nada. */
             #root {
-              margin-left: 0 !important;
-              padding-left: 0 !important;
-              width: 100% !important;
-              max-width: 100% !important;
+              display: none !important;
             }
 
             body, html {
@@ -290,7 +289,7 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
               page-break-inside: avoid;
               break-inside: avoid;
               margin-bottom: 8px;
-              padding: 10mm 8mm 4mm 8mm;
+              padding: 4mm 2mm 2mm 2mm;
               page-break-after: auto;
             }
 

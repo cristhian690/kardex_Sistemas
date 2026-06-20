@@ -205,42 +205,86 @@ class KardexService:
         )
 
         # ── Saldo inicial del periodo ─────────────────────────────────────────
-        fila_saldo_inicial = None
-        codigos_distintos  = list({m.producto.codigo for m in movimientos if m.producto})
-        codigo_saldo       = filtros.codigo or (codigos_distintos[0] if len(codigos_distintos) == 1 else None)
+        # ANTES: se calculaba UN solo saldo inicial, asumiendo un único
+        # código (codigo_saldo solo se resolvía si filtros.codigo venía
+        # explícito o si había exactamente 1 código distinto en el
+        # resultado). Al imprimir el reporte SIN filtro de código (todos
+        # los productos) esa condición nunca se cumplía y NINGÚN producto
+        # recibía su fila de SALDO INICIAL. Ahora se calcula uno por cada
+        # producto presente en `movimientos`.
+        filas_saldo_inicial: list[MovimientoResponse] = []
 
-        if filtros.anio and filtros.mes and codigo_saldo:
-            antes_de     = date(filtros.anio, filtros.mes, 1)
+        productos_info: dict[int, dict] = {}
+        for m in movimientos:
+            if not m.producto:
+                continue
+            pid = m.producto_id
+            if pid not in productos_info:
+                productos_info[pid] = {"codigo": m.producto.codigo, "producto": m.producto, "fecha_min": m.fecha}
+            elif m.fecha < productos_info[pid]["fecha_min"]:
+                productos_info[pid]["fecha_min"] = m.fecha
+
+        # Si se filtró por un código exacto que no tiene movimientos en este
+        # resultado (ej. un mes puntual sin transacciones para ese producto),
+        # igual se intenta calcular y mostrar su saldo inicial.
+        if filtros.codigo and not any(v["codigo"] == filtros.codigo for v in productos_info.values()):
+            mov_cualquiera = await self.movimiento_repo.get_filtrado(
+                procesamiento_id = procesamiento_id,
+                codigo           = filtros.codigo,
+            )
+            if mov_cualquiera:
+                ref = mov_cualquiera[0]
+                productos_info[ref.producto_id] = {
+                    "codigo": filtros.codigo, "producto": ref.producto, "fecha_min": None,
+                }
+
+        for pid, info in productos_info.items():
+            codigo_p   = info["codigo"]
+            producto_p = info["producto"]
+
+            if filtros.anio and filtros.mes:
+                antes_de = date(filtros.anio, filtros.mes, 1)
+            elif fecha_desde:
+                antes_de = fecha_desde
+            elif info["fecha_min"] is not None:
+                # Caso del reporte completo (sin anio/mes ni fecha_desde):
+                # se ancla a la fecha del primer movimiento DE ESE PRODUCTO.
+                antes_de = info["fecha_min"]
+            else:
+                continue
+
             mov_anterior = await self.movimiento_repo.get_saldo_anterior(
                 procesamiento_id = procesamiento_id,
-                codigo           = codigo_saldo,
+                codigo           = codigo_p,
                 antes_de         = antes_de,
             )
-            saldo_cant  = Decimal(str(mov_anterior.saldo_cantidad))    if mov_anterior else Decimal("0")
-            saldo_total = Decimal(str(mov_anterior.saldo_costo_total)) if mov_anterior else Decimal("0")
-            fila_saldo_inicial = _build_fila_saldo_inicial(
-                procesamiento_id, codigo_saldo, antes_de, saldo_cant, saldo_total
-            )
+            if mov_anterior:
+                # Hay continuidad real dentro del kardex ya procesado.
+                fecha_saldo = antes_de
+                saldo_cant  = Decimal(str(mov_anterior.saldo_cantidad))
+                saldo_total = Decimal(str(mov_anterior.saldo_costo_total))
+            else:
+                # No hay nada antes en `movimientos`: el saldo inicial real
+                # vive en la tabla saldos_iniciales (la subida por Excel),
+                # con su propia fecha y montos reales.
+                saldo_vigente = await self.saldo_repo.get_saldo_vigente(
+                    producto_id             = pid,
+                    fecha_primer_movimiento = antes_de,
+                )
+                if saldo_vigente:
+                    fecha_saldo = saldo_vigente.fecha
+                    saldo_cant  = saldo_vigente.cantidad
+                    saldo_total = saldo_vigente.costo_total
+                else:
+                    fecha_saldo = antes_de
+                    saldo_cant  = Decimal("0")
+                    saldo_total = Decimal("0")
 
-            if fila_saldo_inicial and movimientos:
-                fila_saldo_inicial.producto = movimientos[0].producto
+            fila = _build_fila_saldo_inicial(procesamiento_id, codigo_p, fecha_saldo, saldo_cant, saldo_total)
+            fila.producto = producto_p
+            filas_saldo_inicial.append(fila)
 
-        elif fecha_desde and codigo_saldo:
-            mov_anterior = await self.movimiento_repo.get_saldo_anterior(
-                procesamiento_id = procesamiento_id,
-                codigo           = codigo_saldo,
-                antes_de         = fecha_desde,
-            )
-            saldo_cant  = Decimal(str(mov_anterior.saldo_cantidad))    if mov_anterior else Decimal("0")
-            saldo_total = Decimal(str(mov_anterior.saldo_costo_total)) if mov_anterior else Decimal("0")
-            fila_saldo_inicial = _build_fila_saldo_inicial(
-                procesamiento_id, codigo_saldo, fecha_desde, saldo_cant, saldo_total
-            )
-
-            if fila_saldo_inicial and movimientos:
-                fila_saldo_inicial.producto = movimientos[0].producto
-
-        if not movimientos and fila_saldo_inicial is None:
+        if not movimientos and not filas_saldo_inicial:
             raise KardexException("No se encontraron movimientos con los filtros aplicados.")
 
         if movimientos:
@@ -294,8 +338,21 @@ class KardexService:
             for idx, m in enumerate(movimientos)
         ]
 
-        if fila_saldo_inicial:
-            movimientos_response.insert(0, fila_saldo_inicial)
+        if filas_saldo_inicial:
+            # Antes se metían TODAS juntas al inicio de la lista completa
+            # (movimientos_response = filas_saldo_inicial + movimientos_response),
+            # por eso salían amontonadas arriba aunque fueran de productos
+            # distintos. Ahora cada una se inserta justo antes del primer
+            # movimiento de SU propio código.
+            for fila in filas_saldo_inicial:
+                idx = next(
+                    (i for i, r in enumerate(movimientos_response) if r.codigo == fila.codigo),
+                    None,
+                )
+                if idx is not None:
+                    movimientos_response.insert(idx, fila)
+                else:
+                    movimientos_response.insert(0, fila)
 
         errores = sum(1 for r in movimientos_response if r.semaforo != "🟢")
 
