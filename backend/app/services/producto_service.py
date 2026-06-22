@@ -29,6 +29,7 @@ class ProductoService:
             descripcion=data.descripcion.strip() if data.descripcion else None,
             codigo_existencia=data.codigo_existencia.strip() if data.codigo_existencia else None,
             unidad_medida=data.unidad_medida.strip() if data.unidad_medida else None,
+            almacen=data.almacen.strip() if data.almacen else None,
         )
 
         producto_dict = {
@@ -38,6 +39,7 @@ class ProductoService:
             "descripcion": producto.descripcion,
             "codigo_existencia": producto.codigo_existencia,
             "unidad_medida": producto.unidad_medida,
+            "almacen": producto.almacen,
             "creado_en": producto.creado_en,
             "saldos_iniciales": []
         }
@@ -116,6 +118,7 @@ class ProductoService:
             descripcion       = data.descripcion,
             codigo_existencia = data.codigo_existencia,
             unidad_medida     = data.unidad_medida,
+            almacen           = data.almacen,
         )
 
         return ProductoResponse.model_validate(producto)

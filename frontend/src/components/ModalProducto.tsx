@@ -28,6 +28,7 @@ interface ProductoPayload {
   descripcion: string | null
   codigo_existencia: string | null
   unidad_medida: string | null
+  almacen: string | null
 }
 
 interface ProductoExistente {
@@ -37,6 +38,7 @@ interface ProductoExistente {
   descripcion?: string | null
   codigo_existencia?: string | null
   unidad_medida?: string | null
+  almacen?: string | null 
 }
 
 interface Empresa {
@@ -96,6 +98,7 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
   const [descripcion, setDescripcion] = useState('')
   const [codExistencia, setCodExistencia] = useState('01')
   const [unidadMedida, setUnidadMedida] = useState('NIU')
+  const [almacen, setAlmacen] = useState('') 
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -131,11 +134,13 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
       setDescripcion(productoEditar.descripcion ?? '')
       setCodExistencia(productoEditar.codigo_existencia ?? '01')
       setUnidadMedida(productoEditar.unidad_medida ?? 'NIU')
+      setAlmacen(productoEditar.almacen ?? '')
     } else {
       setCodigo('')
       setDescripcion('')
       setCodExistencia('01')
       setUnidadMedida('NIU')
+      setAlmacen('') 
       if (empresas.length > 0) setEmpresaIdSelect(String(empresas[0].id))
     }
 
@@ -165,6 +170,7 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
       descripcion: descripcion.trim() || null,
       codigo_existencia: codExistencia.trim() || '01',
       unidad_medida: unidadMedida.trim() || 'NIU',
+      almacen: almacen.trim() || null,
     }
 
     try {
@@ -248,6 +254,18 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
               onChange={e => setDescripcion(e.target.value)}
               placeholder="Ej: FURALTADONA HCL-01"
               className="text-xs h-9 bg-card"
+            />
+          </div>
+
+          {/* NUEVO: Input de Almacén Fijo Asignado */}
+          <div className="space-y-1.5">
+            <Label htmlFor="p-almacen" className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground/80">Almacén de Resguardo</Label>
+            <Input
+              id="p-almacen"
+              value={almacen}
+              onChange={e => setAlmacen(e.target.value)}
+              placeholder="Ej: ALMACÉN CENTRAL PRINCIPAL"
+              className="text-xs h-9 bg-card font-mono"
             />
           </div>
 

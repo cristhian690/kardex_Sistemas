@@ -44,6 +44,10 @@ def upgrade() -> None:
         'Empresa del sistema'
     )
     """)
+    
+    #LÍNEA PARA BLINDAR EL ID DE EMPRESA DEL SISTEMA
+    op.execute("SELECT setval(pg_get_serial_sequence('empresa', 'id'), COALESCE(max(id), 1)) FROM empresa;")
+    
     op.create_index("ix_empresas_id", "empresa", ["id"])
 
     # ── 2. PRODUCTOS ──────────────────────────────────────────────────────────
@@ -55,6 +59,7 @@ def upgrade() -> None:
         sa.Column("descripcion", sa.String(255), nullable=True),
         sa.Column("codigo_existencia", sa.String(20), nullable=True),
         sa.Column("unidad_medida", sa.String(20), nullable=True),
+        sa.Column("almacen", sa.String(100), nullable=True),
         sa.Column("creado_en",   sa.DateTime(timezone=True),
                   server_default=sa.text("now()"), nullable=False),
         sa.ForeignKeyConstraint(["empresa_id"],["empresa.id"]),

@@ -3,7 +3,7 @@ import pandas as pd
 from decimal import Decimal
 from datetime import date, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update, bindparam
 from app.repositories import (
     ProductoRepository,
     SaldoRepository,
@@ -12,6 +12,7 @@ from app.repositories import (
 )
 from app.models.producto import Producto
 from app.models.saldo_inicial import SaldoInicial
+from app.models.movimiento import Movimiento
 from app.services.kardex_engine import (
     parsear_saldos_iniciales,
     parsear_movimientos,
@@ -180,6 +181,63 @@ class KardexService:
             alertas              = alertas,
         )
 
+    # ── Revalidar Tolerancia en Caliente ──────────────────────────────────────
+    async def revalidar_anomalias(self, procesamiento_id: int, tolerancia: Decimal) -> None:
+        """
+        Refiltra y actualiza las alertas (Error A y Error B) sobre los movimientos
+        ya guardados en BD usando un nuevo marco de tolerancia decimal.
+        """
+        # 1. Traemos todo el bloque de movimientos para este procesamiento
+        movimientos = await self.movimiento_repo.get_filtrado(procesamiento_id=procesamiento_id)
+        if not movimientos:
+            raise KardexException(f"Procesamiento {procesamiento_id} no encontrado o sin movimientos.")
+
+        # 2. Reconstruimos el DataFrame emulando las columnas que utiliza KardexEngine
+        data = []
+        for m in movimientos:
+            data.append({
+                "id": m.id,
+                "Tipo_Operacion": str(m.tipo_operacion),
+                "Ent_Cantidad": float(m.ent_cantidad) if m.ent_cantidad else 0.0,
+                "Orig_Ent_Costo_Unit": float(m.orig_ent_costo_unit) if m.orig_ent_costo_unit else 0.0,
+                "Orig_Ent_Costo_Total": float(m.orig_ent_costo_total) if m.orig_ent_costo_total else 0.0,
+                "Ent_Costo_Total": float(m.ent_costo_total) if m.ent_costo_total else 0.0,
+                "Sal_Cantidad": float(m.sal_cantidad) if m.sal_cantidad else 0.0,
+                "Orig_Sal_Costo_Unit": float(m.orig_sal_costo_unit) if m.orig_sal_costo_unit else 0.0,
+                "Orig_Sal_Costo_Total": float(m.orig_sal_costo_total) if m.orig_sal_costo_total else 0.0,
+                "Sal_Costo_Unit": float(m.sal_costo_unit) if m.sal_costo_unit else 0.0,
+                "Sal_Costo_Total": float(m.sal_costo_total) if m.sal_costo_total else 0.0,
+                "Saldo_Negativo": bool(m.saldo_negativo),
+            })
+        
+        df = pd.DataFrame(data)
+
+        # 3. Disparamos la rutina de integridad con la nueva tolerancia
+        df_revalidado = verificar_integridad(df, tolerancia=tolerancia)
+
+        # 4. Construimos la cola de actualización en masa
+        updates = []
+        for row in df_revalidado.itertuples(index=False):
+            updates.append({
+                "id": int(row.id),            # 🟢 Debe llamarse 'id' (como tu Primary Key)
+                "error_a": bool(row.Error_A), # 🟢 Debe llamarse 'error_a' (como tu modelo)
+                "error_b": bool(row.Error_B)  # 🟢 Debe llamarse 'error_b' (como tu modelo)
+            })
+
+        if not updates:
+            return
+
+        # 5. Ejecutamos un BULK UPDATE nativo de SQLAlchemy 2.0 (Update by Primary Key)
+        # Ya no necesitamos .where() ni bindparam() manuales, SQLAlchemy lo arma solo.
+        stmt = update(Movimiento).execution_options(synchronize_session=False)
+        
+        chunk_size = 2000
+        for i in range(0, len(updates), chunk_size):
+            await self.db.execute(stmt, updates[i:i + chunk_size])
+        
+        await self.db.commit()
+
+
     # ── Consulta del kardex con filtros ───────────────────────────────────────
     async def get_kardex(
         self,
@@ -205,13 +263,6 @@ class KardexService:
         )
 
         # ── Saldo inicial del periodo ─────────────────────────────────────────
-        # ANTES: se calculaba UN solo saldo inicial, asumiendo un único
-        # código (codigo_saldo solo se resolvía si filtros.codigo venía
-        # explícito o si había exactamente 1 código distinto en el
-        # resultado). Al imprimir el reporte SIN filtro de código (todos
-        # los productos) esa condición nunca se cumplía y NINGÚN producto
-        # recibía su fila de SALDO INICIAL. Ahora se calcula uno por cada
-        # producto presente en `movimientos`.
         filas_saldo_inicial: list[MovimientoResponse] = []
 
         productos_info: dict[int, dict] = {}
@@ -224,9 +275,6 @@ class KardexService:
             elif m.fecha < productos_info[pid]["fecha_min"]:
                 productos_info[pid]["fecha_min"] = m.fecha
 
-        # Si se filtró por un código exacto que no tiene movimientos en este
-        # resultado (ej. un mes puntual sin transacciones para ese producto),
-        # igual se intenta calcular y mostrar su saldo inicial.
         if filtros.codigo and not any(v["codigo"] == filtros.codigo for v in productos_info.values()):
             mov_cualquiera = await self.movimiento_repo.get_filtrado(
                 procesamiento_id = procesamiento_id,
@@ -247,8 +295,6 @@ class KardexService:
             elif fecha_desde:
                 antes_de = fecha_desde
             elif info["fecha_min"] is not None:
-                # Caso del reporte completo (sin anio/mes ni fecha_desde):
-                # se ancla a la fecha del primer movimiento DE ESE PRODUCTO.
                 antes_de = info["fecha_min"]
             else:
                 continue
@@ -259,14 +305,10 @@ class KardexService:
                 antes_de         = antes_de,
             )
             if mov_anterior:
-                # Hay continuidad real dentro del kardex ya procesado.
                 fecha_saldo = antes_de
                 saldo_cant  = Decimal(str(mov_anterior.saldo_cantidad))
                 saldo_total = Decimal(str(mov_anterior.saldo_costo_total))
             else:
-                # No hay nada antes en `movimientos`: el saldo inicial real
-                # vive en la tabla saldos_iniciales (la subida por Excel),
-                # con su propia fecha y montos reales.
                 saldo_vigente = await self.saldo_repo.get_saldo_vigente(
                     producto_id             = pid,
                     fecha_primer_movimiento = antes_de,
@@ -339,11 +381,6 @@ class KardexService:
         ]
 
         if filas_saldo_inicial:
-            # Antes se metían TODAS juntas al inicio de la lista completa
-            # (movimientos_response = filas_saldo_inicial + movimientos_response),
-            # por eso salían amontonadas arriba aunque fueran de productos
-            # distintos. Ahora cada una se inserta justo antes del primer
-            # movimiento de SU propio código.
             for fila in filas_saldo_inicial:
                 idx = next(
                     (i for i, r in enumerate(movimientos_response) if r.codigo == fila.codigo),

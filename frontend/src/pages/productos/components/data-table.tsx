@@ -49,8 +49,9 @@ export interface Producto {
   descripcion?: string
   codigo_existencia?: string;
   unidad_medida?: string;
+  almacen?: string;
   creado_en: string;
-  total_saldos?: number; // Para mantener compatibilidad con tu contador
+  total_saldos?: number; 
 }
 
 interface Empresa {
@@ -140,6 +141,11 @@ export function DataTable({
           </span>
         )
       }
+    },
+    {
+      accessorKey: "almacen",
+      header: "Almacén",
+      cell: ({ row }) => <span className="text-xs font-mono text-muted-foreground/90 font-medium">{row.original.almacen || "—"}</span>
     },
     {
       accessorKey: "unidad_medida",
@@ -281,7 +287,7 @@ export function DataTable({
         </div>
       </div>
 
-      {/* ── Diseño de la Tabla Transparente (Igual a Saldos) ── */}
+      {/* Tabla */}
       <div className="rounded-xl border bg-card/30 backdrop-blur-md text-card-foreground shadow-2xs overflow-hidden border-border/50">
         <Table>
           <TableHeader className="bg-muted/20 font-mono text-xs border-b border-border/50">

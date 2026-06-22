@@ -17,6 +17,7 @@ class ProductoRepository:
         descripcion: str | None = None,
         codigo_existencia: str | None = None,
         unidad_medida: str | None = None,
+        almacen: str | None = None, 
     ) -> Producto:
         producto = Producto(
             codigo=codigo,
@@ -24,6 +25,7 @@ class ProductoRepository:
             descripcion=descripcion,
             codigo_existencia=codigo_existencia,
             unidad_medida=unidad_medida,
+            almacen=almacen, 
         )
         self.db.add(producto)
         await self.db.flush()
@@ -59,6 +61,7 @@ class ProductoRepository:
         codigo:      str,
         empresa_id:  int,
         descripcion: str | None = None,
+        almacen:     str | None = None, 
     ) -> Producto:
         producto = await self.get_by_codigo_y_empresa(codigo, empresa_id)
         if not producto:
@@ -66,6 +69,7 @@ class ProductoRepository:
                 codigo      = codigo,
                 empresa_id  = empresa_id,
                 descripcion = descripcion,
+                almacen     = almacen, 
             )
             self.db.add(producto)
             await self.db.flush()
@@ -113,6 +117,7 @@ class ProductoRepository:
         descripcion:       str | None = None,
         codigo_existencia: str | None = None,
         unidad_medida:     str | None = None,
+        almacen:           str | None = None,
     ) -> Producto | None:
         producto = await self.get_by_id(producto_id)
         if not producto:
@@ -122,6 +127,7 @@ class ProductoRepository:
         if descripcion       is not None: producto.descripcion       = descripcion
         if codigo_existencia is not None: producto.codigo_existencia = codigo_existencia
         if unidad_medida     is not None: producto.unidad_medida     = unidad_medida
+        if almacen           is not None: producto.almacen           = almacen
         await self.db.flush()
         return producto
 

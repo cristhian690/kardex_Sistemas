@@ -20,6 +20,7 @@ class ProductoKardexOut(BaseModel):
     descripcion: Optional[str] = None
     codigo_existencia: Optional[str] = None
     unidad_medida: Optional[str] = None
+    almacen: Optional[str] = None
     empresa: Optional[EmpresaKardexOut] = None  #INYECTA LA EMPRESA
 
     model_config = {"from_attributes": True}

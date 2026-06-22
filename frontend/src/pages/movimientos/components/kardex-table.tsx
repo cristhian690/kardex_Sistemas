@@ -61,6 +61,7 @@ export interface KardexRow {
   producto?: {
     descripcion?: string;
     unidad_medida?: string;
+    almacen?: string;
     empresa?: {
       id: number;
       nombre: string;
@@ -157,7 +158,13 @@ function agruparPorProductoMes(movimientos: KardexRow[]): ProductoBlock[] {
       saldoUnit = ultima.saldo_costo_unit;
       saldoTotal = ultima.saldo_costo_total;
     }
-    bloques.push({ codigo, nombre: filas[0]?.producto?.descripcion ?? codigo, unidadMedida: filas[0]?.producto?.unidad_medida ?? "NIU", meses });
+    bloques.push({ 
+      codigo, 
+      nombre: filas[0]?.producto?.descripcion ?? codigo, 
+      unidadMedida: filas[0]?.producto?.unidad_medida ?? "NIU",
+      almacen: filas[0]?.producto?.almacen,
+      meses 
+    });
   }
   return bloques;
 }
@@ -248,10 +255,9 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
           @media print {
             @page {
               size: A4 landscape;
-              margin: 12mm 10mm;
+              margin: 0 !important; /* 1. MATA TODOS LOS TEXTOS, URL Y FECHAS DEL NAVEGADOR */
             }
 
-            /* Ocultar sidebar, header, footer y navegación */
             [data-sidebar="sidebar"],
             [data-slot="sidebar"],
             [data-collapsible],
@@ -265,12 +271,6 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
               width: 0 !important;
             }
 
-            /* Ocultar TODO el árbol de la app (incluye el wrapper de
-               SidebarProvider, que tiene min-h-svh y por eso dejaba una
-               página entera en blanco aunque sus hijos ya estuvieran
-               ocultos). El contenido a imprimir vive en el Portal,
-               como hermano de #root directo en <body>, así que #root
-               ya no necesita renderizarse para nada. */
             #root {
               display: none !important;
             }
@@ -286,11 +286,16 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
             .kp-section { display: block !important; }
 
             .kp-mes-block {
-              page-break-inside: avoid;
-              break-inside: avoid;
-              margin-bottom: 8px;
-              padding: 4mm 2mm 2mm 2mm;
-              page-break-after: auto;
+              page-break-before: always;
+              break-before: page;
+              /* 2. DEVOLVEMOS EL MARGEN FÍSICO COMO PADDING PARA LA PRIMERA PÁGINA */
+              padding: 10mm 10mm 2mm 10mm;
+              box-sizing: border-box;
+            }
+
+            .kp-section > div:first-child > .kp-mes-block:first-child {
+              page-break-before: auto;
+              break-before: auto;
             }
 
             .kp-empresa { font-family: Arial, sans-serif; font-size: 8.5px; margin-bottom: 4px; }
@@ -316,10 +321,21 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
               margin-bottom: 3px;
               border-top: 2px solid #222;
               border-bottom: 2px solid #222;
+              
+              /* Clave para el truco de colisión */
+              position: relative;
+              z-index: 10;
             }
             .kp-prod-info td { padding: 3px 6px; border: none; }
             .kp-prod-info .lbl { font-weight: 700; white-space: nowrap; }
             .kp-prod-info .val { font-weight: 600; padding-right: 16px; }
+
+            /* 3. EN LA PÁGINA 1: Jalamos la tabla hacia arriba para tragarnos el espacio en blanco */
+            .kp-table-wrapper {
+              margin-top: -10mm;
+              position: relative;
+              z-index: 1;
+            }
 
             .kp-mov-table {
               width: 100%;
@@ -327,6 +343,24 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
               font-family: Arial, sans-serif;
               font-size: 7.5px;
             }
+            
+            /* 4. EN LA PÁGINA 2: Este elemento invisible crea los 10mm de aire contra el borde */
+            .kp-mov-table .tr-spacer th {
+              border: none !important;
+              height: 10mm !important;
+              background: transparent !important;
+              padding: 0 !important;
+            }
+
+            /* CLASE MAESTRA: Espaciador Invisible que actúa como margen en la Página 2 en adelante */
+            .kp-mov-table .tr-print-spacer th,
+            .kp-mov-table .tr-print-spacer td {
+              border: none !important;
+              height: 12mm !important;
+              padding: 0 !important;
+              background: transparent !important;
+            }
+
             .kp-mov-table th,
             .kp-mov-table th.th-grupo {
               background: white !important;
@@ -486,13 +520,6 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
         </div>
 
         {/* ════ IMPRESIÓN FISCAL SUNAT ════ */}
-        {/* Renderizado vía Portal directo a document.body: así el bloque de
-            impresión queda completamente fuera del contenedor `flex flex-col`
-            de la página. Cuando vive anidado dentro de un layout flex, el
-            motor de paginación de Chrome/Edge calcula mal los saltos de
-            página tras los primeros 1-2 bloques marcados con
-            page-break-inside: avoid, dejando el resto de páginas vacías o
-            cortadas (justo el síntoma reportado: se detenía en Agosto). */}
         {createPortal(
         <div className="kp-section">
           {bloquesPrint.map((producto) => (
@@ -519,96 +546,104 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
                       <tr>
                         <td className="lbl">Código:</td><td className="val">{producto.codigo}</td>
                         <td className="lbl">Nombre:</td><td className="val">{producto.nombre}</td>
-                        <td className="lbl">Almacén:</td><td className="val">----------</td>
+                        <td className="lbl">Almacén:</td>
+                        <td className="val">{producto.almacen || "-------"}</td>
                         <td className="lbl">Tipo:</td><td className="val">{empresaImpresion?.tipo ?? "Mercadería"}</td>
                         <td className="lbl">Costo:</td><td className="val">{empresaImpresion?.metodo_valuacion ?? "Prom. Ponderado"}</td>
                       </tr>
                     </tbody>
                   </table>
-                  <table className="kp-mov-table">
-                    <thead>
-                      <tr>
-                        <th className="th-grupo" rowSpan={2} style={{ width: 20 }}>#</th>
-                        <th className="th-grupo" rowSpan={2} style={{ width: 52 }}>FECHA</th>
-                        <th className="th-grupo" colSpan={3}>COMPROBANTE</th>
-                        <th className="th-grupo" rowSpan={2} style={{ width: 72 }}>TIPO OPERACIÓN</th>
-                        <th className="th-grupo" colSpan={3}>ENTRADAS</th>
-                        <th className="th-grupo" colSpan={3}>SALIDAS</th>
-                        <th className="th-grupo" colSpan={3}>SALDO FINAL</th>
-                      </tr>
-                      <tr>
-                        <th style={{ width: 22 }}>TIPO</th>
-                        <th style={{ width: 32 }}>SERIE</th>
-                        <th style={{ width: 50 }}>NÚMERO</th>
-                        <th style={{ width: 38 }}>CANT</th>
-                        <th style={{ width: 48 }}>C.U.</th>
-                        <th style={{ width: 48 }}>TOTAL</th>
-                        <th style={{ width: 38 }}>CANT</th>
-                        <th style={{ width: 48 }}>C.U.</th>
-                        <th style={{ width: 48 }}>TOTAL</th>
-                        <th style={{ width: 38 }}>CANT</th>
-                        <th style={{ width: 48 }}>C.U.</th>
-                        <th style={{ width: 48 }}>TOTAL</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="tr-saldo">
-                        <td className="td-c" colSpan={6}>
-                          {mesIdx === 0 ? "▶ SALDO INICIAL" : `▶ SALDO ANTERIOR — ${producto.meses[mesIdx - 1].mesLabel}`}
-                        </td>
-                        <td className="td-r">—</td><td className="td-r">—</td><td className="td-r">—</td>
-                        <td className="td-r">—</td><td className="td-r">—</td><td className="td-r">—</td>
-                        <td className="td-r">{fmtCant(mes.saldoAnteriorCant)}</td>
-                        <td className="td-r">{fmtUnit(mes.saldoAnteriorUnit)}</td>
-                        <td className="td-r">{fmtTotal(mes.saldoAnteriorTotal)}</td>
-                      </tr>
-                      {mes.filas.map((row, ri) => (
-                        <tr key={row.id} className={ri % 2 !== 0 ? "tr-alt" : ""}>
-                          <td className="td-c">{ri + 1}</td>
-                          <td>{fmtFecha(row.fecha)}</td>
-                          <td className="td-c">{row.tipo_comprobante}</td>
-                          <td>{row.serie}</td>
-                          <td>{row.numero}</td>
-                          <td>{row.tipo_operacion}</td>
-                          <td className="td-r">{fmtCant(row.ent_cantidad)}</td>
-                          <td className="td-r">{fmtUnit(row.ent_costo_unit)}</td>
-                          <td className="td-r">{fmtTotal(row.ent_costo_total)}</td>
-                          <td className="td-r">{fmtCant(row.sal_cantidad)}</td>
-                          <td className="td-r">{fmtUnit(row.sal_costo_unit)}</td>
-                          <td className="td-r">{fmtTotal(row.sal_costo_total)}</td>
-                          <td className="td-r">{fmtCant(row.saldo_cantidad)}</td>
-                          <td className="td-r">{fmtUnit(row.saldo_costo_unit)}</td>
-                          <td className="td-r">{fmtTotal(row.saldo_costo_total)}</td>
+                  
+                  <div className="kp-table-wrapper">
+                    <table className="kp-mov-table">
+                      <thead>
+                        <tr className="tr-spacer">
+                          <th colSpan={15}></th>
                         </tr>
-                      ))}
-                      {(() => {
-                        // OJO: el backend serializa los campos Decimal como STRING
-                        // en el JSON (ej. "3.750"), no como número. Sumar con "+"
-                        // directamente sobre esos valores hace concatenación de
-                        // texto en vez de suma aritmética y termina en NaN al
-                        // formatear. Por eso se fuerza Number(...) antes de sumar.
-                        const totEntCant  = mes.filas.reduce((s, r) => s + (Number(r.ent_cantidad) || 0), 0);
-                        const totEntTotal = mes.filas.reduce((s, r) => s + (Number(r.ent_costo_total) || 0), 0);
-                        const totSalCant  = mes.filas.reduce((s, r) => s + (Number(r.sal_cantidad) || 0), 0);
-                        const totSalTotal = mes.filas.reduce((s, r) => s + (Number(r.sal_costo_total) || 0), 0);
-                        const ultima = mes.filas[mes.filas.length - 1];
-                        return (
-                          <tr className="tr-total">
-                            <td colSpan={6} style={{ textAlign: "right", paddingRight: 6, fontSize: 6.5, textTransform: "uppercase" }}>TOTAL {mes.mesLabel}</td>
-                            <td className="td-r">{fmtCant(totEntCant)}</td>
-                            <td className="td-r">—</td>
-                            <td className="td-r">{fmtTotal(totEntTotal)}</td>
-                            <td className="td-r">{fmtCant(totSalCant)}</td>
-                            <td className="td-r">—</td>
-                            <td className="td-r">{fmtTotal(totSalTotal)}</td>
-                            <td className="td-r">{fmtCant(ultima?.saldo_cantidad ?? 0)}</td>
-                            <td className="td-r">{fmtUnit(ultima?.saldo_costo_unit ?? 0)}</td>
-                            <td className="td-r">{fmtTotal(ultima?.saldo_costo_total ?? 0)}</td>
+                        <tr>
+                          <th className="th-grupo" rowSpan={2} style={{ width: 20 }}>#</th>
+                          <th className="th-grupo" rowSpan={2} style={{ width: 52 }}>FECHA</th>
+                          <th className="th-grupo" colSpan={3}>COMPROBANTE</th>
+                          <th className="th-grupo" rowSpan={2} style={{ width: 72 }}>TIPO OPERACIÓN</th>
+                          <th className="th-grupo" colSpan={3}>ENTRADAS</th>
+                          <th className="th-grupo" colSpan={3}>SALIDAS</th>
+                          <th className="th-grupo" colSpan={3}>SALDO FINAL</th>
+                        </tr>
+                        <tr>
+                          <th style={{ width: 22 }}>TIPO</th>
+                          <th style={{ width: 32 }}>SERIE</th>
+                          <th style={{ width: 50 }}>NÚMERO</th>
+                          <th style={{ width: 38 }}>CANT</th>
+                          <th style={{ width: 48 }}>C.U.</th>
+                          <th style={{ width: 48 }}>TOTAL</th>
+                          <th style={{ width: 38 }}>CANT</th>
+                          <th style={{ width: 48 }}>C.U.</th>
+                          <th style={{ width: 48 }}>TOTAL</th>
+                          <th style={{ width: 38 }}>CANT</th>
+                          <th style={{ width: 48 }}>C.U.</th>
+                          <th style={{ width: 48 }}>TOTAL</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="tr-saldo">
+                          <td className="td-c" colSpan={6}>
+                            {mesIdx === 0 ? "▶ SALDO INICIAL" : `▶ SALDO ANTERIOR — ${producto.meses[mesIdx - 1].mesLabel}`}
+                          </td>
+                          <td className="td-r">—</td><td className="td-r">—</td><td className="td-r">—</td>
+                          <td className="td-r">—</td><td className="td-r">—</td><td className="td-r">—</td>
+                          <td className="td-r">{fmtCant(mes.saldoAnteriorCant)}</td>
+                          <td className="td-r">{fmtUnit(mes.saldoAnteriorUnit)}</td>
+                          <td className="td-r">{fmtTotal(mes.saldoAnteriorTotal)}</td>
+                        </tr>
+                        {mes.filas.map((row, ri) => (
+                          <tr key={row.id} className={ri % 2 !== 0 ? "tr-alt" : ""}>
+                            <td className="td-c">{ri + 1}</td>
+                            <td>{fmtFecha(row.fecha)}</td>
+                            <td className="td-c">{row.tipo_comprobante}</td>
+                            <td>{row.serie}</td>
+                            <td>{row.numero}</td>
+                            <td>{row.tipo_operacion}</td>
+                            <td className="td-r">{row.ent_cantidad > 0 ? fmtCant(row.ent_cantidad) : "—"}</td>
+                            <td className="td-r">{row.ent_costo_unit > 0 ? fmtUnit(row.ent_costo_unit) : "—"}</td>
+                            <td className="td-r">{row.ent_costo_total > 0 ? fmtTotal(row.ent_costo_total) : "—"}</td>
+                            <td className="td-r">{row.sal_cantidad > 0 ? fmtCant(row.sal_cantidad) : "—"}</td>
+                            <td className="td-r">{row.sal_costo_unit > 0 ? fmtUnit(row.sal_costo_unit) : "—"}</td>
+                            <td className="td-r">{row.sal_costo_total > 0 ? fmtTotal(row.sal_costo_total) : "—"}</td>
+                            <td className="td-r">{fmtCant(row.saldo_cantidad)}</td>
+                            <td className="td-r">{fmtUnit(row.saldo_costo_unit)}</td>
+                            <td className="td-r">{fmtTotal(row.saldo_costo_total)}</td>
                           </tr>
-                        );
-                      })()}
-                    </tbody>
-                  </table>
+                        ))}
+                        {(() => {
+                          const totEntCant  = mes.filas.reduce((s, r) => s + (Number(r.ent_cantidad) || 0), 0);
+                          const totEntTotal = mes.filas.reduce((s, r) => s + (Number(r.ent_costo_total) || 0), 0);
+                          const totSalCant  = mes.filas.reduce((s, r) => s + (Number(r.sal_cantidad) || 0), 0);
+                          const totSalTotal = mes.filas.reduce((s, r) => s + (Number(r.sal_costo_total) || 0), 0);
+                          const ultima = mes.filas[mes.filas.length - 1];
+                          return (
+                            <tr className="tr-total">
+                              <td colSpan={6} style={{ textAlign: "right", paddingRight: 6, fontSize: 6.5, textTransform: "uppercase" }}>TOTAL {mes.mesLabel}</td>
+                              <td className="td-r">{fmtCant(totEntCant)}</td>
+                              <td className="td-r">—</td>
+                              <td className="td-r">{fmtTotal(totEntTotal)}</td>
+                              <td className="td-r">{fmtCant(totSalCant)}</td>
+                              <td className="td-r">—</td>
+                              <td className="td-r">{fmtTotal(totSalTotal)}</td>
+                              <td className="td-r">{fmtCant(ultima?.saldo_cantidad ?? 0)}</td>
+                              <td className="td-r">{fmtUnit(ultima?.saldo_costo_unit ?? 0)}</td>
+                              <td className="td-r">{fmtTotal(ultima?.saldo_costo_total ?? 0)}</td>
+                            </tr>
+                          );
+                        })()}
+                      </tbody>
+                      <tfoot>
+                      <tr className="tr-print-spacer">
+                        <td colSpan={15}></td>
+                      </tr>
+                    </tfoot>
+                    </table>
+                  </div>
+
                 </div>
               ))}
             </div>
@@ -638,5 +673,6 @@ interface ProductoBlock {
   codigo: string;
   nombre: string;
   unidadMedida: string;
+  almacen?: string;
   meses: MesBlock[];
 }

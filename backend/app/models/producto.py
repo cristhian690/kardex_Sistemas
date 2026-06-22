@@ -16,6 +16,7 @@ class Producto(Base):
     descripcion:       Mapped[str]      = mapped_column(String(255), nullable=True)
     codigo_existencia: Mapped[str]      = mapped_column(String(20),  nullable=True)
     unidad_medida:     Mapped[str]      = mapped_column(String(20),  nullable=True)
+    almacen:          Mapped[str]      = mapped_column(String(100), nullable=True)
     creado_en:         Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # ── Relaciones con cascadas ────────────────────────────────────────────────
