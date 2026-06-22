@@ -200,6 +200,7 @@ class KardexService:
                 "Tipo_Operacion": str(m.tipo_operacion),
                 "Ent_Cantidad": float(m.ent_cantidad) if m.ent_cantidad else 0.0,
                 "Orig_Ent_Costo_Unit": float(m.orig_ent_costo_unit) if m.orig_ent_costo_unit else 0.0,
+                "Ent_Costo_Unit": float(m.ent_costo_unit) if m.ent_costo_unit else 0.0,
                 "Orig_Ent_Costo_Total": float(m.orig_ent_costo_total) if m.orig_ent_costo_total else 0.0,
                 "Ent_Costo_Total": float(m.ent_costo_total) if m.ent_costo_total else 0.0,
                 "Sal_Cantidad": float(m.sal_cantidad) if m.sal_cantidad else 0.0,

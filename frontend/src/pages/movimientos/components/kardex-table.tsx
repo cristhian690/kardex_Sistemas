@@ -428,7 +428,7 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
                   {filas.map((row, i) => {
                     if (row.es_saldo_inicial) {
                       return (
-                        <TableRow key="saldo-inicial" className="bg-blue-500/5 dark:bg-blue-500/10 hover:bg-blue-500/10 border-l-4 border-l-blue-500 transition-colors">
+                        <TableRow key={`saldo-inicial-${row.codigo}-${i}`} className="bg-blue-500/5 dark:bg-blue-500/10 hover:bg-blue-500/10 border-l-4 border-l-blue-500 transition-colors">
                           {mostrarSemaforo && <TableCell className="w-[50px] text-center font-bold text-muted-foreground/40">—</TableCell>}
                           <TableCell className="w-[50px] text-center font-bold text-blue-500 dark:text-blue-400">—</TableCell>
                           <TableCell className="w-[90px] font-semibold text-blue-600 dark:text-blue-400">{row.codigo}</TableCell>
