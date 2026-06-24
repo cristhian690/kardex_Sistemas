@@ -151,13 +151,14 @@ class ProductoRepository:
         # Empresa destino: la seleccionada o SIN ASIGNAR como fallback
         empresa_destino = empresa_id if empresa_id else EMPRESA_SIN_ASIGNAR_ID
 
-        # 1. Búsqueda global en toda la BD por código
-        result = await self.db.execute(
-            select(Producto).where(Producto.codigo.in_(codigos))
-        )
+        # 1. Búsqueda por código Y empresa — así dos empresas distintas
+        #    pueden tener el mismo código sin colisionar.
+        stmt = select(Producto).where(Producto.codigo.in_(codigos))
+        stmt = stmt.where(Producto.empresa_id == empresa_destino)
+        result = await self.db.execute(stmt)
         existentes = {p.codigo: p for p in result.scalars().all()}
 
-        # 2. Identificar cuáles no existen
+        # 2. Identificar cuáles no existen para esta empresa
         faltantes = [c for c in codigos if c not in existentes]
 
         # 3. Crear los nuevos en la empresa destino

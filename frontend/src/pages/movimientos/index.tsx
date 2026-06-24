@@ -63,7 +63,7 @@ export default function Kardex() {
     movimientos, metricas, alertas,
     loading, error, exporting,
     totalRegistros, erroresIntegridad,
-    cargarKardex, descargarExcel,
+    cargarKardex, descargarExcel, limpiar,
   } = useKardex()
 
   const kardexTableRef = useRef<KardexTableHandle>(null)
@@ -135,6 +135,7 @@ export default function Kardex() {
 
   useEffect(() => {
     if (!id) return
+    limpiar()          // resetea estado viejo antes de cargar el nuevo procesamiento
     cargarKardex(id)
   }, [id])
 

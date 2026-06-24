@@ -78,8 +78,7 @@ export default function Home() {
     try {
       const resultado = await subirArchivos(
         archivosMovimientos,
-        archivoSaldos[0] ?? null,
-        empresaId ?? undefined,
+        archivoSaldos[0] ?? null
       )
       if (resultado) {
         toast.success(`Kardex procesado correctamente`, { id: toastId })
