@@ -17,7 +17,7 @@ class ProductoRepository:
         descripcion: str | None = None,
         codigo_existencia: str | None = None,
         unidad_medida: str | None = None,
-        almacen: str | None = None, 
+        almacen: str | None = None,
     ) -> Producto:
         producto = Producto(
             codigo=codigo,
@@ -25,7 +25,7 @@ class ProductoRepository:
             descripcion=descripcion,
             codigo_existencia=codigo_existencia,
             unidad_medida=unidad_medida,
-            almacen=almacen, 
+            almacen=almacen,
         )
         self.db.add(producto)
         await self.db.flush()
@@ -61,7 +61,7 @@ class ProductoRepository:
         codigo:      str,
         empresa_id:  int,
         descripcion: str | None = None,
-        almacen:     str | None = None, 
+        almacen:     str | None = None,
     ) -> Producto:
         producto = await self.get_by_codigo_y_empresa(codigo, empresa_id)
         if not producto:
@@ -69,7 +69,7 @@ class ProductoRepository:
                 codigo      = codigo,
                 empresa_id  = empresa_id,
                 descripcion = descripcion,
-                almacen     = almacen, 
+                almacen     = almacen,
             )
             self.db.add(producto)
             await self.db.flush()
@@ -151,8 +151,7 @@ class ProductoRepository:
         # Empresa destino: la seleccionada o SIN ASIGNAR como fallback
         empresa_destino = empresa_id if empresa_id else EMPRESA_SIN_ASIGNAR_ID
 
-        # 1. Búsqueda por código Y empresa — así dos empresas distintas
-        #    pueden tener el mismo código sin colisionar.
+        # 1. Búsqueda por código Y empresa — evita duplicados entre empresas
         stmt = select(Producto).where(Producto.codigo.in_(codigos))
         stmt = stmt.where(Producto.empresa_id == empresa_destino)
         result = await self.db.execute(stmt)

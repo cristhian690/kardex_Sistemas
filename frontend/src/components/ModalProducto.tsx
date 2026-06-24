@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import api from "@/services/api"  // ✅ axios con token automático
 
 interface ProductoPayload {
   empresa_id: number
@@ -53,8 +54,6 @@ interface Props {
   productoEditar?: ProductoExistente | null
 }
 
-const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-
 function parseFastApiError(data: any, status: number): string {
   if (!data?.detail) return `Error ${status}`
   if (typeof data.detail === 'string') return data.detail
@@ -65,28 +64,6 @@ function parseFastApiError(data: any, status: number): string {
     }).join(' | ')
   }
   return JSON.stringify(data.detail)
-}
-
-async function crearProducto(payload: ProductoPayload) {
-  const res = await fetch(`${API}/api/v1/productos/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(parseFastApiError(data, res.status))
-  return data
-}
-
-async function editarProducto(id: number, payload: ProductoPayload) {
-  const res = await fetch(`${API}/api/v1/productos/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(parseFastApiError(data, res.status))
-  return data
 }
 
 export default function ModalProducto({ open, onClose, onGuardado, productoEditar }: Props) {
@@ -106,15 +83,13 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
 
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // ✅ axios con token
   const cargarEmpresas = async () => {
     try {
-      const res = await fetch(`${API}/api/v1/empresa/`)
-      if (res.ok) {
-        const list: Empresa[] = await res.json()
-        setEmpresas(list)
-        if (list.length > 0 && !productoEditar) {
-          setEmpresaIdSelect(String(list[0].id))
-        }
+      const { data } = await api.get('/api/v1/empresa/')
+      setEmpresas(data)
+      if (data.length > 0 && !productoEditar) {
+        setEmpresaIdSelect(String(data[0].id))
       }
     } catch (e) {
       console.error("Error obteniendo pool corporativo", e)
@@ -175,16 +150,18 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
 
     try {
       if (modoEditar && productoEditar) {
-        await editarProducto(productoEditar.id, payload)
+        // ✅ axios PATCH con token
+        await api.patch(`/api/v1/productos/${productoEditar.id}`, payload)
       } else {
-        await crearProducto(payload)
+        // ✅ axios POST con token
+        await api.post('/api/v1/productos/', payload)
       }
 
       setSuccess(true)
       onGuardado?.()
       setTimeout(() => onClose(), 1200)
-    } catch (e) {
-      setError((e as Error).message)
+    } catch (e: any) {
+      setError(e?.message || 'Error al guardar')
     } finally {
       setLoading(false)
     }
@@ -194,7 +171,6 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose() }}>
       <DialogContent className="sm:max-w-[440px] text-left border-t-2 data-[edit=true]:border-t-amber-500 data-[edit=false]:border-t-blue-500" data-edit={modoEditar}>
         
-        {/* Cabecera Premium del Catálogo */}
         <DialogHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
           <div className="flex gap-3">
             <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary data-[edit=true]:bg-amber-500/10 data-[edit=true]:border-amber-500/20 data-[edit=true]:text-amber-500" data-edit={modoEditar}>
@@ -211,10 +187,8 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
           </div>
         </DialogHeader>
 
-        {/* Cuerpo del Formulario Global */}
         <form onSubmit={handleGuardar} className="space-y-4 pt-1">
           
-          {/* Select de Empresas Asignadas */}
           <div className="space-y-1.5">
             <Label htmlFor="p-empresa" className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground/80">Empresa de Asignación *</Label>
             <Select value={empresaIdSelect} onValueChange={setEmpresaIdSelect}>
@@ -231,7 +205,6 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
             </Select>
           </div>
 
-          {/* Input Código de Existencia */}
           <div className="space-y-1.5">
             <Label htmlFor="p-codigo" className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground/80">Código de Existencia *</Label>
             <Input
@@ -245,7 +218,6 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
             />
           </div>
 
-          {/* Input Descripción */}
           <div className="space-y-1.5">
             <Label htmlFor="p-desc" className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground/80">Descripción de Producto</Label>
             <Input
@@ -257,7 +229,6 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
             />
           </div>
 
-          {/* NUEVO: Input de Almacén Fijo Asignado */}
           <div className="space-y-1.5">
             <Label htmlFor="p-almacen" className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground/80">Almacén de Resguardo</Label>
             <Input
@@ -269,7 +240,6 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
             />
           </div>
 
-          {/* Fila Unidad Medida y Tipo Existencia */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="p-unidad" className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground/80">Unidad Medida</Label>
@@ -293,7 +263,6 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
             </div>
           </div>
 
-          {/* Bloque de Notificaciones de Feedback */}
           {error && (
             <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 text-destructive text-xs font-mono px-4 py-2.5 rounded-xl animate-in fade-in duration-150">
               <AlertCircle className="size-4 shrink-0" />
@@ -308,7 +277,6 @@ export default function ModalProducto({ open, onClose, onGuardado, productoEdita
             </div>
           )}
 
-          {/* Footer de Acciones */}
           <DialogFooter className="gap-2 sm:gap-0 pt-2 border-t border-border/40">
             <Button type="button" variant="outline" onClick={onClose} className="cursor-pointer rounded-xl h-9 text-xs">
               Cancelar

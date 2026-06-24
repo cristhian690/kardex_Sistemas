@@ -7,16 +7,15 @@ import { Trash2, AlertCircle, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable } from "./components/data-table"
+import api from "@/services/api"  // ✅ axios con token automático
 
 // 🟢 IMPORTADO TU MODAL GLOBAL OFICIAL ADAPTADO
 import ModalSaldoInicial from "@/components/ModalSaldoInicial"
 
-const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-
 interface Saldo {
   id:             number
   codigo:         string
-  descripcion?:   string
+  descripcion:    string
   fecha:          string
   cantidad:       number
   costo_unitario: number
@@ -34,18 +33,16 @@ export default function SaldosIniciales() {
   const [modalOpen, setModalOpen] = useState(false)
   const [saldoEditando, setSaldoEditando] = useState<any | null>(null)
 
-  // Fetch real conectado a tu FastAPI de Python
+  // ✅ Usa axios (con token) en lugar de fetch
   const fetchSaldos = async () => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`${API}/api/v1/saldos/`)
-      if (!res.ok) throw new Error('Error al cargar saldos base del servidor')
-      const data = await res.json()
+      const { data } = await api.get('/api/v1/saldos/')
       setSaldos(data)
       setSelectedIds([])
-    } catch (e) {
-      setError((e as Error).message)
+    } catch (e: any) {
+      setError(e?.message || 'Error al cargar saldos')
     } finally {
       setLoading(false)
     }
@@ -57,7 +54,7 @@ export default function SaldosIniciales() {
 
   // Callback que se ejecuta cuando el modal termina de Guardar/Actualizar con éxito
   const handleModalGuardado = (codigo: string) => {
-    fetchSaldos() // Refresca la grilla con los datos de PostgreSQL
+    fetchSaldos()
   }
 
   const handleCerrarModal = () => {
@@ -65,24 +62,21 @@ export default function SaldosIniciales() {
     setSaldoEditando(null)
   }
 
-  // Operación DELETE individual real de tu sistema
+  // ✅ DELETE individual con axios (lleva el token)
   const handleDeleteReal = async (id: number) => {
     if (!confirm('¿Seguro que deseas eliminar este saldo?')) return
     const toastId = toast.loading("Removiendo saldo de la base de datos...")
     try {
-      const res = await fetch(`${API}/api/v1/saldos/${id}`, { method: 'DELETE' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.detail || 'Error al eliminar')
-      
+      const { data } = await api.delete(`/api/v1/saldos/${id}`)
       if (data?.advertencia) toast.error(data.advertencia)
       toast.success(data?.mensaje || 'Eliminado correctamente', { id: toastId })
       fetchSaldos()
-    } catch (e) {
-      toast.error((e as Error).message, { id: toastId })
+    } catch (e: any) {
+      toast.error(e?.message || 'Error al eliminar', { id: toastId })
     }
   }
 
-  // Operación POST real para la eliminación múltiple en lote
+  // ✅ DELETE múltiple con axios (lleva el token)
   const handleEliminarMultipleReal = async () => {
     if (selectedIds.length === 0) return
     const cantidad = selectedIds.length
@@ -95,18 +89,11 @@ export default function SaldosIniciales() {
     setEliminando(true)
     const toastId = toast.loading(`Eliminando ${cantidad} saldos en lote...`)
     try {
-      const res = await fetch(`${API}/api/v1/saldos/eliminar-multiple`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.detail || 'Error al eliminar lote')
-
+      const { data } = await api.post('/api/v1/saldos/eliminar-multiple', { ids: selectedIds })
       toast.success(`${data?.eliminados || cantidad} eliminado(s) con éxito`, { id: toastId })
       fetchSaldos()
-    } catch (e) {
-      toast.error((e as Error).message, { id: toastId })
+    } catch (e: any) {
+      toast.error(e?.message || 'Error al eliminar lote', { id: toastId })
     } finally {
       setEliminando(false)
     }
@@ -167,7 +154,6 @@ export default function SaldosIniciales() {
             <DataTable
               saldos={saldos}
               onDelete={handleDeleteReal}
-              // Cuando le das editar a una fila, setea el registro y abre el modal
               onEdit={async (id, data) => { setSaldoEditando({ id, ...data }); setModalOpen(true); }}
               onSelectedIdsChange={setSelectedIds}
             />
@@ -178,7 +164,7 @@ export default function SaldosIniciales() {
       {/* 🟢 RENDEREADO DEL MODAL GLOBAL CONECTADO AL ESTADO MAESTRO */}
       <ModalSaldoInicial
         open={modalOpen}
-        empresaId={1} // ID fijo según tu lógica original
+        empresaId={1}
         onClose={handleCerrarModal}
         onGuardado={handleModalGuardado}
         saldoEditar={saldoEditando}

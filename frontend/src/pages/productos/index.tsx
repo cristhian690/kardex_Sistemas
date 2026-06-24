@@ -7,11 +7,10 @@ import { Trash2, AlertCircle, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable, type Producto } from "./components/data-table"
+import api from "@/services/api"  // ✅ axios con token automático
 
 // Tu modal global corporativo actual
 import ModalProducto from "@/components/ModalProducto"
-
-const API = import.meta.env.VITE_API_URL ?? "http://localhost:8000"
 
 interface Empresa {
   id: number
@@ -32,32 +31,32 @@ export default function Productos() {
   const [modalOpen, setModalOpen] = useState(false)
   const [productoEditando, setProductoEditando] = useState<Producto | null>(null)
 
+  // ✅ axios con token
   const fetchEmpresas = async () => {
     try {
-      const res = await fetch(`${API}/api/v1/empresa/`)
-      if (res.ok) setEmpresas(await res.json())
+      const { data } = await api.get('/api/v1/empresa/')
+      setEmpresas(data)
     } catch (e) {
       console.error("Error al cargar empresas en el maestro", e)
     }
   }
 
+  // ✅ axios con token
   const fetchProductos = async () => {
     setLoading(true)
     setError(null)
     try {
-      let url = `${API}/api/v1/productos/?limit=200&offset=0`
+      let url = `/api/v1/productos/?limit=200&offset=0`
       if (busqueda.trim())
         url += `&search=${encodeURIComponent(busqueda.trim())}`
       if (empresaFiltro !== "todas") 
         url += `&empresa_id=${empresaFiltro}`
 
-      const res = await fetch(url)
-      if (!res.ok) throw new Error("Error al cargar el catálogo de productos")
-      const data = await res.json()
+      const { data } = await api.get(url)
       setProductos(data.productos ?? [])
       setSelectedIds([])
-    } catch (e) {
-      setError((e as Error).message)
+    } catch (e: any) {
+      setError(e?.message || "Error al cargar el catálogo de productos")
     } finally {
       setLoading(false)
     }
@@ -79,28 +78,25 @@ export default function Productos() {
   const handleGuardado = () => {
     setModalOpen(false)
     setProductoEditando(null)
-    fetchProductos() // Recarga limpia desde Postgres
+    fetchProductos()
   }
 
-  // Operación DELETE unitaria de tu sistema
+  // ✅ DELETE individual con axios (lleva el token)
   const handleEliminarIndividual = async (id: number) => {
     if (!confirm("¿Eliminar este producto? Solo procederá si no tiene movimientos registrados."))
       return
     
     const toastId = toast.loading("Removiendo producto de la base de datos...")
     try {
-      const res = await fetch(`${API}/api/v1/productos/${id}`, { method: "DELETE" })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.detail || "Error al eliminar")
-      
+      const { data } = await api.delete(`/api/v1/productos/${id}`)
       toast.success(data?.mensaje || "Producto eliminado correctamente", { id: toastId })
       fetchProductos()
-    } catch (e) {
-      toast.error((e as Error).message, { id: toastId })
+    } catch (e: any) {
+      toast.error(e?.message || "Error al eliminar", { id: toastId })
     }
   }
 
-  // Operación POST real para la eliminación masiva (bulk) de tu sistema
+  // ✅ DELETE bulk con axios (lleva el token)
   const handleEliminarSeleccionados = async () => {
     if (selectedIds.length === 0) return
     if (!confirm(`¿Eliminar ${selectedIds.length} producto(s) seleccionado(s)? Solo procederá en los que no tengan movimientos.`))
@@ -110,13 +106,9 @@ export default function Productos() {
     const toastId = toast.loading(`Eliminando lote de ${selectedIds.length} productos...`)
 
     try {
-      const res = await fetch(`${API}/api/v1/productos/bulk`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: selectedIds }),
+      const { data } = await api.delete('/api/v1/productos/bulk', {
+        data: { ids: selectedIds },
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data?.detail || "Error al procesar lote")
 
       let msg = `${data.total_eliminados} producto(s) eliminado(s) correctamente.`
       if (data.errores?.length > 0)
@@ -124,8 +116,8 @@ export default function Productos() {
 
       toast.success(msg, { id: toastId, duration: 4000 })
       fetchProductos()
-    } catch (e) {
-      toast.error((e as Error).message, { id: toastId })
+    } catch (e: any) {
+      toast.error(e?.message || "Error al procesar lote", { id: toastId })
     } finally {
       setEliminando(false)
     }
@@ -137,7 +129,6 @@ export default function Productos() {
     <>
       <div className="flex flex-col gap-6 p-4 lg:p-6 w-full max-w-5xl mx-auto animate-in fade-in duration-200">
         
-        {/* Cabecera unificada y adaptada al diseño de plantilla sin BaseLayout */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/40 pb-4 text-left">
           <div className="flex flex-col gap-1">
             <h1 className="text-2xl font-bold tracking-tight text-foreground font-mono">Maestro de Productos</h1>
@@ -166,7 +157,6 @@ export default function Productos() {
           </div>
         </div>
 
-        {/* Notificación de errores del servidor FastAPI */}
         {error && (
           <div className="flex items-center gap-2.5 bg-destructive/10 border border-destructive/20 text-destructive text-xs font-mono px-4 py-3 rounded-xl">
             <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
@@ -174,7 +164,6 @@ export default function Productos() {
           </div>
         )}
 
-        {/* Contenedor de la Tabla con TanStack */}
         <div className="w-full">
           {loading && productos.length === 0 ? (
             <div className="space-y-3 text-left">
@@ -197,7 +186,6 @@ export default function Productos() {
         </div>
       </div>
 
-      {/* Invoca tu modal global de productos conservando su comportamiento original */}
       <ModalProducto
         open={modalOpen}
         onClose={handleCerrarModal}
