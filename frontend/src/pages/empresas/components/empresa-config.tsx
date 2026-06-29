@@ -219,7 +219,7 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle, EmpresaConfigProps>(({ onS
         return (
           <div className="flex items-center justify-center gap-1">
             {emp.id === 1 ? (
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider bg-primary/10 text-primary border-2 border-primary/20">
                 Sistema
               </span>
             ) : (
@@ -287,7 +287,7 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle, EmpresaConfigProps>(({ onS
             placeholder="Buscar por nombre, RUC o id..."
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className="pl-9 font-mono text-xs h-9"
+            className="pl-9 text-xs h-9"
           />
         </div>
         
@@ -320,11 +320,11 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle, EmpresaConfigProps>(({ onS
       {/* ── Grilla Física de la Plantilla Semi-Transparente con TanStack ── */}
       <div className="rounded-xl border bg-card/30 backdrop-blur-md text-card-foreground shadow-2xs overflow-hidden border-border/50">
         <Table>
-          <TableHeader className="bg-muted/20 font-mono text-xs border-b border-border/50">
+          <TableHeader className="bg-muted/10 border-b border-border/50">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="hover:bg-transparent border-b border-border/40">
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="font-bold tracking-wider text-muted-foreground/90 py-3">
+                  <TableHead key={header.id} className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground py-3">
                     {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
@@ -334,7 +334,7 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle, EmpresaConfigProps>(({ onS
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-32 text-center text-sm font-mono text-muted-foreground/60">
+                <TableCell colSpan={columns.length} className="h-32 text-center text-sm text-muted-foreground/60">
                   <div className="flex items-center justify-center gap-2">
                     <Loader2 className="size-4 animate-spin text-primary" /> Cargando pool corporativo...
                   </div>
@@ -356,7 +356,7 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle, EmpresaConfigProps>(({ onS
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-32 text-center text-sm font-mono text-muted-foreground/60">
+                <TableCell colSpan={columns.length} className="h-32 text-center text-sm text-muted-foreground/60">
                   Sin resultados para los filtros seleccionados.
                 </TableCell>
               </TableRow>
@@ -373,12 +373,12 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle, EmpresaConfigProps>(({ onS
             value={`${table.getState().pagination.pageSize}`}
             onValueChange={(value) => table.setPageSize(Number(value))}
           >
-            <SelectTrigger className="w-18 h-8 text-xs font-mono shadow-2xs bg-transparent" id="emp-page-size">
+            <SelectTrigger className="w-[70px] h-8 text-xs shadow-2xs bg-transparent" id="emp-page-size">
               <SelectValue />
             </SelectTrigger>
             <SelectContent side="top">
               {[10, 20, 30, 40, 50].map((size) => (
-                <SelectItem key={size} value={`${size}`} className="font-mono text-xs">{size}</SelectItem>
+                <SelectItem key={size} value={`${size}`} className="text-xs">{size}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -391,7 +391,7 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle, EmpresaConfigProps>(({ onS
         <div className="flex items-center space-x-6">
           <div className="items-center space-x-1 hidden sm:flex text-xs text-muted-foreground">
             <span>Página</span>
-            <strong className="text-foreground font-mono bg-muted/40 border border-border/50 px-2 py-0.5 rounded text-xs">
+            <strong className="text-foreground bg-muted/40 border border-border/50 px-2 py-0.5 rounded text-xs">
               {table.getState().pagination.pageIndex + 1} de {table.getPageCount()}
             </strong>
           </div>
@@ -439,7 +439,7 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle, EmpresaConfigProps>(({ onS
 
           <form onSubmit={handleGuardar} className="space-y-4 pt-1">
             <div className="space-y-1.5">
-              <Label htmlFor="e-nombre" className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground/80">Nombre / Razón Social *</Label>
+              <Label htmlFor="e-nombre" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">Nombre / Razón Social *</Label>
               <Input
                 id="e-nombre"
                 value={form.nombre}
@@ -450,7 +450,7 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle, EmpresaConfigProps>(({ onS
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="e-ruc" className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground/80">R.U.C. *</Label>
+              <Label htmlFor="e-ruc" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">R.U.C. *</Label>
               <Input
                 id="e-ruc"
                 value={form.ruc}
@@ -461,7 +461,7 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle, EmpresaConfigProps>(({ onS
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="e-dir" className="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground/80">Dirección Fiscal</Label>
+              <Label htmlFor="e-dir" className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">Dirección Fiscal</Label>
               <Input
                 id="e-dir"
                 value={form.direccion}
@@ -472,7 +472,7 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle, EmpresaConfigProps>(({ onS
             </div>
 
             {mensaje && (
-              <div className="flex items-center gap-2 border text-xs font-mono px-4 py-2.5 rounded-xl data-[tipo=error]:bg-destructive/10 data-[tipo=error]:border-destructive/20 data-[tipo=error]:text-destructive data-[tipo=ok]:bg-emerald-500/10 data-[tipo=ok]:border-emerald-500/20 data-[tipo=ok]:text-emerald-500" data-tipo={mensaje.tipo}>
+              <div className="flex items-center gap-2 border text-xs px-4 py-2.5 rounded-xl data-[tipo=error]:bg-destructive/10 data-[tipo=error]:border-destructive/20 data-[tipo=error]:text-destructive data-[tipo=ok]:bg-emerald-500/10 data-[tipo=ok]:border-emerald-500/20 data-[tipo=ok]:text-emerald-500" data-tipo={mensaje.tipo}>
                 {mensaje.tipo === 'ok' ? <CheckCircle2 className="size-4 shrink-0" /> : <AlertCircle className="size-4 shrink-0" />}
                 <span>{mensaje.texto}</span>
               </div>

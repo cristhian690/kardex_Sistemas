@@ -215,7 +215,7 @@ export default function HistorialPage() {
             <div className="flex items-center space-x-2">
               <label
                 htmlFor="historial-page-size"
-                className="text-sm font-medium select-none text-muted-foreground"
+                className="text-sm font-medium text-muted-foreground"
               >
                 Mostrar
               </label>

@@ -70,7 +70,7 @@ export default function Empresas() {
         {/* Cabecera unificada */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/40 pb-4 text-left">
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground font-mono">Empresas</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Empresas</h1>
             <p className="text-sm text-muted-foreground">Configura los datos de empresa por código de producto.</p>
           </div>
           <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -97,7 +97,7 @@ export default function Empresas() {
         </div>
 
         {error && (
-          <div className="flex items-center gap-2.5 bg-destructive/10 border border-destructive/20 text-destructive text-xs font-mono px-4 py-3 rounded-xl text-left">
+          <div className="flex items-center gap-2.5 bg-destructive/10 border border-destructive/20 text-destructive text-xs px-4 py-3 rounded-xl text-left">
             <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
             <span>Alerta de Servidor: {error}</span>
           </div>

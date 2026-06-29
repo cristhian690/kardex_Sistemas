@@ -1,27 +1,24 @@
-import { Heart } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Activity, ShieldCheck } from "lucide-react"
 
 export function SiteFooter() {
+  const currentYear = new Date().getFullYear();
+  
   return (
-    <footer className="border-t bg-background">
-      <div className="px-4 py-6 lg:px-6">
-        <div className="flex flex-col items-center justify-center space-y-2 text-center">
-          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-            <span>Made with</span>
-            <Heart className="h-4 w-4 fill-red-500 text-red-500" />
-            <span>by</span>
-            <Link
-              to="https://zzzzzz"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-foreground hover:text-primary transition-colors"
-            >
-              RANDM
-            </Link>
+    <footer className="border-t border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+        <div className="flex flex-row flex-wrap items-center justify-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-primary" />
+            <span className="font-semibold text-sm tracking-tight text-foreground">Kardex System</span>
+            <span className="text-sm text-muted-foreground ml-1">&copy; {currentYear}</span>
           </div>
-          <p className="text-xs text-muted-foreground">
-            En proceso
-          </p>
+          
+          <span className="text-border opacity-50 hidden sm:inline-block">•</span>
+          
+          <span className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-default hover:text-foreground transition-colors" title="Sistema con trazabilidad y seguridad">
+            <ShieldCheck className="h-4 w-4 text-emerald-500/80" />
+            Auditoría Segura
+          </span>
         </div>
       </div>
     </footer>

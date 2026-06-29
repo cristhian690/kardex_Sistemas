@@ -158,12 +158,14 @@ function agruparPorProductoMes(movimientos: KardexRow[]): ProductoBlock[] {
       saldoUnit = ultima.saldo_costo_unit;
       saldoTotal = ultima.saldo_costo_total;
     }
+    const rowConProducto = filas.find((f) => f.producto?.empresa) || filas[0];
+
     bloques.push({ 
       codigo, 
-      nombre: filas[0]?.producto?.descripcion ?? codigo, 
-      unidadMedida: filas[0]?.producto?.unidad_medida ?? "NIU",
-      almacen: filas[0]?.producto?.almacen,
-      empresa: filas[0]?.producto?.empresa,
+      nombre: rowConProducto?.producto?.descripcion ?? codigo, 
+      unidadMedida: rowConProducto?.producto?.unidad_medida ?? "NIU",
+      almacen: rowConProducto?.producto?.almacen,
+      empresa: rowConProducto?.producto?.empresa,
       meses 
     });
   }
@@ -243,13 +245,13 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
 
     if (movimientos.length === 0)
       return (
-        <div className="p-10 text-center font-mono text-xs text-muted-foreground/60 bg-card/10 rounded-xl border border-dashed">
+        <div className="p-10 text-center text-sm text-muted-foreground/60 bg-card/10 rounded-xl border border-dashed">
           Sin movimientos registrados.
         </div>
       );
 
     return (
-      <div className="w-full relative select-none font-mono">
+      <div className="w-full relative">
         <style>{`
           @media screen { .kp-section { display:none !important; } }
 
@@ -429,7 +431,7 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
                   {filas.map((row, i) => {
                     if (row.es_saldo_inicial) {
                       return (
-                        <TableRow key={`saldo-inicial-${row.codigo}-${i}`} className="bg-blue-500/5 dark:bg-blue-500/10 hover:bg-blue-500/10 border-l-4 border-l-blue-500 transition-colors">
+                        <TableRow key="saldo-inicial" className="bg-blue-500/5 dark:bg-blue-500/10 hover:bg-blue-500/10 border-l-4 border-l-blue-500 transition-colors">
                           {mostrarSemaforo && <TableCell className="w-[50px] text-center font-bold text-muted-foreground/40">—</TableCell>}
                           <TableCell className="w-[50px] text-center font-bold text-blue-500 dark:text-blue-400">—</TableCell>
                           <TableCell className="w-[90px] font-semibold text-blue-600 dark:text-blue-400">{row.codigo}</TableCell>
@@ -675,6 +677,11 @@ interface ProductoBlock {
   nombre: string;
   unidadMedida: string;
   almacen?: string;
-  empresa?: { nombre: string; ruc: string; direccion: string | null };
+  empresa?: {
+    id: number;
+    nombre: string;
+    ruc: string;
+    direccion: string | null;
+  };
   meses: MesBlock[];
 }

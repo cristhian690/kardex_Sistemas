@@ -1,175 +1,220 @@
-"use client"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { Eye, EyeOff, Loader2, ArrowRight } from "lucide-react"
+import { Loader2, AlertTriangle, Eye, EyeOff } from "lucide-react"
 import toast from "react-hot-toast"
 import { useAuth } from "@/context/AuthContex"
 import { cn } from "@/lib/utils"
 
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
+import * as z from "zod"
+
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Logo } from "@/components/logo"
+import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 
-interface LoginFormProps extends React.ComponentProps<"div"> {
-  onShakeTrigger?: () => void
-}
+const loginSchema = z.object({
+  username: z.string().min(3, "El usuario debe tener al menos 3 caracteres"),
+  password: z.string().min(4, "La contraseña debe tener al menos 4 caracteres"),
+  remember: z.boolean().default(false),
+})
 
-export function LoginForm({ className, onShakeTrigger, ...props }: LoginFormProps) {
+type LoginFormValues = z.infer<typeof loginSchema>
+
+export function LoginForm({
+  className,
+  ...props
+}: React.ComponentPropsWithoutRef<"div">) {
   const { login } = useAuth()
   const navigate = useNavigate()
-
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
+  
   const [loading, setLoading] = useState(false)
-  const [showPass, setShowPass] = useState(false)
+  const [capsLockActive, setCapsLockActive] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!username.trim() || !password) return
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+      remember: false,
+    },
+  })
 
+  // Escuchar globalmente eventos de teclado para CapsLock
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      setCapsLockActive(e.getModifierState("CapsLock"))
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    window.addEventListener("keyup", handleKeyDown)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener("keyup", handleKeyDown)
+    }
+  }, [])
+
+  // Cargar usuario recordado si existe
+  useEffect(() => {
+    const rememberedUser = localStorage.getItem("kardex-remember-user")
+    if (rememberedUser) {
+      form.setValue("username", rememberedUser)
+      form.setValue("remember", true)
+    }
+  }, [form])
+
+  const onSubmit = async (values: LoginFormValues) => {
     setLoading(true)
     try {
-      await login({ username, password })
-      toast.success(`Bienvenido al sistema, ${username}`)
+      await login({ username: values.username, password: values.password })
+      if (values.remember) {
+        localStorage.setItem("kardex-remember-user", values.username)
+      } else {
+        localStorage.removeItem("kardex-remember-user")
+      }
+      toast.success(`Bienvenido al sistema, ${values.username}`)
       navigate("/", { replace: true })
     } catch (err: any) {
       toast.error(err.message || "Credenciales incorrectas")
-      if (onShakeTrigger) onShakeTrigger()
     } finally {
       setLoading(false)
     }
   }
 
-  const canSubmit = username.trim().length > 0 && password.length > 0 && !loading
-
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="overflow-hidden p-0 border-border/40 bg-card/60 backdrop-blur-xl shadow-2xl">
-        <CardContent className="grid p-0 md:grid-cols-2">
+    <div className={cn("flex flex-col gap-6 w-full", className)} {...props}>
+      <div className="flex flex-col gap-2 text-center md:text-left mb-2 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150 fill-mode-both">
+        <h1 className="text-2xl font-bold tracking-tight">Iniciar sesión</h1>
+        <p className="text-sm text-muted-foreground">
+          Ingresa tus credenciales para acceder a tu cuenta
+        </p>
+      </div>
+      
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-5">
           
-          {/* Columna Izquierda: Formulario Real */}
-          <form onSubmit={handleSubmit} noValidate className="p-6 md:p-8 flex flex-col justify-center text-left">
-            <div className="flex flex-col gap-6">
-              
-              {/* Identidad de la Empresa */}
-              <div className="flex items-center gap-3 mb-2">
-                <div className="bg-primary text-primary-foreground flex size-9 items-center justify-center rounded-xl border border-primary/20 shadow-xs">
-                  <Logo size={20} className="text-current" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold font-mono tracking-wide leading-none text-foreground">KARDEX</span>
-                  <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mt-0.5">Sistema CPP</span>
-                </div>
-                <BadgeInfo>v2.0</BadgeInfo>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <h1 className="text-xl font-bold font-mono tracking-tight text-foreground">Iniciar sesión</h1>
-                <p className="text-xs text-muted-foreground">
-                  Introduce tus credenciales para acceder al panel de control.
-                </p>
-              </div>
-
-              {/* Input: Usuario */}
-              <div className="grid gap-2">
-                <Label htmlFor="login-user" className="text-xs font-mono text-muted-foreground/90">Usuario</Label>
-                <Input
-                  id="login-user"
-                  type="text"
-                  placeholder="Tu nombre de usuario"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  disabled={loading}
-                  autoComplete="username"
-                  autoFocus
-                  required
-                  className="h-10 text-xs bg-muted/20"
-                />
-              </div>
-
-              {/* Input: Contraseña */}
-              <div className="grid gap-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="login-pass" className="text-xs font-mono text-muted-foreground/90">Contraseña</Label>
-                  <a href="#" className="text-xs text-muted-foreground/60 hover:text-primary transition-colors underline-offset-4 hover:underline">
-                    ¿Olvidaste tu contraseña?
-                  </a>
-                </div>
-                <div className="relative flex items-center">
-                  <Input
-                    id="login-pass"
-                    type={showPass ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={loading}
-                    autoComplete="current-password"
-                    required
-                    className="h-10 text-xs bg-muted/20 pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPass((v) => !v)}
-                    className="absolute right-3 p-1 rounded-md text-muted-foreground/60 hover:text-foreground transition-colors outline-none"
-                    tabIndex={-1}
-                  >
-                    {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Botón Principal de Envío */}
-              <Button 
-                type="submit" 
-                disabled={!canSubmit} 
-                className="w-full h-10 font-bold font-mono text-xs rounded-xl cursor-pointer gap-2 transition-transform active:scale-[0.98]"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" />
-                    Verificando...
-                  </>
-                ) : (
-                  <>
-                    Ingresar Panel
-                    <ArrowRight className="size-4" />
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-
-          {/* Columna Derecha: Imagen de Marca con Filtro Estilizado */}
-          <div className="bg-muted relative hidden md:block border-l border-border/30">
-            <img
-              src="https://scontent.flim4-3.fna.fbcdn.net/v/t39.30808-6/449044196_323205804174994_1975367383698928735_n.jpg?stp=dst-jpg_tt6&cstp=mx2048x2048&ctp=s2048x2048&_nc_cat=102&ccb=1-7&_nc_sid=6ee11a&_nc_eui2=AeF4DVbHbL6xGNs3BGg4cybFGoVPijwOyjYahU-KPA7KNjWsoT-4qL7VciUOEgnG6tNqkh9YVqGeTOTRr1-EgS4t&_nc_ohc=vDYdDzth3K0Q7kNvwE0aeSh&_nc_oc=Adq83mxCwEaqW5fSoIYmR83lYun8fLu7mgGlrLv0UQyDv-WfacUJLo2LNZVAfWarEYk&_nc_zt=23&_nc_ht=scontent.flim4-3.fna&_nc_gid=ljnv4k2lIGGdCjMuCYiITg&_nc_ss=7b2a8&oh=00_Af8twXPL4PnNAmyJse4HDKZwblhAX_nmIPmewWfCJVqO9Q&oe=6A394C60"
-              alt="Kardex Background"
-              className="absolute inset-0 h-full w-full object-cover brightness-[0.4] dark:brightness-[0.35]"
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300 fill-mode-both">
+            <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem className="grid gap-2 text-left space-y-0">
+                  <FormLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Usuario</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Tu nombre de usuario"
+                      autoFocus
+                      autoComplete="username"
+                      disabled={loading}
+                      className="h-11"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage className="text-[11px] font-medium text-destructive" />
+                </FormItem>
+              )}
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent pointer-events-none" />
-            <div className="absolute bottom-6 left-6 right-6 text-left space-y-1 z-10">
-              <p className="text-xs font-mono font-bold text-primary tracking-wider uppercase">Costo Promedio Ponderado</p>
-              <h2 className="text-lg font-bold text-white tracking-tight leading-snug">Auditoría contable y control de existencias en tiempo real.</h2>
-            </div>
+          </div>
+          
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[400ms] fill-mode-both">
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem className="grid gap-2 text-left space-y-0">
+                  <div className="flex items-center">
+                    <FormLabel className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Contraseña</FormLabel>
+                    <a
+                      href="#"
+                      className="ml-auto text-xs text-muted-foreground hover:text-primary transition-colors underline-offset-4 hover:underline"
+                    >
+                      ¿Olvidaste tu clave?
+                    </a>
+                  </div>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        autoComplete="current-password"
+                        disabled={loading}
+                        className={cn("h-11 pr-10", capsLockActive && "border-amber-500/50 focus-visible:ring-amber-500/30")}
+                        {...field}
+                      />
+                      
+                      <div className="absolute right-0 top-0 h-full flex items-center pr-3 gap-1.5">
+                        {capsLockActive && (
+                          <div className="text-amber-500 bg-background px-1" title="Bloqueo de mayúsculas activado">
+                            <AlertTriangle className="h-4 w-4" />
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="text-muted-foreground hover:text-foreground focus:outline-none focus:text-foreground transition-colors"
+                          aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                          tabIndex={-1}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </FormControl>
+                  {capsLockActive && (
+                    <p className="text-[10px] font-semibold text-amber-500 uppercase tracking-wide">
+                      Bloq Mayús activado
+                    </p>
+                  )}
+                  <FormMessage className="text-[11px] font-medium text-destructive" />
+                </FormItem>
+              )}
+            />
           </div>
 
-        </CardContent>
-      </Card>
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[500ms] fill-mode-both">
+            <FormField
+              control={form.control}
+              name="remember"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center space-x-2 space-y-0 pt-1">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      disabled={loading}
+                      className="rounded-[4px] data-[state=checked]:bg-primary"
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel className="text-[13px] font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                      Recordarme en este equipo
+                    </FormLabel>
+                  </div>
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[600ms] fill-mode-both">
+            <Button type="submit" className="w-full h-11 text-sm font-semibold mt-1 transition-all active:scale-[0.98]" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Entrar al Panel
+            </Button>
+          </div>
+        </form>
+      </Form>
       
-      <div className="text-muted-foreground text-center text-[11px] font-mono tracking-tight opacity-50">
-        Sistema de Control de Inventarios · CPP © {new Date().getFullYear()}
+      <div className="animate-in fade-in duration-1000 delay-[800ms] fill-mode-both text-balance text-center text-[11px] text-muted-foreground/70 [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-primary mt-2">
+        Al hacer clic en Entrar, aceptas nuestros <a href="#">Términos de servicio</a> y <a href="#">Política de privacidad</a>.
       </div>
     </div>
-  )
-}
-
-function BadgeInfo({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="ml-auto bg-primary/10 border border-primary/20 rounded-full px-2.5 py-0.5 text-[10px] font-bold font-mono text-primary">
-      {children}
-    </span>
   )
 }

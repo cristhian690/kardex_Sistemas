@@ -197,7 +197,7 @@ export function DataTable({ saldos, onDelete, onEdit, onSelectedIdsChange }: Dat
             placeholder="Buscar por código o desc..."
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
-            className="pl-9 font-mono text-xs"
+            className="pl-9 text-xs"
           />
         </div>
         
@@ -231,11 +231,11 @@ export function DataTable({ saldos, onDelete, onEdit, onSelectedIdsChange }: Dat
       <div className="rounded-xl border bg-card/30 backdrop-blur-md text-card-foreground shadow-2xs overflow-hidden border-border/50">
         <Table>
           {/* Cabecera integrada ligeramente atenuada */}
-          <TableHeader className="bg-muted/20 font-mono text-xs border-b border-border/50">
+          <TableHeader className="bg-muted/10 border-b border-border/50">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="hover:bg-transparent border-b border-border/40">
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="font-bold tracking-wider text-muted-foreground/90 py-3">
+                  <TableHead key={header.id} className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground py-3">
                     {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
@@ -259,7 +259,7 @@ export function DataTable({ saldos, onDelete, onEdit, onSelectedIdsChange }: Dat
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-32 text-center text-sm font-mono text-muted-foreground/60">
+                <TableCell colSpan={columns.length} className="h-32 text-center text-sm text-muted-foreground/60">
                   Sin saldos iniciales registrados.
                 </TableCell>
               </TableRow>
@@ -275,12 +275,12 @@ export function DataTable({ saldos, onDelete, onEdit, onSelectedIdsChange }: Dat
             value={`${table.getState().pagination.pageSize}`}
             onValueChange={(value) => table.setPageSize(Number(value))}
           >
-            <SelectTrigger className="w-18 h-8 text-xs font-mono shadow-2xs bg-transparent" id="page-size">
+            <SelectTrigger className="w-[70px] h-8 text-xs shadow-2xs bg-transparent" id="page-size">
               <SelectValue />
             </SelectTrigger>
             <SelectContent side="top">
               {[10, 20, 30, 40, 50].map((size) => (
-                <SelectItem key={size} value={`${size}`} className="font-mono text-xs">{size}</SelectItem>
+                <SelectItem key={size} value={`${size}`} className="text-xs">{size}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -293,7 +293,7 @@ export function DataTable({ saldos, onDelete, onEdit, onSelectedIdsChange }: Dat
         <div className="flex items-center space-x-6">
           <div className="items-center space-x-1 hidden sm:flex text-xs text-muted-foreground">
             <span>Página</span>
-            <strong className="text-foreground font-mono bg-muted/40 border border-border/50 px-2 py-0.5 rounded text-xs">
+            <strong className="text-foreground bg-muted/40 border border-border/50 px-2 py-0.5 rounded text-xs">
               {table.getState().pagination.pageIndex + 1} de {table.getPageCount()}
             </strong>
           </div>

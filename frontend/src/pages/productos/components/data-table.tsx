@@ -13,7 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
-import { ChevronDown, EllipsisVertical, Trash2, Search, Pencil, Building2 } from "lucide-react"
+import { ChevronDown, EllipsisVertical, Trash2, Search, Pencil, Building2, AlertCircle } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -92,6 +92,18 @@ export function DataTable({
     return empresa?.nombre ?? `Empresa #${empresa_id}`
   }
 
+  const getEmpresaColor = (empresa_id: number) => {
+    const colors = [
+      "bg-transparent text-blue-500 border-blue-500/50",
+      "bg-transparent text-emerald-500 border-emerald-500/50",
+      "bg-transparent text-amber-500 border-amber-500/50",
+      "bg-transparent text-violet-500 border-violet-500/50",
+      "bg-transparent text-sky-500 border-sky-500/50",
+      "bg-transparent text-indigo-500 border-indigo-500/50",
+    ]
+    return colors[empresa_id % colors.length]
+  }
+
   const columns: ColumnDef<Producto>[] = [
     {
       id: "select",
@@ -132,11 +144,12 @@ export function DataTable({
       cell: ({ row }) => {
         const esSinAsignar = row.original.empresa_id === 1
         return esSinAsignar ? (
-          <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
-            ⚠️ SIN ASIGNAR
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-transparent text-red-500 border-2 border-red-500/50">
+            <AlertCircle className="size-3" />
+            Sin Asignar
           </span>
         ) : (
-          <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border-2 ${getEmpresaColor(row.original.empresa_id)}`}>
             {getNombreEmpresa(row.original.empresa_id)}
           </span>
         )
@@ -145,7 +158,7 @@ export function DataTable({
     {
       accessorKey: "almacen",
       header: "Almacén",
-      cell: ({ row }) => <span className="text-xs font-mono text-muted-foreground/90 font-medium">{row.original.almacen || "—"}</span>
+      cell: ({ row }) => <span className="text-xs text-muted-foreground/90 font-medium">{row.original.almacen || "—"}</span>
     },
     {
       accessorKey: "unidad_medida",
@@ -162,12 +175,14 @@ export function DataTable({
       header: "N° de Saldos",
       cell: ({ row }) => {
         const count = row.original.total_saldos ?? 0
+        const hasSaldos = count > 0
         return (
-          <span className={`px-2 py-0.5 rounded text-xs font-mono font-medium ${
-            count > 0 ? "bg-green-500/10 text-green-400 border border-green-500/20" : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20"
-          }`}>
-            {count} {count === 1 ? "saldo" : "saldos"}
-          </span>
+          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-transparent border border-border">
+            <div className={`size-1.5 rounded-full ${hasSaldos ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-muted-foreground/40'}`} />
+            <span className={`text-[11px] font-mono font-medium ${hasSaldos ? 'text-foreground' : 'text-muted-foreground'}`}>
+              {count} {count === 1 ? "saldo" : "saldos"}
+            </span>
+          </div>
         )
       }
     },
@@ -239,22 +254,33 @@ export function DataTable({
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por código o desc..."
+              placeholder="Buscar por código o descripción..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              className="pl-9 font-mono text-xs h-9"
+              className="pl-9 text-xs h-9 bg-card/40"
             />
           </div>
 
           <Select value={empresaFiltro} onValueChange={setEmpresaFiltro}>
-            <SelectTrigger className="w-full sm:w-[220px] h-9 text-xs font-mono bg-card/40 border-border/50">
-              <SelectValue placeholder="🏢 Todas las empresas" />
+            <SelectTrigger className="w-full sm:w-[220px] h-9 text-xs bg-card/40 border-border/50">
+              <div className="flex items-center gap-2">
+                <Building2 className="size-3.5 text-muted-foreground" />
+                <SelectValue placeholder="Todas las empresas" />
+              </div>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="todas" className="text-xs font-mono">🏢 Todas las empresas</SelectItem>
+              <SelectItem value="todas" className="text-xs">
+                <div className="flex items-center gap-2">
+                  <Building2 className="size-3.5 text-muted-foreground" />
+                  Todas las empresas
+                </div>
+              </SelectItem>
               {empresas.map((emp) => (
-                <SelectItem key={emp.id} value={String(emp.id)} className="text-xs font-mono">
-                  {emp.id === 1 ? "⚠️ " : ""}{emp.name || emp.nombre}
+                <SelectItem key={emp.id} value={String(emp.id)} className="text-xs">
+                  <div className="flex items-center gap-2">
+                    {emp.id === 1 ? <AlertCircle className="size-3.5 text-destructive" /> : <Building2 className="size-3.5 text-muted-foreground" />}
+                    {emp.name || emp.nombre}
+                  </div>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -290,11 +316,11 @@ export function DataTable({
       {/* Tabla */}
       <div className="rounded-xl border bg-card/30 backdrop-blur-md text-card-foreground shadow-2xs overflow-hidden border-border/50">
         <Table>
-          <TableHeader className="bg-muted/20 font-mono text-xs border-b border-border/50">
+          <TableHeader className="bg-muted/10 border-b border-border/50">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="hover:bg-transparent border-b border-border/40">
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="font-bold tracking-wider text-muted-foreground/90 py-3">
+                  <TableHead key={header.id} className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground py-3">
                     {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
@@ -318,7 +344,7 @@ export function DataTable({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-32 text-center text-sm font-mono text-muted-foreground/60">
+                <TableCell colSpan={columns.length} className="h-32 text-center text-sm text-muted-foreground/60">
                   Sin productos en los filtros seleccionados.
                 </TableCell>
               </TableRow>
@@ -335,12 +361,12 @@ export function DataTable({
             value={`${table.getState().pagination.pageSize}`}
             onValueChange={(value) => table.setPageSize(Number(value))}
           >
-            <SelectTrigger className="w-18 h-8 text-xs font-mono shadow-2xs bg-transparent" id="prod-page-size">
+            <SelectTrigger className="w-[70px] h-8 text-xs shadow-2xs bg-transparent" id="prod-page-size">
               <SelectValue />
             </SelectTrigger>
             <SelectContent side="top">
               {[10, 20, 30, 40, 50].map((size) => (
-                <SelectItem key={size} value={`${size}`} className="font-mono text-xs">{size}</SelectItem>
+                <SelectItem key={size} value={`${size}`} className="text-xs">{size}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -353,7 +379,7 @@ export function DataTable({
         <div className="flex items-center space-x-6">
           <div className="items-center space-x-1 hidden sm:flex text-xs text-muted-foreground">
             <span>Página</span>
-            <strong className="text-foreground font-mono bg-muted/40 border border-border/50 px-2 py-0.5 rounded text-xs">
+            <strong className="text-foreground bg-muted/40 border border-border/50 px-2 py-0.5 rounded text-xs">
               {table.getState().pagination.pageIndex + 1} de {table.getPageCount()}
             </strong>
           </div>

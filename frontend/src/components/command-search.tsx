@@ -12,6 +12,8 @@ import {
   ClipboardList,
   Archive,
   Lock,
+  BookOpen,
+  LifeBuoy,
   type LucideIcon,
 } from "lucide-react"
 
@@ -155,6 +157,10 @@ export function CommandSearch({ open, onOpenChange }: CommandSearchProps) {
     { title: "Saldos Iniciales", url: "/saldos", group: "Registro / Catálogo", icon: Archive },
     { title: "Maestro de Productos", url: "/productos", group: "Registro / Catálogo", icon: Boxes },
     { title: "Configuración de Empresas", url: "/empresas", group: "Registro / Catálogo", icon: Boxes },
+
+    // Ayuda
+    { title: "Guía de Usuario", url: "/guia-inconsistencias", group: "Ayuda", icon: BookOpen },
+    { title: "Soporte Técnico", url: "/manual", group: "Ayuda", icon: LifeBuoy },
   ]
 
   const groupedItems = searchItems.reduce((acc, item) => {

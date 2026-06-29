@@ -3,18 +3,19 @@
 import * as React from "react"
 import {
   LayoutDashboard,
-  Boxes,
+  Package,
+  Building2,
   ArrowUpDown,
   Workflow,
   ClipboardList,
   Archive,
+  BookOpen,
+  LifeBuoy,
 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { Logo } from "@/components/logo"
-import { SidebarNotification } from "@/components/sidebar-notification"
 
 import { NavMain } from "@/components/nav-main"
-import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
   SidebarContent,
@@ -26,18 +27,13 @@ import {
 } from "@/components/ui/sidebar"
 
 const data = {
-  user: {
-    name: "Admin",
-    email: "user@example.com",
-    avatar: "",
-  },
   navGroups: [
     {
       label: "Principal",
       items: [
         {
           title: "Dashboard",
-          url: "/",
+          url: "/dashboard",
           icon: LayoutDashboard,
         },
         {
@@ -56,10 +52,9 @@ const data = {
       label: "Análisis",
       items: [
         {
-          title: "Movimientos",
-          url: "kardex/:procesamiento_id",
+          title: "Último Procesamiento",
+          url: "/kardex/ultimo",
           icon: ArrowUpDown,
-          disabled: true,
         },
       ],
     },
@@ -74,12 +69,28 @@ const data = {
         {
           title: "Productos",
           url: "/productos",
-          icon: Boxes,
+          icon: Package,
         },
         {
           title: "Empresas",
           url: "/empresas",
-          icon: Boxes,
+          icon: Building2,
+        },
+      ],
+    },
+    {
+      label: "Ayuda",
+      items: [
+        {
+          title: "Guía Inconsistencias",
+          url: "/guia-inconsistencias",
+          icon: BookOpen,
+          badge: "NUEVO",
+        },
+        {
+          title: "Centro de Soporte",
+          url: "/manual",
+          icon: LifeBuoy,
         },
       ],
     },
@@ -92,28 +103,30 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
+            <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
               <Link to="/">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
                   <Logo size={24} className="text-current" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">Sistema Kardex</span>
-                  <span className="truncate text-xs">Admin Dashboard</span>
+                  <span className="truncate font-bold tracking-tight">Kardex System</span>
+                  <span className="truncate text-xs text-muted-foreground font-medium">Panel de Control</span>
                 </div>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="gap-0 pt-4">
         {data.navGroups.map((group) => (
           <NavMain key={group.label} label={group.label} items={group.items} />
         ))}
       </SidebarContent>
-      <SidebarFooter>
-        <SidebarNotification />
-        <NavUser user={data.user} />
+      {/* Perfil de usuario (NavUser) eliminado para no duplicar la cabecera */}
+      <SidebarFooter className="pb-4">
+        <div className="px-4 text-[10px] text-muted-foreground/50 font-medium text-center uppercase tracking-widest">
+          Kardex System © {new Date().getFullYear()}
+        </div>
       </SidebarFooter>
     </Sidebar>
   )

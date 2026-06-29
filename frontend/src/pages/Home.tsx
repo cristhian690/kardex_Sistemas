@@ -26,6 +26,8 @@ import {
 import FileUploader from '@/components/FileUploader'
 import ModalSaldoInicial from '@/components/ModalSaldoInicial'
 import { useKardex } from '@/hooks/useKardex'
+import { GuidedTourInit } from '@/components/GuidedTour'
+import { InfoTooltip } from '@/components/ui/info-tooltip'
 
 // Iconografía premium unificada
 import { 
@@ -78,7 +80,8 @@ export default function Home() {
     try {
       const resultado = await subirArchivos(
         archivosMovimientos,
-        archivoSaldos[0] ?? null
+        archivoSaldos[0] ?? null,
+        empresaId ?? undefined,
       )
       if (resultado) {
         toast.success(`Kardex procesado correctamente`, { id: toastId })
@@ -105,6 +108,9 @@ export default function Home() {
         saldoEditar={null}
         onGuardado={() => toast.success("Saldo inicial guardado correctamente")}
       />
+
+      {/* Inicializador del Tour Guiado */}
+      <GuidedTourInit />
 
       {/* Si tu BaseLayout en App.tsx acepta propiedades de cabecera como title, 
         puedes eliminarlas de aquí abajo. Pero si prefieres asegurar el diseño interno, 
@@ -133,7 +139,7 @@ export default function Home() {
               value={empresaId ? String(empresaId) : "default"}
               onValueChange={(val) => setEmpresaId(val === "default" ? null : Number(val))}
             >
-              <SelectTrigger className="w-[220px] font-mono text-xs cursor-pointer shadow-xs border-border/60 bg-card hover:bg-muted/40 transition-colors h-9">
+              <SelectTrigger id="tour-empresa" className="w-[220px] font-mono text-xs cursor-pointer shadow-xs border-border/60 bg-card hover:bg-muted/40 transition-colors h-9">
                 <SelectValue placeholder="⚠️ Sin asignar (default)" />
               </SelectTrigger>
               <SelectContent>
@@ -163,8 +169,9 @@ export default function Home() {
         {/* Zona de Carga de Archivos Avanzada (Grid con Bordes Superiores Primary) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           
+          
           {/* Tarjeta: Saldos Iniciales (Opcional) */}
-          <Card className="border-border/50 bg-card/60 backdrop-blur-xs shadow-xs transition-all relative overflow-hidden before:absolute before:top-0 before:left-0 before:w-full before:h-[2px] before:bg-primary/80 hover:shadow-md hover:border-foreground/10 duration-200">
+          <Card id="tour-saldo-inicial" className="border-border/50 bg-card/60 backdrop-blur-xs shadow-xs transition-all relative overflow-hidden before:absolute before:top-0 before:left-0 before:w-full before:h-[2px] before:bg-primary/80 hover:shadow-md hover:border-foreground/10 duration-200">
             <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
               <div className="space-y-1">
                 <Badge
@@ -173,8 +180,9 @@ export default function Home() {
                 >
                   Opcional
                 </Badge>
-                <CardTitle className="text-base font-semibold mt-2.5 text-foreground/90">
+                <CardTitle className="text-base font-semibold mt-2.5 text-foreground/90 flex items-center gap-1.5">
                   Saldos iniciales
+                  <InfoTooltip content="El saldo inicial es el stock base con el que empiezas. Si ya operabas antes, es importante cargarlo para que los costos se calculen correctamente." />
                 </CardTitle>
                 <CardDescription className="text-xs text-muted-foreground/80">
                   Stock base al inicio del período
@@ -204,7 +212,7 @@ export default function Home() {
           </Card>
 
           {/* Tarjeta: Movimientos (Requerido) */}
-          <Card className="border-border/50 bg-card/60 backdrop-blur-xs shadow-xs transition-all relative overflow-hidden before:absolute before:top-0 before:left-0 before:w-full before:h-[2px] before:bg-primary/80 hover:shadow-md hover:border-foreground/10 duration-200">
+          <Card id="tour-upload-movimientos" className="border-border/50 bg-card/60 backdrop-blur-xs shadow-xs transition-all relative overflow-hidden before:absolute before:top-0 before:left-0 before:w-full before:h-[2px] before:bg-primary/80 hover:shadow-md hover:border-foreground/10 duration-200">
             <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
               <div className="space-y-1">
                 <Badge
@@ -241,6 +249,7 @@ export default function Home() {
         {/* Barra de Procesamiento Final (Acción Real) */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 border-t pt-5 border-dashed border-border/60 mt-2">
           <Button
+            id="tour-procesar"
             size="lg"
             onClick={handleProcesar}
             disabled={!listo || uploading}
@@ -258,6 +267,10 @@ export default function Home() {
               </>
             )}
           </Button>
+
+          <div className="hidden sm:flex self-center ml-2">
+             <InfoTooltip content="Al procesar, el sistema leerá los Excel cargados, ordenará los movimientos cronológicamente y calculará el costo promedio ponderado de tu inventario." />
+          </div>
 
           {/* Validaciones en cascada estilizadas con la tipografía de la plantilla */}
           {!listo && !uploading && (

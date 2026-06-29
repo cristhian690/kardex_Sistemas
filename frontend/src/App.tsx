@@ -9,11 +9,14 @@ import { BaseLayout } from '@/components/layouts/base-layout'
 // Tus páginas
 import Login from '@/pages/login/index'
 import Home from '@/pages/Home'
+import Dashboard from '@/pages/Dashboard'
 import Kardex from '@/pages/movimientos/index'
 import Historial from '@/pages/historial/index'
 import SaldosIniciales from '@/pages/saldos-iniciales/index'
 import Empresas from '@/pages/empresas/index' 
 import Productos from '@/pages/productos/index'
+import GuiaInconsistencias from '@/pages/guia-inconsistencias/index'
+import ManualUsuario from '@/pages/manual/index'
 
 export default function App() {
   return (
@@ -39,11 +42,14 @@ export default function App() {
           }
         >
           <Route path="/"                          element={<Home />} />
+          <Route path="/dashboard"                  element={<Dashboard/>} /> 
           <Route path="/kardex/:procesamiento_id" element={<Kardex />} />
           <Route path="/historial/"                element={<Historial />} />
           <Route path="/saldos"                   element={<SaldosIniciales />} />
           <Route path="/empresas"                 element={<Empresas />} />
           <Route path="/productos"                element={<Productos />} />
+          <Route path="/guia-inconsistencias"     element={<GuiaInconsistencias />} />
+          <Route path="/manual"                   element={<ManualUsuario />} />
         </Route>
       </Routes>
       </ThemeProvider>
