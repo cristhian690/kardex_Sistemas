@@ -1,3 +1,20 @@
+# Entorno virtual — lo más importante
+venv/
+.venv/
+env/
+
+# Variables de entorno
+.env
+!.env.example
+
+# Python
 __pycache__/
 *.pyc
+*.pyo
+.Python
+
+# Uploads generados en runtime
+uploads/
+
+# Claude
 .claude/
