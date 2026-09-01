@@ -15,6 +15,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -86,6 +87,7 @@ interface KardexTableProps {
     tipo: string;
     metodo_valuacion: string;
   } | null;
+  preImpresion?: boolean;
 }
 
 const fmtCant = (n: number) =>
@@ -173,7 +175,7 @@ function agruparPorProductoMes(movimientos: KardexRow[]): ProductoBlock[] {
 }
 
 export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
-  function KardexTable({ movimientos, mostrarSemaforo = false, empresaImpresion }, ref) {
+  function KardexTable({ movimientos, mostrarSemaforo = false, empresaImpresion, preImpresion = false }, ref) {
     const [pagina, setPagina] = useState(1);
     const firstErrorRef = useRef<HTMLTableRowElement | null>(null);
     const codigoTargetRef = useRef<HTMLTableRowElement | null>(null);
@@ -241,7 +243,7 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
       () => imprimiendo ? movimientos : movimientos.slice((pagina - 1) * FILAS_POR_PAGINA, pagina * FILAS_POR_PAGINA),
       [movimientos, pagina, imprimiendo],
     );
-    const bloquesPrint = useMemo(() => agruparPorProductoMes(movimientos), [movimientos]);
+    const bloquesPrint = useMemo(() => preImpresion ? agruparPorProductoMes(movimientos) : [], [movimientos, preImpresion]);
 
     if (movimientos.length === 0)
       return (
@@ -491,8 +493,18 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
                           </TableRow>
                         </TooltipTrigger>
                         {tieneError && (
-                          <TooltipContent side="top" className="max-w-xs p-3 bg-zinc-950 dark:bg-zinc-900 border border-border text-white rounded-xl shadow-xl">
-                            <div className="flex gap-2 items-start">
+                          <TooltipContent side="top" className="max-w-xs p-3 bg-zinc-950 dark:bg-zinc-900 border border-border text-white rounded-xl shadow-xl relative pointer-events-auto">
+                            <button
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 e.preventDefault();
+                                 document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+                               }}
+                               className="absolute top-2 right-2 text-zinc-400 hover:text-white cursor-pointer bg-zinc-800/50 hover:bg-zinc-700/80 rounded-full p-1 transition-colors"
+                            >
+                               <X className="size-3" />
+                            </button>
+                            <div className="flex gap-2 items-start pr-4">
                               <span className="text-sm">{semaforo.badge}</span>
                               <div className="space-y-0.5">
                                 <h5 className="font-bold text-xs text-zinc-100">{semaforo.text}</h5>
@@ -523,7 +535,7 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
         </div>
 
         {/* ════ IMPRESIÓN FISCAL SUNAT ════ */}
-        {createPortal(
+        {preImpresion && createPortal(
         <div className="kp-section">
           {bloquesPrint.map((producto) => (
             <div key={producto.codigo}>

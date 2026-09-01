@@ -1,4 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
+import { useConfirm } from '@/context/confirm-context'
 
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
@@ -19,6 +20,7 @@ const EMPTY = {
 export type EmpresaConfigHandle = { abrirCrear: () => void }
 
 const EmpresaConfig = forwardRef<EmpresaConfigHandle>((_props, ref) => {
+  const { confirm } = useConfirm()
   const [empresas,     setEmpresas]     = useState<Empresa[]>([])
   const [form,         setForm]         = useState({ ...EMPTY })
   const [editando,     setEditando]     = useState<number | null>(null)
@@ -91,7 +93,13 @@ const EmpresaConfig = forwardRef<EmpresaConfigHandle>((_props, ref) => {
   }
 
   const handleEliminar = async (id: number) => {
-    if (!confirm('¿Eliminar esta empresa?')) return
+    const isConfirmed = await confirm({
+      title: "Eliminar Empresa",
+      description: "¿Eliminar esta empresa? Esta acción no se puede deshacer.",
+      variant: "destructive",
+      confirmText: "Eliminar"
+    })
+    if (!isConfirmed) return
     setDeleting(id)
     try {
       await fetch(`${API}/api/v1/empresa/${id}`, { method: 'DELETE' })

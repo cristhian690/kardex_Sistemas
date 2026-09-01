@@ -10,6 +10,7 @@ import { DataTable } from "./components/data-table"
 
 // 🟢 IMPORTADO TU MODAL GLOBAL OFICIAL ADAPTADO
 import ModalSaldoInicial from "@/components/ModalSaldoInicial"
+import { useConfirm } from '@/context/confirm-context'
 
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
@@ -24,6 +25,7 @@ interface Saldo {
 }
 
 export default function SaldosIniciales() {
+  const { confirm } = useConfirm()
   const [saldos, setSaldos] = useState<Saldo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -67,7 +69,13 @@ export default function SaldosIniciales() {
 
   // Operación DELETE individual real de tu sistema
   const handleDeleteReal = async (id: number) => {
-    if (!confirm('¿Seguro que deseas eliminar este saldo?')) return
+    const isConfirmed = await confirm({
+      title: "Eliminar Saldo",
+      description: "¿Seguro que deseas eliminar este saldo?",
+      variant: "destructive",
+      confirmText: "Eliminar"
+    })
+    if (!isConfirmed) return
     const toastId = toast.loading("Removiendo saldo de la base de datos...")
     try {
       const res = await fetch(`${API}/api/v1/saldos/${id}`, { method: 'DELETE' })
@@ -90,7 +98,13 @@ export default function SaldosIniciales() {
       ? '¿Eliminar este saldo? Esta acción no se puede deshacer.'
       : `¿Eliminar ${cantidad} saldos? Esta acción no se puede deshacer.`
 
-    if (!confirm(msg)) return
+    const isConfirmed = await confirm({
+      title: "Eliminar Saldos",
+      description: msg,
+      variant: "destructive",
+      confirmText: "Eliminar"
+    })
+    if (!isConfirmed) return
 
     setEliminando(true)
     const toastId = toast.loading(`Eliminando ${cantidad} saldos en lote...`)

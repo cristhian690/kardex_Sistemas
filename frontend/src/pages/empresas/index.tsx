@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/button"
 // Ya no necesitas importar el Skeleton aquí si dejas que el hijo maneje su carga interna
 
 import EmpresaConfig, { type EmpresaConfigHandle } from "./components/empresa-config"
+import { useConfirm } from '@/context/confirm-context'
 
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
 export default function Empresas() {
+  const { confirm } = useConfirm()
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [eliminando, setEliminando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -27,7 +29,13 @@ export default function Empresas() {
     if (selectedIds.length === 0) return
     const cantidad = selectedIds.length
     
-    if (!confirm(`¿Eliminar ${cantidad} empresa(s) seleccionada(s)? Esta acción no se puede deshacer.`)) return
+    const isConfirmed = await confirm({
+      title: "Eliminar Empresas",
+      description: `¿Eliminar ${cantidad} empresa(s) seleccionada(s)? Esta acción no se puede deshacer.`,
+      variant: "destructive",
+      confirmText: "Eliminar"
+    })
+    if (!isConfirmed) return
 
     setEliminando(true)
     const toastId = toast.loading(`Eliminando ${cantidad} empresas en lote...`)

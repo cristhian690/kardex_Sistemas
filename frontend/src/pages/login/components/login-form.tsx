@@ -206,7 +206,7 @@ export function LoginForm({
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-[600ms] fill-mode-both">
             <Button type="submit" className="w-full h-11 text-sm font-semibold mt-1 transition-all active:scale-[0.98]" disabled={loading}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Entrar al Panel
+              Iniciar Sesión
             </Button>
           </div>
         </form>

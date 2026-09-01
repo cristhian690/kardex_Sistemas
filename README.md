@@ -1,188 +1,139 @@
-# Kardex Inventory System
+# Kardex Valorizado
 
-Sistema web para el procesamiento y gestión de inventarios en formato Kardex,
-con cálculo automático de **Costo Promedio Ponderado**, validación de datos
-y control de trazabilidad.
+<div align="center">
 
-> 🚧 **v1.1 — En desarrollo activo**
+[![Versión](https://img.shields.io/badge/Versi%C3%B3n-1.0.0-blue.svg)](#)
+[![React](https://img.shields.io/badge/React-19.0-61DAFB.svg?logo=react)](#)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688.svg?logo=fastapi)](#)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg?logo=postgresql)](#)
+[![UI](https://img.shields.io/badge/UI-Shadcn-black.svg)](#)
 
----
+**Sistema web profesional para el procesamiento, validación y análisis de inventarios valorizados mediante el método de Costo Promedio Ponderado (CPP).**
 
-## 🧱 Tecnologías
-
-| Capa          | Tecnología                               |
-| ------------- | ---------------------------------------- |
-| Frontend      | React + Vite + TypeScript + Tailwind CSS |
-| Backend       | FastAPI + Python                         |
-| Base de datos | PostgreSQL                               |
-| ORM           | SQLAlchemy + Alembic                     |
-| Procesamiento | pandas + openpyxl                        |
+</div>
 
 ---
 
-## ✨ Funcionalidades
+## 📖 Acerca del Proyecto
 
-### 📦 Procesamiento Kardex
+Kardex Valorizado permite procesar grandes volúmenes de movimientos desde archivos Excel, detectar inconsistencias matemáticas, administrar saldos iniciales históricos y generar reportes analíticos precisos para auditoría, control interno y gestión contable.
 
-* Carga de archivos Excel de movimientos
-* Cálculo automático con **Costo Promedio Ponderado (CPP)**
-* Validación de integridad (Reglas A y B)
-* Sistema de semáforo por fila
-* Exportación a Excel con datos recalculados
+Todo respaldado por una arquitectura modular, una experiencia de usuario orientada a personal administrativo y contable, y un sistema de validaciones diseñado para facilitar la detección de inconsistencias sin alterar la información original.
 
 ---
 
-### 🗄️ Gestión de datos (CRUD)
+## ✨ Características Principales
 
-#### Saldos Iniciales
+### ⚙️ Procesamiento Inteligente
+* **Carga Masiva:** Importa uno o múltiples archivos Excel simultáneamente.
+* **Motor Matemático:** Recalcula automáticamente costos y saldos (Método CPP).
+* **Ordenamiento Dinámico:** Reconstruye la cronología exacta de movimientos.
+* **Costos Reconstruidos:** Cuando un movimiento carece de costo unitario, el sistema utiliza información histórica disponible para continuar el cálculo y marca el movimiento para revisión posterior.
 
-* Crear, editar y eliminar saldos iniciales
-* Asociación automática con productos
-* Cálculo automático de costo total
-* Persistencia en base de datos
+### 🛡️ Auditoría y Validaciones
+* **Reglas de Integridad:** Detección de errores donde el archivo original discrepa de los cálculos del sistema.
+* **Alertas de Saldo Negativo:** Detección estricta de roturas de stock o ventas en falso.
+* **Revalidación Inteligente:** Permite modificar la tolerancia de validación sin reprocesar los archivos, recalculando únicamente la clasificación de anomalías detectadas.
+* **Semáforos Visuales:** Indicadores de colores que señalan el nivel de criticidad en cada fila procesada.
 
-#### Sistema de advertencias
+### 📊 Análisis y Trazabilidad
+* **Panel de Análisis:** Métricas operativas y visualizaciones para el seguimiento de movimientos, saldos e inconsistencias.
+* **Trazabilidad:** Historial completo de los archivos procesados, con posibilidad de administrar y eliminar registros que ya no sean necesarios.
 
-* Detecta si un saldo ya fue usado en procesamientos
-* Permite edición sin bloqueo (enfoque no destructivo)
-* Mantiene integridad del historial
+### 🗄️ Gestión Integral (CRUD)
+* **Creación Automática de Productos:** Si durante el procesamiento se detectan códigos inexistentes, el sistema los registra automáticamente para su posterior clasificación y asignación empresarial.
+* **Saldos Iniciales Históricos:** Permite registrar múltiples saldos iniciales para un mismo producto. Durante el procesamiento, el sistema selecciona automáticamente el saldo más reciente cuya fecha sea igual o anterior al periodo evaluado.
 
----
-
-### 📊 Historial y trazabilidad
-
-* Registro de procesamientos realizados
-* Almacenamiento persistente en PostgreSQL
-* Relación entre productos, saldos y movimientos
-* Reprocesamiento como mecanismo de corrección
-
----
-
-### 🔎 Filtros y consulta
-
-* Filtros por código, fecha, mes y rango
-* Búsqueda de productos
-* Visualización de resultados procesados
+### 📚 Soporte al Usuario
+* **Recorrido Guiado:** Tour interactivo para usuarios nuevos.
+* **Centro de Ayuda:** Documentación rápida integrada.
+* **Manual de Usuario:** Formato imprimible en PDF.
+* **Tooltips Explicativos:** Ayuda contextual en módulos críticos.
 
 ---
 
-## 🧠 Arquitectura
+## 🎯 Casos de Uso
 
-El sistema sigue una arquitectura en capas:
+Kardex Valorizado está orientado a:
 
-```
-Router (FastAPI)
-   ↓
-Service (lógica de negocio)
-   ↓
-Repository (acceso a datos)
-   ↓
-Database (PostgreSQL)
-```
+- Empresas comerciales.
+- Empresas importadoras.
+- Distribuidores.
+- Áreas contables.
+- Auditorías internas.
+- Control de inventarios históricos.
+- Validación de movimientos provenientes de sistemas externos.
 
-### Principios clave
-
-* 🔒 **Inmutabilidad contable:** los movimientos no se editan manualmente
-* ⚠️ **Advertencias en lugar de bloqueos**
-* ♻️ **Correcciones mediante reprocesamiento**
-* 🧩 Separación clara de responsabilidades (clean architecture)
+El sistema permite identificar diferencias entre los cálculos originales y los resultados obtenidos mediante el método de Costo Promedio Ponderado, facilitando la detección de errores operativos y contables.
 
 ---
 
-## ⚙️ Instalación
+## 🧱 Stack Tecnológico
 
-### Requisitos
+### 💻 Frontend
+- **Framework Core:** React 19 + Vite
+- **Lenguaje:** TypeScript
+- **Estilos & UI:** Tailwind CSS v4, Shadcn UI (Radix)
+- **Estado y Formularios:** Zustand, React Hook Form, Zod
+- **Visualización:** Recharts, Lucide Icons
 
-* Python 3.11+
-* Node.js 18+
-* PostgreSQL 15+
+### ⚙️ Backend
+- **Framework Core:** FastAPI
+- **Lenguaje:** Python 3.11+
+- **Procesamiento Analítico:** Pandas, OpenPyXL
+
+### 🗄️ Base de Datos
+- **Motor:** PostgreSQL 15+
+- **ORM & Migraciones:** SQLAlchemy, Alembic
 
 ---
 
-### 🔧 Backend
+## ⚙️ Instalación Local
+
+### 1. Requisitos Previos
+- Node.js 18+
+- Python 3.11+
+- PostgreSQL 15+
+
+### 2. Configuración del Backend
 
 ```bash
 cd backend
 python -m venv venv
-source venv/Scripts/activate      # Windows
-source venv/bin/activate         # Mac/Linux
+
+# Activar entorno (Windows)
+source venv/Scripts/activate
+# Activar entorno (Mac/Linux)
+# source venv/bin/activate
+
 pip install -r requirements.txt
 ```
 
-Crear `.env`:
-
+Crea un archivo `.env` en `backend/`:
 ```env
 DATABASE_URL=postgresql://usuario:password@localhost/kardex_db
 CORS_ORIGINS=http://localhost:5173
 ```
 
-Migraciones:
-
+Ejecuta migraciones y el servidor:
 ```bash
 alembic upgrade head
-```
-
-Run:
-
-```bash
 uvicorn app.main:app --reload
 ```
 
----
-
-### 💻 Frontend
+### 3. Configuración del Frontend
 
 ```bash
 cd frontend
 npm install
 ```
 
-`.env`:
-
+Crea un archivo `.env` en `frontend/`:
 ```env
 VITE_API_URL=http://localhost:8000
 ```
 
-Run:
-
+Ejecuta el servidor de desarrollo:
 ```bash
 npm run dev
 ```
-
----
-
-## 🗺️ Estado del desarrollo
-
-### Backend
-
-* [x] Modelado de base de datos
-* [x] Migraciones con Alembic
-* [x] Arquitectura Repository + Service
-* [x] CRUD de saldos iniciales
-* [x] Sistema de advertencias
-* [ ] CRUD de productos (pendiente)
-* [ ] Tests
-
-### Frontend
-
-* [x] UI base con React + Tailwind
-* [x] Vista de Kardex
-* [x] Historial de procesamientos
-* [x] Modal de saldo inicial
-* [ ] Página de gestión de saldos (CRUD completo)
-* [ ] Mejoras UX/UI
-
----
-
-## 🔮 Roadmap
-
-* CRUD completo de productos
-* Eliminación controlada de procesamientos
-* Dashboard con métricas
-* Autenticación (JWT)
-* Roles y permisos
-* Reportes gráficos
-* Auditoría de cambios
-* Soporte PEPS/FIFO
-
----

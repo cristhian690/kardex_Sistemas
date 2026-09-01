@@ -7,6 +7,7 @@ import { Trash2, AlertCircle, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DataTable, type Producto } from "./components/data-table"
+import { useConfirm } from '@/context/confirm-context'
 
 // Tu modal global corporativo actual
 import ModalProducto from "@/components/ModalProducto"
@@ -19,6 +20,7 @@ interface Empresa {
 }
 
 export default function Productos() {
+  const { confirm } = useConfirm()
   const [productos, setProductos] = useState<Producto[]>([])
   const [empresas, setEmpresas] = useState<Empresa[]>([])
   const [busqueda, setBusqueda] = useState("")
@@ -84,8 +86,13 @@ export default function Productos() {
 
   // Operación DELETE unitaria de tu sistema
   const handleEliminarIndividual = async (id: number) => {
-    if (!confirm("¿Eliminar este producto? Solo procederá si no tiene movimientos registrados."))
-      return
+    const isConfirmed = await confirm({
+      title: "Eliminar Producto",
+      description: "¿Eliminar este producto? Solo procederá si no tiene movimientos registrados.",
+      variant: "destructive",
+      confirmText: "Eliminar"
+    })
+    if (!isConfirmed) return
     
     const toastId = toast.loading("Removiendo producto de la base de datos...")
     try {
@@ -103,8 +110,14 @@ export default function Productos() {
   // Operación POST real para la eliminación masiva (bulk) de tu sistema
   const handleEliminarSeleccionados = async () => {
     if (selectedIds.length === 0) return
-    if (!confirm(`¿Eliminar ${selectedIds.length} producto(s) seleccionado(s)? Solo procederá en los que no tengan movimientos.`))
-      return
+    
+    const isConfirmed = await confirm({
+      title: "Eliminar Productos",
+      description: `¿Eliminar ${selectedIds.length} producto(s) seleccionado(s)? Solo procederá en los que no tengan movimientos.`,
+      variant: "destructive",
+      confirmText: "Eliminar"
+    })
+    if (!isConfirmed) return
 
     setEliminando(true)
     const toastId = toast.loading(`Eliminando lote de ${selectedIds.length} productos...`)

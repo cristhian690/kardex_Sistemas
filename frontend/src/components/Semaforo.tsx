@@ -6,6 +6,7 @@ import ModalSaldoInicial  from '../components/ModalSaldoInicial'
 import { useKardex }      from '../hooks/useKardex'
 import { useAuth }        from '../context/AuthContex'
 import type { Usuario }   from '../types'
+import { useConfirm }     from '../context/confirm-context'
 
 /* ═══════════════════════════ Icons ═══════════════════════════ */
 const IconBox = () => (
@@ -251,14 +252,21 @@ export default function Home() {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuth()
+  const { confirm } = useConfirm()
   const { subirArchivos, uploading } = useKardex()
 
   const [archivosMovimientos, setArchivosMovimientos] = useState<File[]>([])
   const [archivoSaldos,       setArchivoSaldos]       = useState<File[]>([])
   const [modalSaldoOpen,      setModalSaldoOpen]      = useState(false)
 
-  const handleLogout = () => {
-    if (window.confirm('¿Cerrar sesión?')) {
+  const handleLogout = async () => {
+    const isConfirmed = await confirm({
+      title: "Cerrar sesión",
+      description: "¿Seguro que deseas cerrar sesión?",
+      confirmText: "Salir",
+      variant: "destructive"
+    })
+    if (isConfirmed) {
       toast.success('Sesión cerrada')
       logout()
     }

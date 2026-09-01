@@ -105,6 +105,7 @@ export default function Kardex() {
   const [toleranciaModo, setToleranciaModo] = useState("0.10")
   const [toleranciaPersonalizada, setToleranciaPersonalizada] = useState("")
   const [revalidando, setRevalidando] = useState(false)
+  const [preImpresion, setPreImpresion] = useState(false)
 
   const [toastPending, setToastPending] = useState<string | null>(null)
 
@@ -189,15 +190,14 @@ export default function Kardex() {
 
   const handleImprimir = () => {
     toast.info("Consejo de impresión", {
-      description: "Antes de generar un reporte o imprimir, aplica los filtros necesarios. El reporte se genera únicamente con la información actualmente visible. Además, recuerda configurar la orientación en 'Horizontal'.",
+      description: "Generando reporte de impresión. Asegúrate de configurar la orientación en 'Horizontal'.",
       duration: 6000,
-      action: {
-        label: 'Ver Manual',
-        onClick: () => window.open('/manual.pdf', '_blank')
-      }
+      action: { label: 'Ver Manual', onClick: () => window.open('/manual.pdf', '_blank') }
     });
+    setPreImpresion(true);
     setTimeout(() => {
       window.print()
+      setPreImpresion(false);
     }, 1500)
   }
 
@@ -216,15 +216,20 @@ export default function Kardex() {
   const productosSinSaldoInicial = productosVisibles - codigosConSaldoInicial
 
   const resumenSaldosIniciales = useMemo(() => {
-    const codigos = Array.from(new Set(movimientos.map(m => m.codigo).filter(Boolean))) as string[];
-    return codigos.map(cod => {
-      const mov = movimientos.find(m => m.codigo === cod && m.es_saldo_inicial);
-      return {
-        codigo: cod,
-        fecha: mov?.fecha ? format(parseISO(mov.fecha), "dd/MM/yyyy") : null,
-        hasSaldo: !!mov
-      };
-    }).sort((a, b) => a.codigo.localeCompare(b.codigo));
+    const map = new Map<string, string>();
+    for (const m of movimientos) {
+      if (!m.codigo) continue;
+      if (m.es_saldo_inicial) {
+         map.set(m.codigo, m.fecha);
+      } else if (!map.has(m.codigo)) {
+         map.set(m.codigo, ""); // track seen codigos without saldo inicial
+      }
+    }
+    return Array.from(map.entries()).map(([codigo, fecha]) => ({
+      codigo,
+      fecha: fecha ? format(parseISO(fecha), "dd/MM/yyyy") : null,
+      hasSaldo: !!fecha
+    })).sort((a, b) => a.codigo.localeCompare(b.codigo));
   }, [movimientos]);
 
   const parseStringToDate = (dateStr?: string) => {
@@ -248,7 +253,7 @@ export default function Kardex() {
         }
       `}</style>
 
-      <div className="flex flex-col gap-5 p-4 lg:p-6 w-full max-w-[1100px] mx-auto animate-in fade-in duration-200">
+      <div className="flex flex-col gap-5 p-4 lg:p-6 2xl:px-8 w-full max-w-[1800px] 2xl:max-w-[2100px] mx-auto animate-in fade-in duration-200">
         
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border/40 pb-4 text-left kardex-no-print">
           <div className="flex flex-col gap-0.5">
@@ -418,10 +423,6 @@ export default function Kardex() {
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-muted/40 border border-border/50 text-muted-foreground">
                 <TrendingDown className={cn("size-3.5", codigosConNegativo > 0 && "text-red-500")} />
                 <span>Con saldo negativo: <strong className={cn("text-foreground", codigosConNegativo > 0 && "text-red-600 dark:text-red-400")}>{codigosConNegativo}</strong></span>
-              </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-muted/40 border border-border/50 text-muted-foreground">
-                <FileWarning className={cn("size-3.5", productosSinSaldoInicial > 0 && "text-amber-500")} />
-                <span>Sin saldo inicial: <strong className={cn("text-foreground", productosSinSaldoInicial > 0 && "text-amber-600 dark:text-amber-400")}>{productosSinSaldoInicial}</strong></span>
               </div>
               <Popover>
                 <PopoverTrigger asChild>
@@ -690,6 +691,7 @@ export default function Kardex() {
               movimientos={movimientos}
               mostrarSemaforo={mostrarSemaforo}
               empresaImpresion={empresaImpresion}
+              preImpresion={preImpresion}
             />
           )}
 

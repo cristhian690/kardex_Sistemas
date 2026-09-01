@@ -1,14 +1,21 @@
 import { useEffect } from "react";
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
+import { useConfirm } from "@/context/confirm-context";
 
 /* =========================================================
    TOUR LOGIC
    ========================================================= */
 
-export function runGuidedTour(force = false) {
+const TOUR_STORAGE_KEY = "kardex_tour_completed";
+
+type ConfirmFn = (options: { title?: string, description: string, confirmText?: string, cancelText?: string, variant?: 'default' | 'destructive' }) => Promise<boolean>;
+
+export function runGuidedTour(force = false, confirmFn?: ConfirmFn, startIndex = 0) {
+  if (typeof window === "undefined") return;
+
   if (!force) {
-    const isCompleted = localStorage.getItem("kardex_tour_completed");
+    const isCompleted = localStorage.getItem(TOUR_STORAGE_KEY);
     if (isCompleted === "true") return;
   }
 
@@ -21,14 +28,41 @@ export function runGuidedTour(force = false) {
     progressText: "Paso {{current}} de {{total}}",
 
     onDestroyStarted: () => {
-      if (
-        !driverObj.hasNextStep() ||
-        confirm(
-          "¿Deseas finalizar el recorrido? Podrás volver a iniciarlo desde el Centro de Ayuda cuando quieras."
-        )
-      ) {
-        localStorage.setItem("kardex_tour_completed", "true");
+      if (!driverObj.hasNextStep()) {
+        localStorage.setItem(TOUR_STORAGE_KEY, "true");
         driverObj.destroy();
+        return;
+      }
+      
+      // Guardamos el paso actual
+      const currentIndex = driverObj.getActiveIndex ? driverObj.getActiveIndex() : 0;
+      
+      if (confirmFn) {
+        // Destruimos el tour temporalmente para liberar los eventos de clic del DOM
+        driverObj.destroy();
+        
+        confirmFn({
+          title: "Finalizar recorrido",
+          description: "¿Deseas finalizar el recorrido? Podrás volver a iniciarlo desde el Centro de Ayuda cuando quieras.",
+          confirmText: "Finalizar",
+          cancelText: "Continuar",
+        }).then((isConfirmed) => {
+          if (isConfirmed) {
+            localStorage.setItem(TOUR_STORAGE_KEY, "true");
+          } else {
+            // Si el usuario cancela, reanudamos el tour exactamente donde se quedó
+            runGuidedTour(true, confirmFn, currentIndex);
+          }
+        });
+      } else {
+        if (
+          confirm(
+            "¿Deseas finalizar el recorrido? Podrás volver a iniciarlo desde el Centro de Ayuda cuando quieras."
+          )
+        ) {
+          localStorage.setItem(TOUR_STORAGE_KEY, "true");
+          driverObj.destroy();
+        }
       }
     },
 
@@ -104,7 +138,7 @@ export function runGuidedTour(force = false) {
     ],
   });
 
-  driverObj.drive();
+  driverObj.drive(startIndex);
 }
 
 /* =========================================================
@@ -112,7 +146,11 @@ export function runGuidedTour(force = false) {
    ========================================================= */
 
 export function GuidedTourInit() {
+  const { confirm } = useConfirm();
+
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    
     const timeout = setTimeout(() => {
       const searchParams = new URLSearchParams(window.location.search);
       const startTour = searchParams.get("startTour") === "true";
@@ -120,14 +158,14 @@ export function GuidedTourInit() {
         // Limpiamos el parámetro de la URL sin recargar la página
         const newUrl = window.location.pathname;
         window.history.replaceState({}, "", newUrl);
-        runGuidedTour(true);
+        runGuidedTour(true, confirm);
       } else {
-        runGuidedTour(false);
+        runGuidedTour(false, confirm);
       }
     }, 1000);
 
     return () => clearTimeout(timeout);
-  }, []);
+  }, [confirm]);
 
   return <DriverCustomStyles />;
 }
@@ -135,57 +173,76 @@ export function GuidedTourInit() {
 function DriverCustomStyles() {
   return (
     <style>{`
+      /* Animación de entrada suave y premium */
+      @keyframes driverPopIn {
+        0% { opacity: 0; transform: scale(0.97) translateY(8px); }
+        100% { opacity: 1; transform: scale(1) translateY(0); }
+      }
+
       .driver-popover {
+        /* Se usa var() directo porque las variables globales usan la función oklch() */
         background-color: var(--popover) !important;
         color: var(--popover-foreground) !important;
         border-radius: var(--radius-lg) !important;
         border: 1px solid var(--border) !important;
         padding: 1.25rem !important;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1),
-          0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+        
+        /* Sombra más profunda y difuminada */
+        box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15),
+          0 10px 20px -5px rgba(0, 0, 0, 0.1) !important;
+        
         font-family: var(--font-sans) !important;
-        max-width: 340px !important;
+        max-width: 350px !important;
+        animation: driverPopIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
       }
 
-      .driver-popover,
       .driver-popover * {
         font-family: var(--font-sans) !important;
       }
 
       .dark .driver-popover {
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5),
-          0 8px 10px -6px rgba(0, 0, 0, 0.5) !important;
+        background-color: var(--popover) !important;
+        box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.7),
+          0 10px 20px -5px rgba(0, 0, 0, 0.5) !important;
+        border: 1px solid var(--border) !important;
       }
 
       .driver-popover-title {
         color: var(--foreground) !important;
-        font-size: 1.05rem !important;
+        font-size: 1.1rem !important;
         font-weight: 600 !important;
-        margin-bottom: 0.5rem !important;
+        margin-bottom: 0.6rem !important;
+        /* Tipografía más junta para un look más moderno */
+        letter-spacing: -0.015em !important; 
       }
 
       .driver-popover-description {
         color: var(--muted-foreground) !important;
         font-size: 0.875rem !important;
-        line-height: 1.5 !important;
+        line-height: 1.6 !important;
       }
 
       .driver-popover-footer {
-        margin-top: 1rem !important;
-        padding-top: 0.75rem !important;
+        margin-top: 1.25rem !important;
+        padding-top: 1rem !important;
         border-top: 1px solid var(--border) !important;
         display: flex !important;
+        align-items: center !important;
         justify-content: space-between !important;
       }
 
       .driver-popover-footer button {
-        font-size: 0.8rem !important;
-        padding: 0.35rem 0.75rem !important;
+        font-size: 0.875rem !important;
+        font-weight: 500 !important;
+        padding: 0.4rem 0.875rem !important;
         border-radius: var(--radius-md) !important;
         border: 1px solid var(--border) !important;
         cursor: pointer !important;
+        /* Transición para los hover states */
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
       }
 
+      /* Micro-interacciones: Hover de botones primarios */
       .driver-popover-footer .driver-popover-next-btn,
       .driver-popover-footer .driver-popover-done-btn {
         background-color: var(--primary) !important;
@@ -193,9 +250,38 @@ function DriverCustomStyles() {
         border-color: transparent !important;
       }
 
+      .driver-popover-footer .driver-popover-next-btn:hover,
+      .driver-popover-footer .driver-popover-done-btn:hover {
+        opacity: 0.9 !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+      }
+
+      .dark .driver-popover-footer .driver-popover-next-btn:hover,
+      .dark .driver-popover-footer .driver-popover-done-btn:hover {
+         box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1) !important;
+      }
+
+      /* Hover de botón secundario (Atrás) */
       .driver-popover-footer .driver-popover-prev-btn {
+        background-color: transparent !important;
+        color: var(--foreground) !important;
+        border-color: var(--border) !important;
+      }
+
+      .driver-popover-footer .driver-popover-prev-btn:hover {
         background-color: var(--secondary) !important;
         color: var(--secondary-foreground) !important;
+      }
+
+      /* Indicador de progreso como "Píldora" */
+      .driver-popover-progress-text {
+        font-size: 0.75rem !important;
+        font-weight: 500 !important;
+        color: var(--muted-foreground) !important;
+        background-color: var(--secondary) !important;
+        padding: 0.2rem 0.6rem !important;
+        border-radius: 9999px !important; /* Forma redondeada completa */
       }
 
       .driver-popover-arrow {

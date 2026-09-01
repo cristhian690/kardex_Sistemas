@@ -5,19 +5,22 @@ import { cn } from "@/lib/utils"
 
 const CAROUSEL_ITEMS = [
   {
-    title: "Auditoría contable y control de existencias en tiempo real.",
-    desc: "Administra tus movimientos y saldos con precisión milimétrica.",
+    title: "Procesamiento inteligente de Kardex Valorizado.",
+    desc: "Procesa uno o varios archivos Excel aplicando automáticamente el método de Costo Promedio Ponderado (CPP).",
     filter: "hue-rotate-0",
+    image: "/img.png",
   },
   {
-    title: "Manejo Multi-Empresa Avanzado.",
-    desc: "Gestiona múltiples sucursales y entidades desde un solo panel integrado.",
-    filter: "hue-rotate-[30deg]",
+    title: "Validación y detección de inconsistencias.",
+    desc: "Identifica diferencias matemáticas, saldos negativos, costos reconstruidos y otras anomalías mediante un sistema de alertas visuales.",
+    filter: "hue-rotate-0",
+    image: "/img2.png",
   },
   {
-    title: "Generación de Reportes CPP Detallados.",
-    desc: "Exporta tus valorizaciones y cumple con los estándares más estrictos.",
-    filter: "hue-rotate-[60deg]",
+    title: "Gestión completa y trazabilidad del inventario.",
+    desc: "Administra empresas, productos, saldos iniciales históricos y genera reportes para facilitar el análisis y la auditoría del Kardex.",
+    filter: "hue-rotate-0",
+    image: "/img3.png",
   }
 ]
 
@@ -76,7 +79,7 @@ export default function LoginPage() {
             )}
           >
             <img
-              src="/img.png"
+              src={item.image}
               alt="Fondo Kardex"
               className={cn(
                 "absolute inset-0 h-full w-full object-cover dark:brightness-[0.4] dark:grayscale-[0.2]",

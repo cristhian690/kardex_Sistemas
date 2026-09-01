@@ -1,5 +1,5 @@
 import React from "react"
-import { Info } from "lucide-react"
+import { Info, X } from "lucide-react"
 import {
   Tooltip,
   TooltipContent,
@@ -33,8 +33,18 @@ export function InfoTooltip({ content, className, iconClassName }: InfoTooltipPr
         <TooltipContent 
           side="top" 
           align="center" 
-          className="max-w-[250px] text-xs leading-relaxed z-[100]"
+          className="max-w-[250px] text-xs leading-relaxed z-[100] relative pointer-events-auto pr-6"
         >
+          <button
+             onClick={(e) => {
+               e.stopPropagation();
+               e.preventDefault();
+               document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+             }}
+             className="absolute top-1.5 right-1.5 text-muted-foreground/60 hover:text-foreground cursor-pointer bg-muted/50 hover:bg-muted/80 rounded-full p-0.5 transition-colors"
+          >
+             <X className="size-3" />
+          </button>
           {content}
         </TooltipContent>
       </Tooltip>

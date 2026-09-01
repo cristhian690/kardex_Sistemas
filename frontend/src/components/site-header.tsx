@@ -18,18 +18,26 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/context/AuthContex"
 import toast from "react-hot-toast"
+import { useConfirm } from '@/context/confirm-context'
 
 export function SiteHeader() {
   const [searchOpen, setSearchOpen] = React.useState(false)
   const [helpOpen, setHelpOpen] = React.useState(false)
+  const { confirm } = useConfirm()
   
   const { user, logout } = useAuth()
   const userName = user?.nombre_completo || user?.username || "Invitado"
   const userEmail = user?.email || "user@example.com"
   const userInitial = userName[0]?.toUpperCase() || "I"
 
-  const handleLogout = () => {
-    if (window.confirm("¿Seguro que deseas cerrar sesión?")) {
+  const handleLogout = async () => {
+    const isConfirmed = await confirm({
+      title: "Cerrar sesión",
+      description: "¿Seguro que deseas cerrar sesión?",
+      confirmText: "Salir",
+      variant: "destructive"
+    })
+    if (isConfirmed) {
       toast.success("Sesión cerrada")
       logout()
     }

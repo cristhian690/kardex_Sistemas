@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { HelpCircle, PlayCircle } from "lucide-react"
 import { runGuidedTour } from "./GuidedTour"
 import { useNavigate } from "react-router-dom"
+import { useConfirm } from "@/context/confirm-context"
 
 interface HelpCenterModalProps {
   open: boolean
@@ -23,6 +24,7 @@ interface HelpCenterModalProps {
 
 export function HelpCenterModal({ open, onOpenChange }: HelpCenterModalProps) {
   const navigate = useNavigate()
+  const { confirm } = useConfirm()
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -51,7 +53,7 @@ export function HelpCenterModal({ open, onOpenChange }: HelpCenterModalProps) {
                 if (window.location.pathname !== "/") {
                   navigate("/?startTour=true")
                 } else {
-                  runGuidedTour(true)
+                  runGuidedTour(true, confirm)
                 }
               }}
             >

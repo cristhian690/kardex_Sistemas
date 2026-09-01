@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Inbox, AlertCircle } from "lucide-react"
+import { useConfirm } from '@/context/confirm-context'
 
 // Importación de submódulos locales estables
 import { HistorialToolbar } from "./components/historial-toolbar"
@@ -56,6 +57,7 @@ const fmtFecha = (iso: string) =>
 
 export default function HistorialPage() {
   const navigate = useNavigate()
+  const { confirm } = useConfirm()
   const [procesamientos, setProcesamientos] = useState<ProcesamientoResumen[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null) // Control de excepciones de red
@@ -114,7 +116,13 @@ export default function HistorialPage() {
         ? "¿Eliminar este procesamiento? Esta acción no se puede deshacer."
         : `¿Eliminar ${cantidad} procesamientos? Esta acción no se puede deshacer.`
 
-    if (!window.confirm(msg)) return
+    const isConfirmed = await confirm({
+      title: "Eliminar Procesamientos",
+      description: msg,
+      variant: "destructive",
+      confirmText: "Eliminar",
+    })
+    if (!isConfirmed) return
 
     setEliminando(true)
     const toastId = toast.loading(`Eliminando ${cantidad} procesamiento(s)...`)

@@ -63,12 +63,13 @@ export const useKardex = () => {
       return upload
     } catch (err) {
       const error = err as ApiError
+      const errorMessage = error.message || 'Error al procesar los archivos'
       setState(prev => ({
         ...prev,
         loading: false,
-        error: error.message || 'Error al procesar los archivos',
+        error: errorMessage,
       }))
-      return null
+      throw new Error(errorMessage)
     } finally {
       setUploading(false)
     }
