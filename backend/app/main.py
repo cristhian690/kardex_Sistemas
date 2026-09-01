@@ -10,6 +10,7 @@ from app.routers import (
     auth_router,
     empresa_router,
     reporte_router,
+    dashboard_router,
 )
 from app.exceptions import KardexException, kardex_exception_handler, generic_exception_handler
 
@@ -43,7 +44,8 @@ app.include_router(saldos_router,    prefix="/api/v1")
 app.include_router(productos_router, prefix="/api/v1")
 app.include_router(auth_router,      prefix="/api/v1")
 app.include_router(empresa_router,   prefix="/api/v1")
-app.include_router(reporte_router,   prefix="/api/v1") 
+app.include_router(reporte_router,   prefix="/api/v1")
+app.include_router(dashboard_router, prefix="/api/v1")
 
 
 @app.on_event("startup")
