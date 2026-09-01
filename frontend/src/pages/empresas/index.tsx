@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
-import toast from "react-hot-toast"
+import { toast } from "sonner"
 import { Trash2, AlertCircle, Plus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"

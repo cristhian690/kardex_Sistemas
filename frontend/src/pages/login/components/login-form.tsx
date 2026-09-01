@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Loader2, AlertTriangle, Eye, EyeOff } from "lucide-react"
-import toast from "react-hot-toast"
+import { toast } from "sonner"
 import { useAuth } from "@/context/AuthContex"
 import { cn } from "@/lib/utils"
 

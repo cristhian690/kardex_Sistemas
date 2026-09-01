@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/context/AuthContex"
-import toast from "react-hot-toast"
+import { toast } from "sonner"
 import { useConfirm } from '@/context/confirm-context'
 
 export function SiteHeader() {

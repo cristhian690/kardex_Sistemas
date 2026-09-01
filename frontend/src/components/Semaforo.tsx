@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import FileUploader       from '../components/FileUploader'
 import ModalSaldoInicial  from '../components/ModalSaldoInicial'
 import { useKardex }      from '../hooks/useKardex'

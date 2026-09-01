@@ -1,12 +1,11 @@
 import { Routes, Route, Outlet } from 'react-router-dom'
-import { Toaster } from 'react-hot-toast'
 import { Toaster as SonnerToaster } from 'sonner'
 import { AlertCircle, CheckCircle2, Info, Loader2 } from 'lucide-react'
 import { AuthProvider } from '@/context/AuthContex'
 import { ThemeProvider } from '@/components/theme-provider'
 import { useTheme } from '@/hooks/use-theme'
 import { ConfirmProvider } from '@/context/confirm-context'
-import { SidebarConfigProvider } from '@/context/sidebar-context' // 👈 ¡Importamos el proveedor real!
+import { SidebarConfigProvider } from '@/context/sidebar-context' 
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { BaseLayout } from '@/components/layouts/base-layout'
 
@@ -55,7 +54,6 @@ export default function App() {
   return (
     <AuthProvider>
       <ThemeProvider defaultTheme="dark" storageKey="kardex-ui-theme">
-      <Toaster position="top-right" />
       <AppToaster />
 
       <ConfirmProvider>
