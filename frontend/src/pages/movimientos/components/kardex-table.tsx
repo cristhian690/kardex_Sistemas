@@ -395,13 +395,13 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
 
         {/* ════ PANEL WEB ════ */}
         <div className="ks-section space-y-4">
-          <div className="rounded-xl border bg-card/30 backdrop-blur-md text-card-foreground shadow-2xs overflow-x-auto border-border/50">
-            <Table className="text-[11px] min-w-[1550px] table-fixed">
-              <TableHeader className="bg-muted/20 text-xs border-b border-border/50">
+          <div className="rounded-xl border bg-card/30 backdrop-blur-md text-card-foreground shadow-2xs border-border/50">
+            <Table wrapperClassName="max-h-[calc(100vh-260px)]" className="text-[11px] tabular-nums min-w-[1550px] table-fixed relative">
+              <TableHeader className="bg-muted/95 backdrop-blur-md text-xs border-b border-border/50 sticky top-0 z-30 shadow-sm">
                 <TableRow className="hover:bg-transparent border-b border-border/40">
-                  {mostrarSemaforo && <TableHead className="w-[50px] text-center text-muted-foreground font-bold">EST</TableHead>}
-                  <TableHead className="w-[50px] text-center text-muted-foreground font-bold">#</TableHead>
-                  <TableHead className="w-[90px] text-left text-muted-foreground font-bold">Cód.</TableHead>
+                  {mostrarSemaforo && <TableHead className="w-[50px] text-center text-muted-foreground font-bold sticky left-0 z-40 bg-muted/95 border-r border-border/30">EST</TableHead>}
+                  <TableHead className={cn("w-[50px] text-center text-muted-foreground font-bold sticky z-40 bg-muted/95 border-r border-border/30", mostrarSemaforo ? "left-[50px]" : "left-0")}>#</TableHead>
+                  <TableHead className={cn("w-[90px] text-left text-muted-foreground font-bold sticky z-40 bg-muted/95 border-r border-border/30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]", mostrarSemaforo ? "left-[100px]" : "left-[50px]")}>Cód.</TableHead>
                   <TableHead colSpan={4} className="text-center bg-blue-600/10 text-blue-400 font-bold border-r border-border/30">Comprobante Fiscal</TableHead>
                   <TableHead className="w-[140px] text-center bg-emerald-600/10 text-emerald-400 font-bold border-r border-border/30">Operación</TableHead>
                   <TableHead colSpan={3} className="text-center bg-teal-600/10 text-teal-400 font-bold border-r border-border/30">Entradas</TableHead>
@@ -409,9 +409,9 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
                   <TableHead colSpan={3} className="text-center bg-sky-600/10 text-sky-400 font-bold">Saldo Final Acumulado</TableHead>
                 </TableRow>
                 <TableRow className="hover:bg-transparent bg-muted/10 text-[10px] uppercase tracking-wider text-muted-foreground/80 border-b border-border/30">
-                  {mostrarSemaforo && <TableHead className="w-[50px]" />}
-                  <TableHead className="w-[50px]" />
-                  <TableHead className="w-[90px]" />
+                  {mostrarSemaforo && <TableHead className="w-[50px] sticky left-0 z-40 bg-muted/95 border-r border-border/30" />}
+                  <TableHead className={cn("w-[50px] sticky z-40 bg-muted/95 border-r border-border/30", mostrarSemaforo ? "left-[50px]" : "left-0")} />
+                  <TableHead className={cn("w-[90px] sticky z-40 bg-muted/95 border-r border-border/30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]", mostrarSemaforo ? "left-[100px]" : "left-[50px]")} />
                   <TableHead className="w-[90px] py-2 text-center">Fecha</TableHead>
                   <TableHead className="w-[50px] py-2 text-center">Tipo</TableHead>
                   <TableHead className="w-[60px] py-2 text-center">Serie</TableHead>
@@ -433,10 +433,10 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
                   {filas.map((row, i) => {
                     if (row.es_saldo_inicial) {
                       return (
-                        <TableRow key="saldo-inicial" className="bg-blue-500/5 dark:bg-blue-500/10 hover:bg-blue-500/10 border-l-4 border-l-blue-500 transition-colors">
-                          {mostrarSemaforo && <TableCell className="w-[50px] text-center font-bold text-muted-foreground/40">—</TableCell>}
-                          <TableCell className="w-[50px] text-center font-bold text-blue-500 dark:text-blue-400">—</TableCell>
-                          <TableCell className="w-[90px] font-semibold text-blue-600 dark:text-blue-400">{row.codigo}</TableCell>
+                        <TableRow key="saldo-inicial" className="group bg-blue-500/5 dark:bg-blue-500/10 hover:bg-blue-500/10 border-l-4 border-l-blue-500 transition-colors">
+                          {mostrarSemaforo && <TableCell className="w-[50px] text-center font-bold text-muted-foreground/40 sticky left-0 z-10 bg-background group-hover:bg-blue-500/10 border-r border-border/30">—</TableCell>}
+                          <TableCell className={cn("w-[50px] text-center font-bold text-blue-500 dark:text-blue-400 sticky z-10 bg-background group-hover:bg-blue-500/10 border-r border-border/30", mostrarSemaforo ? "left-[50px]" : "left-0")}>—</TableCell>
+                          <TableCell className={cn("w-[90px] font-semibold text-blue-600 dark:text-blue-400 sticky z-10 bg-background group-hover:bg-blue-500/10 border-r border-border/30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]", mostrarSemaforo ? "left-[100px]" : "left-[50px]")}>{row.codigo}</TableCell>
                           <TableCell className="w-[90px] text-center text-blue-600 dark:text-blue-400 font-medium">{fmtFecha(row.fecha)}</TableCell>
                           <TableCell className="w-[50px] text-center text-muted-foreground/20">—</TableCell>
                           <TableCell className="w-[60px] text-center text-muted-foreground/20">—</TableCell>
@@ -466,16 +466,16 @@ export const KardexTable = forwardRef<KardexTableHandle, KardexTableProps>(
                           <TableRow
                             ref={rowRef}
                             className={cn(
-                              "transition-colors border-b border-border/40 text-muted-foreground",
+                              "group transition-colors border-b border-border/40 text-muted-foreground",
                               esHighlight && "bg-blue-500/15 dark:bg-blue-500/20 hover:bg-blue-500/25 ring-2 ring-blue-500/40",
                               !esHighlight && esError && "bg-amber-500/10 dark:bg-amber-500/15 hover:bg-amber-500/20",
                               !esHighlight && !esError && tieneError && "bg-red-500/5 dark:bg-red-500/10 hover:bg-red-500/15",
                               !esHighlight && !esError && !tieneError && "hover:bg-muted/30 odd:bg-transparent even:bg-muted/5 dark:even:bg-muted/10",
                             )}
                           >
-                            {mostrarSemaforo && <TableCell className="w-[50px] text-center text-sm">{semaforo.badge}</TableCell>}
-                            <TableCell className="w-[50px] text-center font-mono text-muted-foreground/60 dark:text-muted-foreground/80">{row.fila}</TableCell>
-                            <TableCell className="w-[90px] font-semibold text-blue-600 dark:text-blue-400">{row.codigo}</TableCell>
+                            {mostrarSemaforo && <TableCell className="w-[50px] text-center text-sm sticky left-0 z-10 bg-background group-hover:bg-muted/30 border-r border-border/30">{semaforo.badge}</TableCell>}
+                            <TableCell className={cn("w-[50px] text-center font-mono text-muted-foreground/60 dark:text-muted-foreground/80 sticky z-10 bg-background group-hover:bg-muted/30 border-r border-border/30", mostrarSemaforo ? "left-[50px]" : "left-0")}>{row.fila}</TableCell>
+                            <TableCell className={cn("w-[90px] font-semibold text-blue-600 dark:text-blue-400 sticky z-10 bg-background group-hover:bg-muted/30 border-r border-border/30 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]", mostrarSemaforo ? "left-[100px]" : "left-[50px]")}>{row.codigo}</TableCell>
                             <TableCell className="w-[90px] text-center text-foreground/80 dark:text-muted-foreground">{fmtFecha(row.fecha)}</TableCell>
                             <TableCell className="w-[50px] text-center font-mono">{row.tipo_comprobante}</TableCell>
                             <TableCell className="w-[60px] text-center font-mono">{row.serie}</TableCell>

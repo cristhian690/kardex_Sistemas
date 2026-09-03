@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { AlertasProcesamiento } from '../types'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 
 interface AlertaBannerProps {
   alertas:           AlertasProcesamiento
@@ -7,6 +9,7 @@ interface AlertaBannerProps {
 }
 
 export default function AlertaBanner({ alertas, erroresIntegridad }: AlertaBannerProps) {
+  const [expandido, setExpandido] = useState(false)
   const hayAlertas =
     alertas.sin_saldo_inicial.length > 0 ||
     alertas.saldo_negativo.length    > 0 ||
@@ -24,8 +27,9 @@ export default function AlertaBanner({ alertas, erroresIntegridad }: AlertaBanne
         borderLeft: '3px solid rgba(34,197,94,0.55)',
         color: '#86efac',
         borderRadius: 8,
-        padding: '8px 12px',
-        fontSize: 12,
+        padding: '6px 12px',
+        fontSize: 11,
+        fontWeight: 500,
       }}>
         <IconCheck />
         <span>Verificación de integridad correcta — todos los registros son consistentes.</span>
@@ -33,42 +37,65 @@ export default function AlertaBanner({ alertas, erroresIntegridad }: AlertaBanne
     )
   }
 
+  const cantTiposAnomalias = (alertas.sin_saldo_inicial.length > 0 ? 1 : 0) + 
+                             (alertas.saldo_negativo.length > 0 ? 1 : 0) + 
+                             (alertas.duplicados.length > 0 ? 1 : 0) + 
+                             (erroresIntegridad > 0 ? 1 : 0)
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      {alertas.duplicados.length > 0 && (
-        <Banner
-          tipo="error"
-          titulo="Códigos duplicados en múltiples archivos"
-          items={alertas.duplicados}
-        />
-      )}
+    <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg overflow-hidden transition-all shadow-sm">
+      <button 
+        onClick={() => setExpandido(!expandido)}
+        className="w-full flex items-center justify-between px-4 py-2 hover:bg-amber-500/10 transition-colors cursor-pointer text-amber-600 dark:text-amber-500"
+      >
+        <div className="flex items-center gap-2 text-[11px] font-semibold tracking-wide uppercase">
+          <IconWarning />
+          <span>Atención: Se han detectado anomalías ({cantTiposAnomalias} tipos) en el procesamiento</span>
+        </div>
+        <div className="flex items-center gap-2 text-[10px] font-medium opacity-80">
+          <span>{expandido ? 'Ocultar detalles' : 'Ver detalles'}</span>
+          {expandido ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+        </div>
+      </button>
 
-      {alertas.saldo_negativo.length > 0 && (
-        <Banner
-          tipo="error"
-          titulo={`Saldo negativo detectado en ${alertas.saldo_negativo.length} producto(s)`}
-          items={alertas.saldo_negativo}
-          descripcion="Hay más salidas que stock disponible. Haz clic en una fila para ir a ella."
-          clickeable
-        />
-      )}
+      {expandido && (
+        <div className="px-4 pb-4 pt-2 flex flex-col gap-2 border-t border-amber-500/10 bg-background/50">
+          {alertas.duplicados.length > 0 && (
+            <Banner
+              tipo="error"
+              titulo="Códigos duplicados en múltiples archivos"
+              items={alertas.duplicados}
+            />
+          )}
 
-      {alertas.sin_saldo_inicial.length > 0 && (
-        <Banner
-          tipo="warning"
-          titulo="Productos sin saldo inicial (calculados desde cero)"
-          items={alertas.sin_saldo_inicial}
-          descripcion="Haz clic en un código para ir a la primera fila afectada."
-          clickeable
-        />
-      )}
+          {alertas.saldo_negativo.length > 0 && (
+            <Banner
+              tipo="error"
+              titulo={`Saldo negativo detectado en ${alertas.saldo_negativo.length} producto(s)`}
+              items={alertas.saldo_negativo}
+              descripcion="Hay más salidas que stock disponible. Haz clic en una fila para ir a ella."
+              clickeable
+            />
+          )}
 
-      {erroresIntegridad > 0 && (
-        <Banner
-          tipo="info"
-          titulo={`${erroresIntegridad.toLocaleString()} fila(s) con anomalías de integridad`}
-          descripcion='Activa "Mostrar verificación" en la tabla para ver el detalle.'
-        />
+          {alertas.sin_saldo_inicial.length > 0 && (
+            <Banner
+              tipo="warning"
+              titulo="Productos sin saldo inicial (calculados desde cero)"
+              items={alertas.sin_saldo_inicial}
+              descripcion="Haz clic en un código para ir a la primera fila afectada."
+              clickeable
+            />
+          )}
+
+          {erroresIntegridad > 0 && (
+            <Banner
+              tipo="info"
+              titulo={`${erroresIntegridad.toLocaleString()} fila(s) con anomalías de integridad`}
+              descripcion='Activa "Mostrar verificación" en la tabla para ver el detalle.'
+            />
+          )}
+        </div>
       )}
     </div>
   )
